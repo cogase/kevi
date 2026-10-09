@@ -573,6 +573,11 @@ async def admin_peta_angkat(request: Request):
     return await _rute_peta(request, lambda d: permainan.peta_angkat(KON, d))
 
 
+@app.post("/api/admin/peta/simpan")
+async def admin_peta_simpan(request: Request):
+    return await _rute_peta(request, lambda d: permainan.peta_simpan(KON, d))
+
+
 @app.post("/api/admin/peta/dasar")
 async def admin_peta_dasar(request: Request):
     return await _rute_peta(request, lambda d: permainan.peta_dasar(KON, d))

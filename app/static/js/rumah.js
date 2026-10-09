@@ -3,7 +3,8 @@
  * Satu penggambar untuk keduanya. Bedanya hanya datanya (`Rumah.d`):
  *   rumah  -> G.rumah, tanah rumput + pagar + jalan; pemilik menyunting dengan barang dari inventory.
  *   kantor -> G.peta, dasar "default" (peta Agent Pak terpanggang, ditimpa tambahan admin) atau "kosong"
- *             (admin membangun dari nol); admin menyunting bebas dari seluruh katalog, tanpa biaya.
+ *             (admin membangun dari nol); admin menyunting bebas dari seluruh katalog, tanpa biaya, lewat
+ *             Edit Map (sunting.js) yang bekerja pada draf dan baru tersiar saat disimpan.
  * Data selalu salinan jawaban server; berkas ini tidak pernah mengubahnya sendiri.
  */
 'use strict';
@@ -29,7 +30,7 @@ function campurWarna(a, b, t) {
 
 const Rumah = {
   latar: document.createElement('canvas'),
-  urut: [], alas: [], titik: [], terakhir: [],
+  urut: [], alas: [], titik: [], menyunting: false,
 
   get kantor() { return G.adegan === 'kantor'; },
   get d() { return this.kantor ? G.peta : G.rumah; },
@@ -151,7 +152,7 @@ const Rumah = {
     for (const b of daftar) b.lukis();
     if (bawaan) this.lapisDepan(k, semua);
     for (const b of this.titik) if (b.tanda) lukis(k, 'seru', b.x, b.y - 14 - Math.abs(Math.sin(t * 2.4)) * 3);
-    if (G.bangun) this.gambarBangun(k);
+    if (G.bangun) { if (G.bangun.sunting) Sunting.gambar(k); else this.gambarBangun(k); }
   },
 
   // Peta terpanggang: lapis depan menimpa semua tokoh. Tokoh yang kakinya DI DEPAN benda tinggi digambar ulang di
@@ -266,12 +267,14 @@ const Rumah = {
 
   masukBangun(barang) {
     if (!this.bolehBangun()) { kabar(this.kantor ? 'Peta utama hanya bisa disunting admin.' : 'Mode Bangun hanya di rumah sendiri.', 'galat'); return; }
+    if (this.kantor) { Sunting.buka(); return; }        // peta utama: penyunting berdraf (sunting.js)
     Panel.tutup();
     G.bangun = { barang: barang || null, r: 0, mx: -99, my: -99, warna: (G.bangun && G.bangun.warna) || WARNA_TEMBOK[0], tekan: false };
     document.body.classList.add('mode-bangun');
     this.lukisBilah();
   },
-  keluarBangun() {
+  keluarBangun(paksa) {
+    if (G.bangun && G.bangun.sunting) { Sunting.tutup(paksa); return; }
     G.bangun = null;
     document.body.classList.remove('mode-bangun');
     $('#bangun').replaceChildren();
@@ -279,48 +282,22 @@ const Rumah = {
   pakai(b) {
     const bg = G.bangun;
     bg.barang = b; bg.r = 0;
-    if (b && this.kantor) this.terakhir = [b, ...this.terakhir.filter(x => x !== b)].slice(0, 14);
     this.lukisBilah();
   },
 
+  // Bilah mode Bangun di rumah. Barang dipilih lewat hotbar (tombol 1–0); peta utama memakai dok Edit Map (sunting.js).
   lukisBilah() {
-    const bg = G.bangun, wadah = $('#bangun'), kantor = this.kantor;
-    if (!bg) return;
-    const barang = kantor ? this.terakhir : [];        // di rumah, barang dipilih lewat hotbar (tombol 1–0)
-    if (!kantor && bg.barang && !(G.inventori[bg.barang] > 0)) { bg.barang = null; if (bg.dariHotbar) { this.keluarBangun(); Hotbar.lukis(); return; } }
+    const bg = G.bangun, wadah = $('#bangun');
+    if (!bg || bg.sunting) return;
+    if (bg.barang && !(G.inventori[bg.barang] > 0)) { bg.barang = null; if (bg.dariHotbar) { this.keluarBangun(); Hotbar.lukis(); return; } }
     wadah.replaceChildren(
-      el('div', { kelas: 'bangun-judul' }, el('b', { teks: kantor ? 'Sunting peta utama' : 'Mode Bangun' }),
+      el('div', { kelas: 'bangun-judul' }, el('b', { teks: 'Mode Bangun' }),
         el('span', { kelas: 'redup', teks: bg.barang ? 'Klik untuk menaruh · R putar · klik kanan batal' : 'Tangan: klik benda untuk mengambilnya' })),
       el('div', { kelas: 'bangun-daftar' },
         el('button', { kelas: 'slot' + (bg.barang ? '' : ' aktif'), title: 'Ambil / hapus', on: { click: () => this.pakai(null) } }, el('span', { kelas: 'tangan', teks: '✋' }), el('small', { teks: 'Ambil' })),
-        kantor ? el('button', { kelas: 'slot lebar', title: 'Pilih dari seluruh katalog', on: { click: () => this.katalog() } }, el('span', { kelas: 'tangan', teks: '▦' }), el('small', { teks: 'Katalog' })) : null,
-        barang.map(b => el('button', { kelas: 'slot' + (bg.barang === b ? ' aktif' : ''), title: namaBarang(b), on: { click: () => this.pakai(b) } },
-          ikonBarang(b, 34), kantor ? null : el('small', { teks: 'x' + G.inventori[b] }))),
-        kantor ? null : el('span', { kelas: 'redup', teks: 'Pilih perabot, lantai, atau tembok dari hotbar (tombol 1–0) untuk menaruhnya.' })),
+        el('span', { kelas: 'redup', teks: 'Pilih perabot, lantai, atau tembok dari hotbar (tombol 1–0) untuk menaruhnya.' })),
       bg.barang === 'tembok' ? el('div', { kelas: 'bangun-warna' }, WARNA_TEMBOK.map(w => el('button', { kelas: 'warna' + (bg.warna === w ? ' aktif' : ''), gaya: { background: w }, 'aria-label': 'Warna tembok ' + w, on: { click: () => { bg.warna = w; this.lukisBilah(); } } }))) : null,
       el('button', { kelas: 'tombol utama', teks: 'Selesai (B)', on: { click: () => this.keluarBangun() } }));
-  },
-
-  // Katalog penuh untuk admin (peta utama): semua perabot, lantai, dan tembok — gratis.
-  katalog() {
-    let kategori = '', cari = '';
-    const kisi = el('div', { kelas: 'kisi' });
-    const pilih = (b) => { Panel.tutup(); document.body.classList.add('mode-bangun'); this.pakai(b); };
-    const lukisKisi = () => {
-      const q = cari.toLowerCase().split(/\s+/).filter(Boolean);
-      let daftar;
-      if (kategori === '__lantai') daftar = ['tembok', ...G.katalog.lantai.map(n => 'lantai:' + n)];
-      else daftar = Object.keys(G.katalog.barang).filter(n => !kategori || G.katalog.barang[n].k.startsWith(kategori + '/'))
-        .sort((a, b) => G.katalog.barang[a].k.localeCompare(G.katalog.barang[b].k) || a.localeCompare(b));
-      daftar = daftar.filter(n => q.every(x => n.replace(/_/g, ' ').toLowerCase().includes(x)));
-      kisi.replaceChildren(...daftar.slice(0, 180).map(b => el('button', { kelas: 'kartu', title: namaBarang(b), on: { click: () => pilih(b) } }, ikonBarang(b, 40), el('b', { teks: namaBarang(b) }))),
-        daftar.length > 180 ? el('p', { kelas: 'redup', teks: `+${daftar.length - 180} lagi — persempit dengan kategori atau cari.` }) : '');
-    };
-    lukisKisi();
-    Panel.buka('Katalog peta utama', el('div', {}, el('div', { kelas: 'saring' },
-      el('select', { on: { change: (ev) => { kategori = ev.target.value; lukisKisi(); } } }, el('option', { value: '', teks: 'Semua perabot' }), el('option', { value: '__lantai', teks: 'Lantai & tembok' }),
-        G.katalog.kategori.map(k => el('option', { value: k.nama, teks: k.nama }))),
-      el('input', { type: 'search', placeholder: 'Cari…', on: { input: (ev) => { cari = ev.target.value; lukisKisi(); } } })), kisi), { kelas: 'lebar' });
   },
 
   // Posisi hantu (benda yang akan ditaruh) dari posisi kursor di dunia.
@@ -400,6 +377,7 @@ const Rumah = {
 
   putar() {
     const bg = G.bangun;
+    if (bg && bg.sunting) { Sunting.putar(); return; }
     if (!bg || !bg.barang || this.ubin(bg.barang)) return;
     const pilihan = [0, ...(this.infoBarang(bg.barang).putar || [])];
     bg.r = pilihan[(pilihan.indexOf(bg.r) + 1) % pilihan.length];
@@ -408,7 +386,7 @@ const Rumah = {
 
   pasangKursor() {
     const posisi = (ev) => {
-      if (!G.bangun) return;
+      if (!G.bangun || G.bangun.sunting) return;
       const r = kanvas.getBoundingClientRect(), p = Mesin.keDunia(ev.clientX - r.left, ev.clientY - r.top);
       G.bangun.mx = p.x; G.bangun.my = p.y;
     };
@@ -418,7 +396,7 @@ const Rumah = {
       if (bg && bg.tekan && (this.ubin(bg.barang) || !bg.barang)) this.klikBangun();    // seret: cat lantai/tembok
     });
     kanvas.addEventListener('pointerdown', (ev) => {
-      if (!G.bangun) return;
+      if (!G.bangun || G.bangun.sunting) return;
       posisi(ev);
       if (ev.button === 2) { this.pakai(null); return; }
       G.bangun.tekan = true;

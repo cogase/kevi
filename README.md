@@ -33,7 +33,7 @@ Buka `http://<alamat-server>:8800`.
 - `docs/PRD.md` — kebutuhan produk
 - `docs/GDD.md` — rancangan permainan
 - `docs/TDD.md` — rancangan teknis
-- `docs/RILIS.md` — catatan rilis 0.3.0 sampai 0.5.0 (remote, domain, hotbar, level, kode sekali pakai)
+- `docs/RILIS.md` — catatan rilis 0.3.0 sampai 0.6.0 (remote, domain, hotbar, level, kode sekali pakai, Edit Map)
 - `docs/KEPUTUSAN.md` — keputusan yang diambil dan yang menunggu yosi
 - `docs/ROADMAP.md` — rencana berikutnya
 - `docs/ASET.md` — asal aset dan cara memperbarui dari Agent Pak

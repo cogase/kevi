@@ -480,7 +480,7 @@ PETA_UKURAN = (20, 80)
 
 def peta_kosong() -> dict:
     return {"v": 1, "dasar": "default", "lebar": 45, "tinggi": 46, "lantai_dasar": "lantai_luar_rumput", "lantai": {}, "tembok": {},
-            "benda": [], "urut": 0}
+            "benda": [], "urut": 0, "rev": 0}
 
 
 def baca_peta(kon: sqlite3.Connection) -> dict:
@@ -492,6 +492,7 @@ def baca_peta(kon: sqlite3.Connection) -> dict:
 
 
 def _simpan_peta(kon: sqlite3.Connection, d: dict) -> None:
+    d["rev"] = int(d.get("rev") or 0) + 1          # tiap simpan menaikkan revisi; penyunting menolak menimpa revisi lain
     kon.execute("INSERT INTO pengaturan (kunci, nilai) VALUES ('peta_utama', ?) ON CONFLICT(kunci) DO UPDATE SET nilai = excluded.nilai",
                 (basis.tulis_json(d),))
 
@@ -544,6 +545,62 @@ def peta_pasang(kon: sqlite3.Connection, p: dict) -> dict:
             raise Ditolak(f"Peta sudah penuh ({PETA_BENDA_MAKS} benda).")
         d["urut"] += 1
         d["benda"].append({"id": d["urut"], "n": barang, "x": x, "y": y, "r": r % 4 if r in (k.get("putar") or []) else 0})
+    _simpan_peta(kon, d)
+    return d
+
+
+def _kunci_ubin(d: dict, kunci) -> str:
+    try:
+        gx, gy = (int(v) for v in str(kunci).split(","))
+    except ValueError as e:
+        raise Ditolak("Kunci ubin tidak sah.") from e
+    if not _ubin_sah(d, gx, gy):
+        raise Ditolak("Ada ubin di luar batas peta.")
+    return f"{gx},{gy}"
+
+
+def peta_simpan(kon: sqlite3.Connection, p: dict) -> dict:
+    """Penyunting peta (Edit Map) menyimpan seluruh drafnya sekaligus: p = {rev, lantai, tembok, benda}.
+    `rev` harus revisi yang dibaca saat penyunting dibuka; kalau peta sudah berubah di tempat lain, simpan ditolak
+    supaya dua admin tidak saling menimpa. Semua isi diperiksa ulang; benda tanpa id sah diberi id baru."""
+    d = baca_peta(kon)
+    if p.get("rev") != d["rev"]:
+        raise Ditolak("Peta sudah diubah dari tempat lain. Keluar dari Edit Map lalu masuk lagi.")
+    lantai, tembok, benda = p.get("lantai"), p.get("tembok"), p.get("benda")
+    if not (isinstance(lantai, dict) and isinstance(tembok, dict) and isinstance(benda, list)):
+        raise Ditolak("Isi peta tidak sah.")
+    if len(benda) > PETA_BENDA_MAKS:
+        raise Ditolak(f"Peta terlalu penuh (paling banyak {PETA_BENDA_MAKS} benda).")
+    kat = katalog()
+    lantai_baru, tembok_baru = {}, {}
+    for kunci, n in lantai.items():
+        if n not in kat["lantai"]:
+            raise Ditolak("Lantai tidak dikenal.")
+        lantai_baru[_kunci_ubin(d, kunci)] = n
+    for kunci, warna in tembok.items():
+        if not POLA_WARNA.match(str(warna or "")):
+            raise Ditolak("Warna tembok tidak sah.")
+        tembok_baru[_kunci_ubin(d, kunci)] = warna
+    benda_baru, dipakai, urut = [], set(), int(d["urut"])
+    for o in benda:
+        k = kat["barang"].get(o.get("n")) if isinstance(o, dict) else None
+        if not k:
+            raise Ditolak("Ada benda yang tidak dikenal.")
+        x, y, r, bid = o.get("x"), o.get("y"), o.get("r") or 0, o.get("id")
+        if not all(isinstance(v, int) and not isinstance(v, bool) for v in (x, y, r)):
+            raise Ditolak("Posisi benda tidak sah.")
+        if not (-8 <= x <= d["lebar"] * T - 8 and -32 <= y <= d["tinggi"] * T - 8):
+            raise Ditolak("Ada benda di luar batas peta.")
+        if not isinstance(bid, int) or isinstance(bid, bool) or bid <= 0 or bid in dipakai:
+            urut += 1
+            bid = urut
+        dipakai.add(bid)
+        urut = max(urut, bid)
+        baru = {"id": bid, "n": o["n"], "x": x, "y": y, "r": r % 4 if r in (k.get("putar") or []) else 0}
+        if o.get("kunci"):
+            baru["kunci"] = True
+        benda_baru.append(baru)
+    d.update(lantai=lantai_baru, tembok=tembok_baru, benda=benda_baru, urut=urut)
     _simpan_peta(kon, d)
     return d
 

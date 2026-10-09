@@ -161,7 +161,7 @@ const Mesin = {
 
   // Pindah adegan atas kemauan pemain (pintu keluar, papan pulang, bertamu).
   async pindah(adegan, x, y) {
-    if (G.bangun) Rumah.keluarBangun();
+    if (G.bangun) Rumah.keluarBangun(true);
     for (const [id, e] of G.entitas) if (e.jenis === 'pemain') G.entitas.delete(id);
     if (adegan === 'kantor') this.masukKantor(x, y);
     else if (!await this.masukRumah(Number(adegan.slice(6)), x, y)) return;
@@ -253,7 +253,7 @@ const Mesin = {
     // tungguLepas: baru tiba dari adegan lain sambil masih menahan tombol — jangan langsung terlempar balik.
     // Kantor: tepi BAWAH = pulang. Rumah: tepi ATAS = berangkat.
     const diTepi = G.adegan === 'kantor' ? a.y + 19 >= this.dunia.h - 5 : a.y + 15 <= 3;
-    if (this.pindahBerjalan || this.tungguLepas || !diTepi) return;
+    if (this.pindahBerjalan || this.tungguLepas || !diTepi || Rumah.menyunting) return;      // selagi Edit Map tepi peta tidak memindahkan
     this.pindahBerjalan = true; this.tungguLepas = true;
     const tuju = G.adegan === 'kantor' ? 'rumah:' + G.saya.id : 'kantor';
     this.pindah(tuju).finally(() => { this.pindahBerjalan = false; });
@@ -428,7 +428,7 @@ const Jaring = {
         for (const [id, e] of G.entitas) if (e.jenis === 'pemain') G.entitas.delete(id);
         Npc.pasang(m.npc || []);
         G.titik = m.titik || []; if (m.atur) G.atur = m.atur;
-        if (m.peta) { G.peta = m.peta; if (G.adegan === 'kantor') Rumah.segarkan(); }
+        if (m.peta) { if (Rumah.menyunting) Sunting.dariLuar(m.peta); else { G.peta = m.peta; if (G.adegan === 'kantor') Rumah.segarkan(); } }
         Mesin.segarkanTitik();
         for (const p of m.pemain) this.tambahPemain(p);
         if (!this.pernahHalo) { this.pernahHalo = true; for (const r of m.riwayat || []) Obrolan.catat(r.nama, r.teks, 'lama', 'semua'); }
@@ -463,7 +463,8 @@ const Jaring = {
       case 'umum': kabar('Pengumuman: ' + m.teks, 'hadiah'); Obrolan.catat('Admin', m.teks, 'npc', 'semua'); break;
       case 'info': kabar(m.teks, 'galat'); break;
       case 'sistem': Obrolan.catat('Info', m.teks, 'umum', 'semua'); break;
-      case 'peta': G.peta = m.peta; if (G.adegan === 'kantor' && !Rumah.menyunting) { Rumah.segarkan(); if (!kakiBebas(G.aku.x, G.aku.y)) Object.assign(G.aku, titikBebas(G.aku.x, G.aku.y)); } break;
+      case 'peta': if (Rumah.menyunting) { Sunting.dariLuar(m.peta); break; }      // draf penyunting tidak ditimpa siaran
+        G.peta = m.peta; if (G.adegan === 'kantor') { Rumah.segarkan(); if (!kakiBebas(G.aku.x, G.aku.y)) Object.assign(G.aku, titikBebas(G.aku.x, G.aku.y)); } break;
       case 'ditendang': this.diganti = true; Hud.terputus(m.alasan); break;
       case 'suit_ajak': case 'suit_tunggu': case 'suit_mulai': case 'suit_hasil': case 'suit_batal': Sosial.suit(m); break;
       case 'hadiah':

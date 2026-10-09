@@ -1,0 +1,596 @@
+/* Kevi — Edit Map: penyunting peta utama (kantor) untuk admin. Cara kerjanya meniru Edit Layout Agent Pak.
+ *
+ * Yang disunting adalah DRAF: salinan G.peta yang langsung terlihat oleh admin itu sendiri, tetapi baru sampai ke
+ * server dan pemain lain saat Simpan. Keluar tanpa menyimpan membuang draf (diminta dua kali bila ada perubahan).
+ *   Alat    : Pilih / geser, Pilih area (grup), Hapus
+ *   Bangun  : Tembok (tarik garis lurus), Lantai (tarik kotak)
+ *   Katalog : perabot (jendela katalog tetap terbuka; klik di peta menaruh, alat tetap aktif)
+ * Urungkan (Ctrl+Z) menyimpan sampai 60 langkah. Rumah pemain tetap memakai mode Bangun di rumah.js.
+ */
+'use strict';
+
+const JEPRET = 8, MAKS_URUNG = 60;
+const ARAH = ['Depan', 'Kiri', 'Belakang', 'Kanan'];
+const ALAT_SUNTING = [
+  ['Alat', [['pilih', '↖', 'Pilih', 'Pilih / geser'], ['area', '⬚', 'Area', 'Pilih area (grup)'], ['hapus', '⌫', 'Hapus', 'Hapus']]],
+  ['Bangun', [['tembok', '▥', 'Tembok', 'Tembok'], ['lantai', '▦', 'Lantai', 'Lantai']]],
+  ['Katalog', [['perabot', '▣', 'Perabot', 'Katalog perabot']]],
+];
+const PETUNJUK_SUNTING = {
+  pilih: 'Klik benda untuk memilih, seret untuk memindah. Panah menggeser 1 piksel (Shift = 1 ubin). Shift+klik menambah ke grup.',
+  area: 'Seret di peta untuk memilih banyak benda, lalu seret kotaknya untuk memindah semuanya. Klik benda untuk menambah atau melepasnya.',
+  hapus: 'Klik benda untuk menghapusnya. Seret untuk menghapus tembok dan lantai ubin demi ubin.',
+  tembok: 'Seret di peta untuk menarik garis tembok lurus.',
+  lantai: 'Seret di peta untuk menggambar kotak lantai.',
+  perabot: 'Klik di peta untuk menaruh. R memutar. Alat tetap aktif untuk menaruh lagi.',
+};
+const jepret = (v, kisi = JEPRET) => Math.round(v / kisi) * kisi;
+
+const Sunting = {
+  aktif: false, alat: 'pilih', akar: '', rev: 0, kotor: false, urung: [], pilih: null, grup: null, seret: null,
+  sprite: null, r: 0, lantai: null, warna: WARNA_TEMBOK[0], halang: true, ikutUbin: false, terakhir: [],
+  mx: -99, my: -99, pesan: '', tanya: 0, sibuk: false, luar: null, kat: { mode: 'perabot', kategori: '', cari: '' },
+
+  get d() { return G.peta; },
+  inti(d) { return JSON.stringify({ lantai: d.lantai, tembok: d.tembok, benda: d.benda, urut: d.urut }); },
+  benda(id) { return this.d.benda.find(o => o.id === id); },
+  kotak(o) { const u = ukuranSprite(o.n, o.r); return { x: o.x, y: o.y, w: u.w, h: u.h }; },
+  batas(x, y) { const d = this.d; return { x: Math.max(-8, Math.min(d.lebar * T - 8, x)), y: Math.max(-32, Math.min(d.tinggi * T - 8, y)) }; },
+  ubinSah(gx, gy) { const d = this.d; return gx >= 0 && gy >= 0 && gx < d.lebar && gy < d.tinggi; },
+
+  /* ---------- buka, simpan, keluar ---------- */
+
+  buka() {
+    Panel.tutup();
+    this.akar = JSON.stringify(G.peta);
+    this.rev = G.peta.rev || 0;
+    G.peta = JSON.parse(this.akar);
+    Object.assign(this, { aktif: true, alat: 'pilih', kotor: false, urung: [], pilih: null, grup: null, seret: null, luar: null, tanya: 0, sibuk: false, pesan: '' });
+    Rumah.menyunting = true;
+    G.bangun = { sunting: true, mx: -99, my: -99 };
+    document.body.classList.add('mode-bangun', 'menyunting');
+    Rumah.segarkan();
+    this.lukisDok();
+  },
+
+  async simpan() {
+    if (this.sibuk || !this.aktif) return;
+    this.sibuk = true;
+    this.kabar('menyimpan…');
+    try {
+      const d = this.d;
+      const j = await api('/api/admin/peta/simpan', { rev: this.rev, lantai: d.lantai, tembok: d.tembok, benda: d.benda });
+      G.peta = j.peta;
+      this.akar = JSON.stringify(j.peta);
+      this.rev = j.peta.rev;
+      Object.assign(this, { kotor: false, urung: [], pilih: null, grup: null, luar: null });
+      Rumah.segarkan();
+      this.pesan = 'Tersimpan. Pemain lain langsung melihatnya.';
+    } catch (e) { this.pesan = 'Gagal: ' + e.message; }
+    this.sibuk = false;
+    this.lukisDok();
+  },
+
+  // Keluar. Draf yang belum disimpan baru dibuang pada permintaan kedua (atau bila dipaksa pindah adegan).
+  tutup(paksa) {
+    if (!this.aktif) return true;
+    if (this.kotor && !paksa && Date.now() - this.tanya > 5000) {
+      this.tanya = Date.now();
+      this.kabar('Ada perubahan belum disimpan. Tekan Keluar sekali lagi untuk membuangnya.');
+      return false;
+    }
+    if (this.kotor && paksa) kabar('Perubahan peta yang belum disimpan dibuang.', 'galat');
+    this.aktif = false;
+    this.seret = null;
+    Rumah.menyunting = false;
+    G.bangun = null;
+    document.body.classList.remove('mode-bangun', 'menyunting');
+    $('#bangun').replaceChildren();
+    this.tutupKatalog();
+    G.peta = this.luar || JSON.parse(this.akar);
+    if (G.adegan === 'kantor') {
+      Rumah.segarkan();
+      if (G.aku && !kakiBebas(G.aku.x, G.aku.y)) Object.assign(G.aku, titikBebas(G.aku.x, G.aku.y));
+    }
+    return true;
+  },
+
+  // Peta dari server selagi menyunting: milik sendiri (hasil Simpan) diabaikan, milik orang lain disimpan untuk nanti.
+  dariLuar(peta) {
+    if ((peta.rev || 0) === this.rev) return;
+    this.luar = peta;
+    this.kabar('Peta diubah dari tempat lain. Simpan akan ditolak: keluar dari Edit Map lalu masuk lagi.');
+  },
+
+  kabar(teks) {
+    this.pesan = teks;
+    const e = $('#sunting-kabar');
+    if (e) e.textContent = teks;
+  },
+
+  /* ---------- ubah & urungkan ---------- */
+
+  dorong() {
+    this.urung.push(this.inti(this.d));
+    if (this.urung.length > MAKS_URUNG) this.urung.shift();
+  },
+  sesudah() {
+    this.kotor = true;
+    this.tanya = 0;
+    Rumah.segarkan();
+    this.lukisDok();
+  },
+  ubah(fn) { this.dorong(); fn(this.d); this.sesudah(); },
+  urungkan() {
+    const s = this.urung.pop();
+    if (!s) { this.kabar('Tidak ada yang bisa diurungkan.'); return; }
+    Object.assign(this.d, JSON.parse(s));
+    this.pilih = null; this.grup = null; this.seret = null;
+    this.kotor = this.inti(this.d) !== this.inti(JSON.parse(this.akar));
+    Rumah.segarkan();
+    this.lukisDok();
+  },
+
+  /* ---------- mencari benda ---------- */
+
+  kena(p) {
+    let hasil = null, luas = Infinity;
+    for (const o of this.d.benda) {
+      const b = this.kotak(o);
+      if (p.x < b.x || p.x >= b.x + b.w || p.y < b.y || p.y >= b.y + b.h) continue;
+      if (b.w * b.h <= luas) { hasil = o; luas = b.w * b.h; }
+    }
+    return hasil;
+  },
+  bendaDalam(x0, y0, x1, y1) {
+    return this.d.benda.filter(o => { const b = this.kotak(o), cx = b.x + b.w / 2, cy = b.y + b.h / 2; return cx >= x0 && cx < x1 && cy >= y0 && cy < y1; });
+  },
+  anggota() { return this.grup ? this.d.benda.filter(o => this.grup.ids.has(o.id)) : []; },
+  pakaiUbin() { return !!(this.grup && this.grup.kotak && this.ikutUbin); },
+  kotakGrup() {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const o of this.anggota()) { const b = this.kotak(o); x0 = Math.min(x0, b.x); y0 = Math.min(y0, b.y); x1 = Math.max(x1, b.x + b.w); y1 = Math.max(y1, b.y + b.h); }
+    if (this.pakaiUbin()) { const k = this.grup.kotak; x0 = Math.min(x0, k.x0 * T); y0 = Math.min(y0, k.y0 * T); x1 = Math.max(x1, (k.x1 + 1) * T); y1 = Math.max(y1, (k.y1 + 1) * T); }
+    return x1 > x0 ? { x: x0, y: y0, w: x1 - x0, h: y1 - y0 } : null;
+  },
+
+  /* ---------- aksi atas pilihan ---------- */
+
+  terkunci(o) {
+    if (!o.kunci) return false;
+    this.kabar('Benda ini terkunci. Buka centang "Kunci posisi" untuk menggesernya.');
+    return true;
+  },
+
+  putar() {
+    const o = this.pilih != null && this.benda(this.pilih);
+    const pilihan = (n) => [0, ...(Rumah.infoBarang(n).putar || [])];
+    if (o) {
+      const p = pilihan(o.n);
+      if (p.length === 1) { this.kabar('Benda ini tidak punya tampak lain.'); return; }
+      if (this.terkunci(o)) return;
+      this.ubah(() => {
+        const a = this.kotak(o);
+        o.r = p[(p.indexOf(o.r || 0) + 1) % p.length];
+        const b = ukuranSprite(o.n, o.r), t = this.batas(jepret(a.x + (a.w - b.w) / 2), jepret(a.y + (a.h - b.h) / 2));      // pusatnya tetap
+        o.x = t.x; o.y = t.y;
+      });
+    } else if (this.alat === 'perabot' && this.sprite) {
+      const p = pilihan(this.sprite);
+      if (p.length === 1) { this.kabar('Benda ini tidak punya tampak lain.'); return; }
+      this.r = p[(p.indexOf(this.r) + 1) % p.length];
+      this.lukisDok();
+    }
+  },
+
+  duplikat() {
+    const asal = this.pilih != null ? [this.benda(this.pilih)].filter(Boolean) : this.anggota();
+    if (!asal.length) return;
+    if (this.d.benda.length + asal.length > 4000) { this.kabar('Peta sudah penuh (4000 benda).'); return; }
+    const baru = [];
+    this.ubah((d) => {
+      for (const o of asal) {
+        const t = this.batas(o.x + T, o.y + T);
+        d.urut += 1;
+        d.benda.push({ id: d.urut, n: o.n, x: t.x, y: t.y, r: o.r || 0 });
+        baru.push(d.urut);
+      }
+    });
+    if (this.pilih != null) this.pilih = baru[0]; else this.grup = { ids: new Set(baru), kotak: null };
+    this.lukisDok();
+  },
+
+  hapusPilihan() {
+    if (this.pilih != null) {
+      const o = this.benda(this.pilih);
+      if (!o) return;
+      this.ubah((d) => { d.benda.splice(d.benda.indexOf(o), 1); });
+      this.pilih = null;
+    } else if (this.grup) {
+      const ids = this.grup.ids, k = this.pakaiUbin() ? this.grup.kotak : null;
+      this.ubah((d) => {
+        d.benda = d.benda.filter(o => !ids.has(o.id));
+        if (k) this.pindahUbin(k, 0, 0, true);
+      });
+      this.grup = null;
+    } else return;
+    this.lukisDok();
+  },
+
+  // Pindahkan (atau buang) lantai dan tembok di dalam kotak ubin sejauh tx, ty ubin.
+  pindahUbin(k, tx, ty, buang) {
+    const d = this.d;
+    for (const peta of [d.lantai, d.tembok]) {
+      const ambil = [];
+      for (const kunci of Object.keys(peta)) {
+        const [gx, gy] = kunci.split(',').map(Number);
+        if (gx < k.x0 || gx > k.x1 || gy < k.y0 || gy > k.y1) continue;
+        ambil.push([gx, gy, peta[kunci]]);
+        delete peta[kunci];
+      }
+      if (!buang) for (const [gx, gy, v] of ambil) if (this.ubinSah(gx + tx, gy + ty)) peta[(gx + tx) + ',' + (gy + ty)] = v;
+    }
+    if (!buang) { k.x0 += tx; k.x1 += tx; k.y0 += ty; k.y1 += ty; }
+  },
+
+  // Batasi geseran supaya semua benda (dan kotak ubinnya) tetap di dalam peta.
+  jepitGeser(asal, dx, dy) {
+    const d = this.d;
+    for (const a of asal) {
+      dx = Math.max(-8 - a.x, Math.min(d.lebar * T - 8 - a.x, dx));
+      dy = Math.max(-32 - a.y, Math.min(d.tinggi * T - 8 - a.y, dy));
+    }
+    if (this.pakaiUbin()) {
+      const k = this.seret && this.seret.kotak0 ? this.seret.kotak0 : this.grup.kotak;
+      dx = Math.max(-k.x0 * T, Math.min((d.lebar - 1 - k.x1) * T, dx));
+      dy = Math.max(-k.y0 * T, Math.min((d.tinggi - 1 - k.y1) * T, dy));
+    }
+    return { dx, dy };
+  },
+
+  // Geser dengan tombol panah. Benda tunggal per piksel; grup yang membawa ubin selalu per ubin.
+  geser(ax, ay, langkah) {
+    if (this.pilih != null) {
+      const o = this.benda(this.pilih);
+      if (!o || this.terkunci(o)) return;
+      const t = this.batas(o.x + ax * langkah, o.y + ay * langkah);
+      if (t.x === o.x && t.y === o.y) return;
+      this.ubah(() => { o.x = t.x; o.y = t.y; });
+    } else if (this.grup) {
+      const ubin = this.pakaiUbin(), l = ubin ? T : langkah, bebas = this.anggota().filter(o => !o.kunci);
+      const { dx, dy } = this.jepitGeser(bebas.map(o => ({ x: o.x, y: o.y })), ax * l, ay * l);
+      if (!dx && !dy) return;
+      this.ubah(() => {
+        for (const o of bebas) { o.x += dx; o.y += dy; }
+        if (ubin) this.pindahUbin(this.grup.kotak, dx / T, dy / T);
+      });
+    }
+  },
+
+  /* ---------- tetikus ---------- */
+
+  posisi(ev) {
+    const r = kanvas.getBoundingClientRect(), p = Mesin.keDunia(ev.clientX - r.left, ev.clientY - r.top);
+    this.mx = p.x; this.my = p.y;
+    return p;
+  },
+  ubinKursor() { return { gx: Math.floor(this.mx / T), gy: Math.floor(this.my / T) }; },
+  letakHantu() {
+    const u = ukuranSprite(this.sprite, this.r);
+    return Object.assign(this.batas(jepret(this.mx - u.w / 2), jepret(this.my - u.h / 2)), { w: u.w, h: u.h });
+  },
+
+  tekan(ev) {
+    if (!this.aktif || this.sibuk) return;
+    const p = this.posisi(ev);
+    if (ev.button === 2) { this.pakaiAlat('pilih'); return; }
+    if (ev.button !== 0) return;
+    const tambah = ev.shiftKey || ev.ctrlKey || ev.metaKey, u = this.ubinKursor();
+    if (this.alat === 'perabot') {
+      if (!this.sprite) { this.bukaKatalog('perabot'); return; }
+      if (this.d.benda.length >= 4000) { this.kabar('Peta sudah penuh (4000 benda).'); return; }
+      const h = this.letakHantu();
+      this.ubah((d) => { d.urut += 1; d.benda.push({ id: d.urut, n: this.sprite, x: h.x, y: h.y, r: this.r }); });
+    } else if (this.alat === 'pilih') {
+      const o = this.kena(p);
+      if (o && tambah) {                                   // Shift+klik: mulai atau tambah grup
+        const ids = new Set(this.pilih != null ? [this.pilih] : []);
+        ids.add(o.id);
+        this.pilih = null; this.grup = { ids, kotak: null }; this.alat = 'area';
+      } else {
+        this.pilih = o ? o.id : null;
+        this.grup = null;
+        if (o && !this.terkunci(o)) { this.dorong(); this.seret = { mode: 'geser', o, dx: p.x - o.x, dy: p.y - o.y, gerak: false }; }
+      }
+      this.lukisDok();
+    } else if (this.alat === 'area') {
+      const b = this.kotakGrup();
+      if (b && !tambah && p.x >= b.x && p.x < b.x + b.w && p.y >= b.y && p.y < b.y + b.h) {
+        const bebas = this.anggota().filter(o => !o.kunci);
+        this.dorong();
+        this.seret = { mode: 'grup', ax: p.x, ay: p.y, bebas, asal: bebas.map(o => ({ x: o.x, y: o.y })), kotak0: this.pakaiUbin() ? Object.assign({}, this.grup.kotak) : null, dx: 0, dy: 0 };
+      } else this.seret = { mode: 'kotak', x0: p.x, y0: p.y, x1: p.x, y1: p.y, tambah };
+    } else if (this.alat === 'hapus') {
+      this.dorong();
+      this.seret = { mode: 'hapus', gerak: false };
+      const o = this.kena(p);
+      if (o) { if (!this.terkunci(o)) { this.d.benda.splice(this.d.benda.indexOf(o), 1); this.seret.gerak = true; Rumah.segarkan(); } }
+      else this.hapusUbin();
+    } else if (this.alat === 'tembok') {
+      this.seret = { mode: 'garis', gx0: u.gx, gy0: u.gy, gx1: u.gx, gy1: u.gy };
+    } else if (this.alat === 'lantai') {
+      if (!this.lantai) { this.bukaKatalog('lantai'); return; }
+      this.seret = { mode: 'isi', gx0: u.gx, gy0: u.gy, gx1: u.gx, gy1: u.gy };
+    }
+  },
+
+  hapusUbin() {
+    const u = this.ubinKursor(), kunci = u.gx + ',' + u.gy, d = this.d;
+    if (kunci in d.tembok) delete d.tembok[kunci];
+    else if (kunci in d.lantai) delete d.lantai[kunci];
+    else return;
+    this.seret.gerak = true;
+    Rumah.segarkan();
+  },
+
+  gerak(ev) {
+    if (!this.aktif) return;
+    const p = this.posisi(ev), s = this.seret;
+    if (!s) return;
+    if (s.mode === 'geser') {
+      const t = this.batas(jepret(p.x - s.dx), jepret(p.y - s.dy));
+      if (t.x === s.o.x && t.y === s.o.y) return;
+      s.o.x = t.x; s.o.y = t.y; s.gerak = true;
+      Rumah.segarkan();
+    } else if (s.mode === 'grup') {
+      const kisi = s.kotak0 ? T : JEPRET, { dx, dy } = this.jepitGeser(s.asal, jepret(p.x - s.ax, kisi), jepret(p.y - s.ay, kisi));
+      if (dx === s.dx && dy === s.dy) return;
+      s.dx = dx; s.dy = dy;
+      s.bebas.forEach((o, i) => { o.x = s.asal[i].x + dx; o.y = s.asal[i].y + dy; });
+      Rumah.segarkan();
+    } else if (s.mode === 'kotak') { s.x1 = p.x; s.y1 = p.y; }
+    else if (s.mode === 'hapus') this.hapusUbin();
+    else if (s.mode === 'garis' || s.mode === 'isi') {
+      const u = this.ubinKursor();
+      s.gx1 = u.gx; s.gy1 = u.gy;
+      if (s.mode === 'garis') { if (Math.abs(u.gx - s.gx0) >= Math.abs(u.gy - s.gy0)) s.gy1 = s.gy0; else s.gx1 = s.gx0; }     // dikunci ke sumbu yang dominan
+    }
+  },
+
+  // Ubin yang tercakup satu seretan (garis tembok atau kotak lantai), dipotong ke batas peta.
+  ubinSeret(s) {
+    const d = this.d, x0 = Math.max(0, Math.min(s.gx0, s.gx1)), x1 = Math.min(d.lebar - 1, Math.max(s.gx0, s.gx1));
+    const y0 = Math.max(0, Math.min(s.gy0, s.gy1)), y1 = Math.min(d.tinggi - 1, Math.max(s.gy0, s.gy1));
+    return { x0, y0, x1, y1 };
+  },
+
+  lepas() {
+    const s = this.seret;
+    if (!this.aktif || !s) return;
+    this.seret = null;
+    if (s.mode === 'geser' || s.mode === 'hapus') {
+      if (s.gerak) this.sesudah(); else this.urung.pop();
+    } else if (s.mode === 'grup') {
+      if (!s.dx && !s.dy) { this.urung.pop(); return; }
+      if (s.kotak0) this.pindahUbin(this.grup.kotak, s.dx / T, s.dy / T);
+      this.sesudah();
+    } else if (s.mode === 'kotak') {
+      const x0 = Math.min(s.x0, s.x1), x1 = Math.max(s.x0, s.x1), y0 = Math.min(s.y0, s.y1), y1 = Math.max(s.y0, s.y1);
+      const ids = new Set(s.tambah && this.grup ? this.grup.ids : []);
+      let kotak = s.tambah && this.grup ? this.grup.kotak : null;
+      if (x1 - x0 < 4 && y1 - y0 < 4) {                    // ketuk: tambah atau lepas satu benda
+        const o = this.kena({ x: s.x1, y: s.y1 });
+        if (o) { if (ids.has(o.id)) ids.delete(o.id); else ids.add(o.id); } else if (!s.tambah) kotak = null;
+      } else {
+        for (const o of this.bendaDalam(x0, y0, x1, y1)) ids.add(o.id);
+        kotak = { x0: Math.max(0, Math.floor(x0 / T)), y0: Math.max(0, Math.floor(y0 / T)), x1: Math.min(this.d.lebar - 1, Math.floor((x1 - 1) / T)), y1: Math.min(this.d.tinggi - 1, Math.floor((y1 - 1) / T)) };
+      }
+      this.pilih = null;
+      this.grup = ids.size || kotak ? { ids, kotak } : null;
+      this.lukisDok();
+    } else {
+      const k = this.ubinSeret(s);
+      if (k.x1 < k.x0 || k.y1 < k.y0) return;
+      this.ubah((d) => {
+        for (let gy = k.y0; gy <= k.y1; gy++) for (let gx = k.x0; gx <= k.x1; gx++) {
+          if (s.mode === 'garis') d.tembok[gx + ',' + gy] = this.warna; else d.lantai[gx + ',' + gy] = this.lantai;
+        }
+      });
+    }
+  },
+
+  pasang() {
+    kanvas.addEventListener('pointerdown', (ev) => this.tekan(ev));
+    kanvas.addEventListener('pointermove', (ev) => this.gerak(ev));
+    kanvas.addEventListener('pointerleave', () => { if (!this.seret) { this.mx = -99; this.my = -99; } });
+    addEventListener('pointerup', () => this.lepas());
+  },
+
+  // Tombol papan ketik selagi menyunting. true = sudah ditangani (permainan tidak ikut memprosesnya).
+  tombol(ev) {
+    if (/^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName || '')) return false;
+    const k = ev.key.toLowerCase();
+    if ((ev.ctrlKey || ev.metaKey) && k === 'z') { ev.preventDefault(); this.urungkan(); return true; }
+    if ((ev.ctrlKey || ev.metaKey) && k === 's') { ev.preventDefault(); this.simpan(); return true; }
+    if (ev.ctrlKey || ev.metaKey || ev.altKey) return false;
+    if (k === 'escape') {
+      if (this.pilih == null && !this.grup && !this.seret) return false;
+      if (this.seret && this.seret.mode !== 'kotak' && this.seret.mode !== 'garis' && this.seret.mode !== 'isi') { this.seret = null; this.urungkan(); return true; }
+      this.pilih = null; this.grup = null; this.seret = null;
+      this.lukisDok();
+      return true;
+    }
+    if (k === 'delete' || k === 'backspace') { ev.preventDefault(); this.hapusPilihan(); return true; }
+    if (k.startsWith('arrow') && (this.pilih != null || this.grup)) {
+      ev.preventDefault();
+      this.geser(k === 'arrowleft' ? -1 : k === 'arrowright' ? 1 : 0, k === 'arrowup' ? -1 : k === 'arrowdown' ? 1 : 0, ev.shiftKey ? T : 1);
+      return true;
+    }
+    return false;
+  },
+
+  /* ---------- gambar di atas peta ---------- */
+
+  gambar(k) {
+    const d = this.d, s = this.seret, sk = G.kamera.skala || 1, garis = 1 / sk;
+    const a = Mesin.keDunia(0, 0), b = Mesin.keDunia(kanvas.clientWidth, kanvas.clientHeight);
+    const gx0 = Math.max(0, Math.floor(a.x / T)), gy0 = Math.max(0, Math.floor(a.y / T));
+    const gx1 = Math.min(d.lebar, Math.ceil(b.x / T)), gy1 = Math.min(d.tinggi, Math.ceil(b.y / T));
+    const bingkai = (r, warna, putus) => {
+      k.strokeStyle = warna; k.lineWidth = Math.max(1, garis * 2);
+      k.setLineDash(putus ? [4, 3] : []);
+      k.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
+      k.setLineDash([]);
+    };
+    if (this.halang && G.grid) {                           // ubin yang tak bisa dilewati
+      k.fillStyle = 'rgba(239,68,68,.2)';
+      for (let gy = gy0; gy < gy1; gy++) for (let gx = gx0; gx < gx1; gx++) if (G.grid.sel[gy * G.grid.w + gx] === 1) k.fillRect(gx * T, gy * T, T, T);
+    }
+    k.fillStyle = 'rgba(255,255,255,.13)';                 // garis kisi
+    for (let gx = gx0; gx <= gx1; gx++) k.fillRect(gx * T, gy0 * T, garis, (gy1 - gy0) * T);
+    for (let gy = gy0; gy <= gy1; gy++) k.fillRect(gx0 * T, gy * T, (gx1 - gx0) * T, garis);
+    bingkai({ x: 0, y: 0, w: d.lebar * T, h: d.tinggi * T }, 'rgba(255,255,255,.4)');
+    k.fillStyle = '#fde68a';
+    for (const o of d.benda) if (o.kunci) k.fillRect(o.x, o.y, 3, 3);
+
+    const o = this.pilih != null && this.benda(this.pilih);
+    if (o) bingkai(this.kotak(o), '#f472b6', true);
+    if (this.grup) {
+      for (const g of this.anggota()) bingkai(this.kotak(g), '#93c5fd');
+      const kg = this.kotakGrup();
+      if (kg) {
+        if (s && s.mode === 'grup' && s.kotak0) { k.fillStyle = 'rgba(96,165,250,.14)'; k.fillRect(s.kotak0.x0 * T + s.dx, s.kotak0.y0 * T + s.dy, (s.kotak0.x1 - s.kotak0.x0 + 1) * T, (s.kotak0.y1 - s.kotak0.y0 + 1) * T); }
+        bingkai(kg, '#60a5fa', true);
+      }
+    }
+    if (s && s.mode === 'kotak') {
+      const r = { x: Math.min(s.x0, s.x1), y: Math.min(s.y0, s.y1), w: Math.abs(s.x1 - s.x0), h: Math.abs(s.y1 - s.y0) };
+      k.fillStyle = 'rgba(96,165,250,.14)'; k.fillRect(r.x, r.y, r.w, r.h);
+      if (r.w > 1 && r.h > 1) bingkai(r, '#60a5fa', true);
+    }
+    if (s && (s.mode === 'garis' || s.mode === 'isi')) {
+      const u = this.ubinSeret(s), r = { x: u.x0 * T, y: u.y0 * T, w: (u.x1 - u.x0 + 1) * T, h: (u.y1 - u.y0 + 1) * T };
+      if (r.w > 0 && r.h > 0) {
+        k.globalAlpha = 0.6;
+        if (s.mode === 'garis') { k.fillStyle = this.warna; k.fillRect(r.x, r.y, r.w, r.h); }
+        else if ((u.x1 - u.x0 + 1) * (u.y1 - u.y0 + 1) <= 600) { for (let gy = u.y0; gy <= u.y1; gy++) for (let gx = u.x0; gx <= u.x1; gx++) lukis(k, this.lantai, gx * T, gy * T); }
+        else { k.fillStyle = '#f472b6'; k.fillRect(r.x, r.y, r.w, r.h); }
+        k.globalAlpha = 1;
+        bingkai(r, '#fde68a');
+      }
+      return;
+    }
+    if (this.mx < 0 || s) return;
+    const u = this.ubinKursor(), ubin = { x: u.gx * T, y: u.gy * T, w: T, h: T };
+    if (this.alat === 'perabot' && this.sprite) {
+      const h = this.letakHantu();
+      k.globalAlpha = 0.55; lukis(k, namaPutar(this.sprite, this.r), h.x, h.y); k.globalAlpha = 1;
+      bingkai(h, '#fde68a');
+    } else if (this.alat === 'tembok' && this.ubinSah(u.gx, u.gy)) { k.globalAlpha = 0.6; k.fillStyle = this.warna; k.fillRect(ubin.x, ubin.y, T, T); k.globalAlpha = 1; bingkai(ubin, '#fde68a'); }
+    else if (this.alat === 'lantai' && this.lantai && this.ubinSah(u.gx, u.gy)) { k.globalAlpha = 0.6; lukis(k, this.lantai, ubin.x, ubin.y); k.globalAlpha = 1; bingkai(ubin, '#fde68a'); }
+    else if (this.alat === 'hapus' || this.alat === 'pilih' || this.alat === 'area') {
+      const di = this.kena({ x: this.mx, y: this.my });
+      if (di && di.id !== this.pilih) bingkai(this.kotak(di), this.alat === 'hapus' ? '#fca5a5' : 'rgba(255,255,255,.7)');
+      else if (!di && this.alat === 'hapus' && ((u.gx + ',' + u.gy) in d.tembok || (u.gx + ',' + u.gy) in d.lantai)) bingkai(ubin, '#fca5a5');
+    }
+  },
+
+  /* ---------- dok alat ---------- */
+
+  pakaiAlat(a) {
+    this.alat = a; this.pilih = null; this.grup = null; this.seret = null;
+    if (a === 'perabot') this.bukaKatalog('perabot');
+    else if (a === 'lantai' && !this.lantai) this.bukaKatalog('lantai');
+    else if (a !== 'lantai') this.tutupKatalog();
+    this.lukisDok();
+  },
+
+  pakaiSprite(n) {
+    this.sprite = n; this.r = 0; this.alat = 'perabot'; this.pilih = null; this.grup = null;
+    this.terakhir = [n, ...this.terakhir.filter(x => x !== n)].slice(0, 8);
+    this.lukisDok();
+  },
+
+  lukisDok() {
+    const wadah = $('#bangun');
+    if (!this.aktif || !wadah) return;
+    const tb = (teks, kelas, fn, opsi) => el('button', Object.assign({ kelas: 'tombol kecil ' + (kelas || ''), teks, on: { click: (ev) => { ev.currentTarget.blur(); fn(); } } }, opsi || {}));
+    const o = this.pilih != null && this.benda(this.pilih), isi = [];
+    if (this.alat === 'pilih' && o) {
+      const pt = [0, ...(Rumah.infoBarang(o.n).putar || [])];
+      isi.push(ikonBarang(o.n, 30), el('b', { teks: namaBarang(o.n) }), el('span', { kelas: 'redup kecil', teks: `x ${o.x}, y ${o.y}` }),
+        pt.length > 1 ? tb(ARAH[o.r || 0] + ' · Putar (R)', '', () => this.putar()) : null,
+        tb('Duplikat', '', () => this.duplikat()),
+        el('label', { kelas: 'centang-baris' }, el('input', { type: 'checkbox', checked: !!o.kunci, on: { change: (ev) => { const v = ev.target.checked; this.ubah(() => { if (v) o.kunci = true; else delete o.kunci; }); } } }), 'Kunci posisi'),
+        tb('Hapus', 'bahaya', () => this.hapusPilihan()));
+    } else if (this.alat === 'area' && this.grup) {
+      isi.push(el('b', { teks: this.grup.ids.size + ' benda terpilih' }),
+        this.grup.kotak ? el('label', { kelas: 'centang-baris' }, el('input', { type: 'checkbox', checked: this.ikutUbin, on: { change: (ev) => { this.ikutUbin = ev.target.checked; this.lukisDok(); } } }), 'Ikutkan lantai & tembok di dalam kotak') : null,
+        this.grup.ids.size ? tb('Duplikat', '', () => this.duplikat()) : null,
+        tb('Hapus grup', 'bahaya', () => this.hapusPilihan()),
+        tb('Batal pilih', '', () => { this.grup = null; this.lukisDok(); }));
+    } else if (this.alat === 'perabot') {
+      const pt = this.sprite ? [0, ...(Rumah.infoBarang(this.sprite).putar || [])] : [];
+      isi.push(this.sprite ? ikonBarang(this.sprite, 30) : null, el('b', { teks: this.sprite ? namaBarang(this.sprite) : 'Belum ada perabot dipilih' }),
+        pt.length > 1 ? tb(ARAH[this.r] + ' · Putar (R)', '', () => this.putar()) : null,
+        tb('▦ Katalog', '', () => this.bukaKatalog('perabot')),
+        this.terakhir.filter(n => n !== this.sprite).map(n => el('button', { kelas: 'slot mini', title: namaBarang(n), on: { click: () => this.pakaiSprite(n) } }, ikonBarang(n, 26))));
+    } else if (this.alat === 'tembok') {
+      isi.push(el('span', { kelas: 'redup kecil', teks: 'Warna:' }),
+        el('div', { kelas: 'bangun-warna' }, WARNA_TEMBOK.map(w => el('button', { kelas: 'warna' + (this.warna === w ? ' aktif' : ''), gaya: { background: w }, 'aria-label': 'Warna tembok ' + w, on: { click: () => { this.warna = w; this.lukisDok(); } } }))),
+        el('input', { type: 'color', value: this.warna, title: 'Warna lain', 'aria-label': 'Warna tembok lain', on: { change: (ev) => { this.warna = ev.target.value; this.lukisDok(); } } }));
+    } else if (this.alat === 'lantai') {
+      isi.push(this.lantai ? ikonBarang('lantai:' + this.lantai, 30) : null, el('b', { teks: this.lantai ? namaBarang('lantai:' + this.lantai) : 'Belum ada motif dipilih' }),
+        tb('▦ Pilih motif', '', () => this.bukaKatalog('lantai')));
+    }
+    isi.push(el('span', { kelas: 'redup kecil tumbuh', teks: PETUNJUK_SUNTING[this.alat] }));
+    wadah.replaceChildren(
+      el('div', { kelas: 'sunting-kepala' },
+        el('b', { teks: 'Edit Map' }), el('span', { id: 'sunting-kabar', kelas: 'redup kecil tumbuh', role: 'status', teks: this.pesan }),
+        tb('Simpan', 'utama', () => this.simpan(), { id: 'sunting-simpan', disabled: !this.kotor || this.sibuk, title: 'Simpan dan siarkan ke semua pemain (Ctrl+S)' }),
+        tb('↶ Urungkan', '', () => this.urungkan(), { id: 'sunting-urung', disabled: !this.urung.length, title: 'Urungkan (Ctrl+Z)' }),
+        tb('▦ Penghalang', this.halang ? 'aktif' : '', () => { this.halang = !this.halang; this.lukisDok(); }, { title: 'Lihat ubin yang tak bisa dilewati', 'aria-pressed': String(this.halang) }),
+        tb('✕ Keluar', '', () => Rumah.keluarBangun(), { id: 'sunting-keluar', title: 'Keluar dari Edit Map (B)' })),
+      el('div', { kelas: 'sunting-alat' }, ALAT_SUNTING.map(([judul, daftar]) => el('div', { kelas: 'sunting-kelompok' }, el('small', { teks: judul }),
+        el('div', {}, daftar.map(([kunci, tanda, pendek, panjang]) => el('button', { kelas: 'slot alat' + (this.alat === kunci ? ' aktif' : ''), title: panjang, 'data-alat': kunci, 'aria-pressed': String(this.alat === kunci),
+          on: { click: (ev) => { ev.currentTarget.blur(); this.pakaiAlat(kunci); } } }, el('span', { kelas: 'tangan', teks: tanda }), el('small', { teks: pendek }))))))),
+      el('div', { kelas: 'sunting-pilihan' }, isi));
+  },
+
+  /* ---------- jendela katalog (tetap terbuka selagi menaruh) ---------- */
+
+  tutupKatalog() { const j = $('#sunting-katalog'); if (j) j.remove(); },
+
+  bukaKatalog(mode) {
+    this.tutupKatalog();
+    const kat = this.kat;
+    kat.mode = mode;
+    const kisi = el('div', { kelas: 'kisi rapat' });
+    const lukisKisi = () => {
+      const q = kat.cari.toLowerCase().split(/\s+/).filter(Boolean), B = G.katalog.barang;
+      let daftar = mode === 'lantai' ? G.katalog.lantai.slice()
+        : Object.keys(B).filter(n => !kat.kategori || B[n].k.startsWith(kat.kategori + '/')).sort((x, y) => B[x].k.localeCompare(B[y].k) || x.localeCompare(y));
+      daftar = daftar.filter(n => q.every(x => (n.replace(/_/g, ' ') + ' ' + (mode === 'lantai' ? '' : B[n].k)).toLowerCase().includes(x)));
+      const dipilih = mode === 'lantai' ? this.lantai : this.sprite;
+      kisi.replaceChildren(...daftar.slice(0, 240).map(n => {
+        const b = mode === 'lantai' ? 'lantai:' + n : n;
+        return el('button', { kelas: 'kartu' + (n === dipilih ? ' aktif' : ''), title: namaBarang(b), 'data-n': n, on: { click: () => {
+          if (mode === 'lantai') { this.lantai = n; this.alat = 'lantai'; this.pilih = null; this.grup = null; this.lukisDok(); } else this.pakaiSprite(n);
+          lukisKisi();
+        } } }, ikonBarang(b, 36), el('b', { teks: namaBarang(b).replace(/^Lantai /, '') }));
+      }), daftar.length > 240 ? el('p', { kelas: 'redup kecil', teks: `+${daftar.length - 240} lagi. Persempit dengan kategori atau cari.` }) : '',
+      daftar.length ? '' : el('p', { kelas: 'redup', teks: 'Tidak ada yang cocok.' }));
+    };
+    const diam = { keydown: (ev) => ev.stopPropagation() };
+    const pilihKategori = mode === 'lantai' ? null : el('select', { 'aria-label': 'Kategori', on: Object.assign({ change: (ev) => { kat.kategori = ev.target.value; lukisKisi(); } }, diam) },
+      el('option', { value: '', teks: 'Semua perabot' }), G.katalog.kategori.map(k => el('option', { value: k.nama, teks: k.nama, selected: k.nama === kat.kategori })));
+    const cari = el('input', { type: 'search', placeholder: mode === 'lantai' ? 'Cari motif lantai…' : 'Cari perabot…', value: kat.cari, on: Object.assign({ input: (ev) => { kat.cari = ev.target.value; lukisKisi(); } }, diam) });
+    lukisKisi();
+    const kepala = el('header', {}, el('b', { teks: mode === 'lantai' ? 'Motif lantai' : 'Katalog perabot' }), el('button', { kelas: 'tutup', 'aria-label': 'Tutup katalog', teks: '✕', on: { click: () => this.tutupKatalog() } }));
+    const jendela = el('section', { id: 'sunting-katalog', kelas: 'bingkai tipis', 'aria-label': 'Katalog' }, kepala, el('div', { kelas: 'saring' }, pilihKategori, cari), kisi);
+    document.body.append(jendela);
+    bisaDigeser(jendela, kepala, 'sunting-katalog');
+  },
+};
+
+Sunting.pasang();

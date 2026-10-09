@@ -56,10 +56,10 @@ const npcAwal = await pg.evaluate(() => [...G.entitas.values()].filter(e => e.je
 await potret('2-kantor');
 
 // --- jalan WASD + tabrakan
-const p0 = await pg.evaluate(() => [G.aku.x, G.aku.y]);
+const jp0 = await pg.evaluate(() => [G.aku.x, G.aku.y]);
 await tekan('w', 500);
-const p1 = await pg.evaluate(() => [G.aku.x, G.aku.y]);
-cek('W menggerakkan tokoh ke atas', p1[1] < p0[1] - 10, `${p0[1].toFixed(0)} -> ${p1[1].toFixed(0)}`);
+const jp1 = await pg.evaluate(() => [G.aku.x, G.aku.y]);
+cek('W menggerakkan tokoh ke atas', jp1[1] < jp0[1] - 10, `${jp0[1].toFixed(0)} -> ${jp1[1].toFixed(0)}`);
 await pg.evaluate(() => { G.aku.x = 20; G.aku.y = 30 * 16 - 19 + 8; });
 await tekan('a', 700);
 cek('tembok menahan tokoh', (await pg.evaluate(() => G.aku.x)) >= 11.9, String(await pg.evaluate(() => G.aku.x)));
@@ -311,14 +311,87 @@ cek('/r membalas bisikan terakhir', await pg2.evaluate(() => [...document.queryS
 cek('pemilih emoticon terisi', await pg.evaluate(() => document.querySelectorAll('#emoji-kotak .emoji').length >= 30));
 
 // --- admin menyunting peta utama dari dalam game
+// --- tampilan: menu atas ciut, hotbar agak transparan, jendela ringkas yang bisa digeser
+await pg.mouse.move(400, 300);
+await pg.click('#tb-ciut');
+cek('menu atas bisa diciutkan dan diingat', await pg.evaluate(() => document.body.classList.contains('hud-ciut') && $('#hud').getBoundingClientRect().width < 160
+  && getComputedStyle($('#tb-inventori')).display === 'none' && localStorage.getItem('kevi.hudCiut') === '1'));
+await pg.click('#tb-ciut');
+cek('menu atas dibuka lagi', await pg.evaluate(() => !document.body.classList.contains('hud-ciut') && getComputedStyle($('#tb-inventori')).display !== 'none'));
+await pg.mouse.move(400, 300);
+cek('hotbar agak transparan saat tidak disentuh', await pg.evaluate(() => Number(getComputedStyle($('#hotbar')).opacity) < 0.8));
+const kotakPanel = () => pg.evaluate(() => { const r = $('#tirai .panel').getBoundingClientRect(); return { x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width) }; });
+await pg.keyboard.press('i');
+await pg.waitForSelector('#tirai .panel.ringkas');
+const kp0 = await kotakPanel();
+await pg.mouse.move(kp0.x + 70, kp0.y + 16); await pg.mouse.down(); await pg.mouse.move(kp0.x - 30, kp0.y + 50); await pg.mouse.move(kp0.x - 130, kp0.y + 76); await pg.mouse.up();
+const kp1 = await kotakPanel();
+cek('jendela Inventory ringkas dan bisa digeser lewat kepalanya', kp0.w <= 500 && kp1.x === kp0.x - 200 && kp1.y === kp0.y + 60, JSON.stringify([kp0, kp1]));
+await pg.keyboard.press('Escape'); await pg.keyboard.press('i');
+await pg.waitForSelector('#tirai .panel.ringkas');
+const kp2 = await kotakPanel();
+cek('letak jendela diingat saat dibuka lagi', kp2.x === kp1.x && kp2.y === kp1.y, JSON.stringify([kp1, kp2]));
+await pg.keyboard.press('Escape');
+
+// Edit Map bekerja pada draf: alat, katalog, geser, urungkan, grup; baru tersiar saat Simpan.
+const titikLayar = (x, y) => pg.evaluate(([x, y]) => Mesin.keLayar(x, y), [x, y]);
+const seretPeta = async (x0, y0, x1, y1) => {
+  const a = await titikLayar(x0, y0), z = await titikLayar(x1, y1);
+  await pg.mouse.move(a.x, a.y); await pg.mouse.down(); await pg.mouse.move((a.x + z.x) / 2, (a.y + z.y) / 2); await pg.mouse.move(z.x, z.y); await pg.mouse.up(); await tunggu(120);
+};
+const klikPeta = async (x, y, opsi) => { const t = await titikLayar(x, y); await pg.mouse.click(t.x, t.y, opsi); await tunggu(120); };
+const sofa = () => pg.evaluate(() => { const o = G.peta.benda[0]; return o && { x: o.x, y: o.y, n: o.n, r: o.r }; });
 await pg.keyboard.press('b');
-await pg.waitForSelector('#bangun .slot.lebar');
-await pg.evaluate(() => Rumah.pakai('sofa_krem'));
-const titikSofa = await pg.evaluate(() => { const a = G.aku; return Mesin.keLayar(a.x + 40, a.y - 30); });
-await pg.mouse.move(titikSofa.x, titikSofa.y); await pg.mouse.down(); await pg.mouse.up(); await tunggu(700);
-cek('admin menaruh perabot di peta utama (gratis)', await pg.evaluate(() => G.peta.benda.length === 1 && G.peta.benda[0].n === 'sofa_krem'));
-cek('perubahan peta utama tersiar ke pemain lain', await pg2.evaluate(() => G.peta.benda.length === 1));
+await pg.waitForSelector('#bangun .slot.alat');
+cek('Edit Map terbuka dengan enam alat', await pg.evaluate(() => Sunting.aktif && document.querySelectorAll('#bangun .slot.alat').length === 6 && $('#sunting-simpan').disabled));
+await pg.click('#bangun [data-alat=perabot]');
+await pg.waitForSelector('#sunting-katalog .kartu');
+await pg.fill('#sunting-katalog input[type=search]', 'sofa krem');
+await pg.click('#sunting-katalog .kartu[data-n=sofa_krem]');
+const aku = await pg.evaluate(() => ({ x: G.aku.x, y: G.aku.y, gx: Math.floor(G.aku.x / 16), gy: Math.floor(G.aku.y / 16) }));
+await klikPeta(aku.x + 48, aku.y - 30);
+cek('admin menaruh perabot ke draf (gratis), katalog tetap terbuka', (await sofa())?.n === 'sofa_krem' && await pg.evaluate(() => G.peta.benda.length === 1 && Sunting.kotor && !!$('#sunting-katalog')));
+cek('draf belum terlihat pemain lain', await pg2.evaluate(() => G.peta.benda.length === 0));
+await pg.click('#bangun [data-alat=pilih]');
+const s0 = await sofa();
+await klikPeta(s0.x + 6, s0.y + 6);
+cek('alat Pilih memilih benda dan menutup katalog', await pg.evaluate(() => Sunting.pilih === G.peta.benda[0].id && !$('#sunting-katalog')));
+await pg.keyboard.press('Shift+ArrowRight'); await pg.keyboard.press('ArrowDown');
+let s1 = await sofa();
+cek('panah menggeser benda terpilih (Shift = 1 ubin)', s1.x === s0.x + 16 && s1.y === s0.y + 1, JSON.stringify([s0, s1]));
+await pg.keyboard.press('Control+z'); await pg.keyboard.press('Control+z');
+s1 = await sofa();
+cek('Ctrl+Z mengurungkan geseran', s1.x === s0.x && s1.y === s0.y);
+await seretPeta(s0.x + 6, s0.y + 6, s0.x + 6 + 32, s0.y + 6 - 16);
+s1 = await sofa();
+cek('seret memindah benda (jepret 8 piksel)', s1.x === s0.x + 32 && s1.y === s0.y - 16, JSON.stringify([s0, s1]));
+await pg.click('#bangun [data-alat=tembok]');
+await seretPeta((aku.gx + 4) * 16 + 8, (aku.gy - 5) * 16 + 8, (aku.gx + 8) * 16 + 8, (aku.gy - 4) * 16 + 8);
+cek('tembok ditarik sebagai garis lurus', await pg.evaluate(([gx, gy]) => { const k = Object.keys(G.peta.tembok); return k.length === 5 && k.every(x => x.endsWith(',' + gy)) && (gx + ',' + gy) in G.peta.tembok; }, [aku.gx + 4, aku.gy - 5]));
+await pg.evaluate(() => { Sunting.lantai = G.katalog.lantai[0]; Sunting.pakaiAlat('lantai'); });
+await seretPeta((aku.gx + 4) * 16 + 8, (aku.gy - 3) * 16 + 8, (aku.gx + 6) * 16 + 8, (aku.gy - 2) * 16 + 8);
+cek('lantai digambar sebagai kotak', await pg.evaluate(() => Object.keys(G.peta.lantai).length === 6));
+await pg.click('#sunting-urung'); await pg.click('#sunting-urung');
+cek('Urungkan membatalkan lantai lalu tembok', await pg.evaluate(() => !Object.keys(G.peta.lantai).length && !Object.keys(G.peta.tembok).length && G.peta.benda.length === 1));
+await pg.click('#bangun [data-alat=area]');
+await seretPeta(s1.x - 10, s1.y - 10, s1.x + 60, s1.y + 50);
+cek('Pilih area menangkap benda di dalam kotak', await pg.evaluate(() => Sunting.grup && Sunting.grup.ids.size === 1));
+await pg.keyboard.press('Delete');
+cek('Delete menghapus grup', await pg.evaluate(() => G.peta.benda.length === 0));
+await pg.keyboard.press('Control+z');
+cek('hapus grup bisa diurungkan', await pg.evaluate(() => G.peta.benda.length === 1));
+await pg.click('#sunting-simpan');
+await pg.waitForFunction(() => !Sunting.kotor && !Sunting.sibuk);
+cek('Simpan menulis draf ke server', await pg.evaluate(() => G.peta.benda.length === 1 && G.peta.rev >= 1 && $('#sunting-kabar').textContent.includes('Tersimpan')));
+await tunggu(400);
+cek('perubahan peta utama tersiar ke pemain lain setelah Simpan', await pg2.evaluate(() => G.peta.benda.length === 1 && G.peta.benda[0].n === 'sofa_krem'));
+await pg.click('#bangun [data-alat=hapus]');
+await klikPeta(s1.x + 6, s1.y + 6);
+cek('alat Hapus membuang benda dari draf', await pg.evaluate(() => G.peta.benda.length === 0 && Sunting.kotor));
 await pg.keyboard.press('b');
+cek('keluar dengan draf kotor diminta dua kali', await pg.evaluate(() => Sunting.aktif && $('#sunting-kabar').textContent.includes('sekali lagi')));
+await pg.keyboard.press('b');
+cek('keluar kedua membuang draf: peta kembali ke yang tersimpan', await pg.evaluate(() => !Sunting.aktif && !G.bangun && G.peta.benda.length === 1 && !document.body.classList.contains('menyunting')));
 cek('pemain biasa tak bisa menyunting peta utama', await pg2.evaluate(async () => !Rumah.bolehBangun() && (await fetch('/api/admin/peta/pasang', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ barang: 'sofa_krem', x: 10, y: 10 }) })).status === 403));
 
 // --- remote: hanya yang berizin, dan hanya ke jaringan yang didaftarkan

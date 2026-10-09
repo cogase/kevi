@@ -152,7 +152,7 @@ body.mode-bangun #petunjuk, body.ada-terminal #petunjuk { display: none; }
 #obrolan-isi::placeholder { color: #8391ad; }
 
 /* ---------- panel ---------- */
-#tirai { position: fixed; inset: 0; z-index: var(--z-panel); background: rgba(5,9,18,.55); display: grid; place-items: center; padding: 12px; }
+#tirai { position: fixed; inset: 0; z-index: var(--z-panel); background: rgba(5,9,18,.3); display: grid; place-items: center; padding: 12px; }
 .panel { width: min(640px, 100%); max-height: min(86vh, 760px); display: flex; flex-direction: column; box-shadow: 0 18px 50px rgba(0,0,0,.55); }
 .panel.sempit { width: min(460px, 100%); }
 .panel.lebar { width: min(920px, 100%); }
@@ -239,6 +239,44 @@ body.mode-bangun #obrolan { display: none; }
 .slot small { font: 700 10px var(--mono); color: #c9d5ee; text-shadow: none; }
 .tangan { font-size: 20px; line-height: 34px; }
 .bangun-warna { display: flex; gap: 3px; flex: none; }
+
+/* ---------- jendela bisa digeser, jendela ringkas, menu atas ciut ---------- */
+.pegangan { cursor: move; touch-action: none; user-select: none; }
+.panel.ringkas { width: min(500px, 100%); max-height: min(62vh, 520px); }
+.panel.ringkas .kisi { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; }
+.panel.ringkas .kartu { min-height: 88px; padding: 6px 4px; }
+.panel.ringkas .kartu b { font-size: 11px; }
+body.hud-ciut #hud { left: auto; padding: 3px; box-shadow: 0 3px 8px rgba(0,0,0,.4); }
+body.hud-ciut #hud::before, body.hud-ciut #hud::after, body.hud-ciut .hud-kiri, body.hud-ciut #hud-koin-kotak, body.hud-ciut .hud-kanan > :not(#tb-ciut) { display: none; }
+body.hud-ciut #petunjuk { top: 14px; }
+body.hud-ciut #kabar { top: 56px; }
+
+/* ---------- Edit Map (peta utama, admin) ---------- */
+body.menyunting #bangun { flex-direction: column; align-items: stretch; gap: 6px; width: min(1040px, calc(100vw - 20px)); }
+body.menyunting #hotbar-wadah, body.menyunting #petunjuk { display: none; }
+body.menyunting #zoom { bottom: 176px; }
+.sunting-kepala, .sunting-pilihan { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-height: 30px; }
+.sunting-kepala > b { color: var(--krem); }
+.sunting-pilihan { border-top: 1px solid var(--garis); padding-top: 6px; }
+.sunting-pilihan input[type=color] { width: 30px; height: 28px; padding: 0; border: 2px solid #0b1220; border-radius: 5px; background: none; cursor: pointer; }
+.sunting-alat { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 2px; }
+.sunting-kelompok { display: flex; flex-direction: column; gap: 3px; flex: none; }
+.sunting-kelompok > small { font: 700 10px var(--mono); color: var(--redup); text-transform: uppercase; letter-spacing: .08em; }
+.sunting-kelompok > div { display: flex; gap: 5px; }
+.slot.alat { width: 58px; height: 50px; }
+.slot.alat .tangan { font-size: 18px; line-height: 24px; }
+.slot.mini { width: 34px; height: 34px; }
+.tombol.kecil.aktif { --t-a: #de4b8b; --t-b: #a8295f; --t-lis: #f79ac3; --t-tepi: #3c0a22; --t-bawah: #4e0f2e; --t-teks: #fff; }
+#sunting-katalog { position: fixed; left: 10px; top: 64px; z-index: var(--z-bangun); width: min(340px, calc(100vw - 20px)); height: min(56vh, 520px); display: flex; flex-direction: column; gap: 6px; padding: 8px; box-shadow: 0 8px 22px rgba(0,0,0,.5); }
+#sunting-katalog header { display: flex; align-items: center; justify-content: space-between; }
+#sunting-katalog header b { color: var(--krem); }
+#sunting-katalog .saring { margin: 0; }
+#sunting-katalog .saring select { width: 130px; }
+#sunting-katalog .saring input { flex: 1; min-width: 0; }
+.kisi.rapat { grid-template-columns: repeat(auto-fill, minmax(68px, 1fr)); gap: 5px; overflow-y: auto; flex: 1; align-content: start; padding: 2px; }
+.kisi.rapat .kartu { min-height: 70px; padding: 5px 3px; }
+.kisi.rapat .kartu b { font-size: 10px; }
+.kartu.aktif { --t-a: #de4b8b; --t-b: #a8295f; --t-lis: #f79ac3; --t-tepi: #3c0a22; --t-bawah: #4e0f2e; --t-teks: #fff; }
 
 /* ---------- Komputer: terminal + browser ---------- */
 /* Menempel di bawah supaya tokoh yang duduk (tengah layar) tetap terlihat. */
@@ -346,7 +384,8 @@ body.mode-bangun #zoom { visibility: visible; bottom: 96px; }
 body:not(.siap) #hotbar-wadah { visibility: hidden; }
 body.mode-bangun #hotbar-wadah { bottom: 92px; }
 #hotbar-nama { min-height: 18px; padding: 0 8px; font-size: 12px; font-weight: 700; color: var(--krem); text-shadow: 0 1px 0 #000, 0 0 6px #000; }
-#hotbar { display: flex; gap: 3px; padding: 3px; pointer-events: auto; }
+#hotbar { display: flex; gap: 3px; padding: 3px; pointer-events: auto; opacity: .68; transition: opacity .15s; }
+#hotbar:hover, #hotbar:focus-within { opacity: 1; }
 .hb-sel, .inv-sel { position: relative; width: 40px; height: 40px; display: grid; place-items: center; background: rgba(7,11,20,.72); border: 2px solid #2c3b5c; border-radius: 5px; padding: 0; cursor: pointer; }
 .hb-sel.aktif { border-color: var(--emas); box-shadow: 0 0 0 2px rgba(252,211,77,.45), inset 0 0 8px rgba(252,211,77,.25); transform: translateY(-3px); }
 .hb-sel.habis .ikon { opacity: .3; }

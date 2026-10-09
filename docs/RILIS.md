@@ -2,6 +2,35 @@
 
 Melengkapi PRD, GDD, dan TDD untuk rilis sesudah 0.2.0. Angka dan aturan di sini adalah yang berlaku di kode.
 
+## 0.6.0 — 9 Oktober 2026
+
+**Edit Map: penyunting peta utama setara Edit Layout Agent Pak (kata yosi: "tools edit map masih belum lengkap")**
+- Admin di kantor menekan B (atau tombol "Edit Map" di menu atas). Yang disunting adalah DRAF: langsung terlihat oleh
+  admin itu, tetapi baru tersimpan dan tersiar ke pemain lain saat **Simpan** (Ctrl+S). Keluar dengan draf yang belum
+  disimpan diminta dua kali, lalu draf dibuang.
+- Alat: **Pilih / geser** (klik memilih, seret memindah dengan jepret 8 piksel, panah menggeser 1 piksel, Shift+panah
+  1 ubin), **Pilih area** (seret kotak untuk memilih banyak benda, seret kotaknya untuk memindah semuanya; centang
+  "Ikutkan lantai & tembok" memindah atau menghapus ubin di dalam kotak juga), **Hapus** (klik benda; seret untuk
+  tembok dan lantai), **Tembok** (tarik garis lurus, pilihan warna bebas), **Lantai** (tarik kotak, pilih motif),
+  **Perabot** (jendela katalog tetap terbuka: kategori, cari, klik di peta menaruh berulang, daftar terakhir dipakai).
+- Benda terpilih: Putar (R, pusatnya tetap), Duplikat, Kunci posisi, Hapus (Delete). Grup: Duplikat, Hapus grup.
+- **Urungkan** (Ctrl+Z) sampai 60 langkah. Esc melepas pilihan atau membatalkan seretan. Klik kanan kembali ke Pilih.
+- **Penghalang**: ubin yang tak bisa dilewati diberi warna merah tipis (bisa dimatikan). Garis kisi selalu tampil.
+- Selagi Edit Map terbuka, tepi bawah peta tidak memindahkan admin ke rumah, dan siaran peta dari admin lain tidak
+  menimpa draf. Simpan ditolak bila peta sudah diubah dari tempat lain (nomor revisi), supaya dua admin tidak saling
+  menimpa.
+- Belum ada dibanding Agent Pak: alat Ruang, Pintu, Karpet berbingkai, Label, Titik santai, lapis depan/belakang,
+  ubah ukuran peta dari dalam penyunting (ukuran dan dasar peta tetap di dashboard, tab Peta & NPC).
+- Mode Bangun di rumah pemain tidak berubah.
+
+**Tampilan (kata yosi)**
+- Semua jendela (Inventory, Koperasi, Masak, katalog Edit Map, dan panel lain) bisa **digeser** lewat kepalanya; letak
+  terakhir diingat selama halaman terbuka. Inventory, Koperasi, dan Masak diperkecil (lebar 500, tinggi paling 62%
+  layar). Latar gelap di belakang jendela dibuat lebih tipis.
+- **Menu atas bisa di-minimize** (tombol ▴ di ujung kanan; ▾ Menu membukanya lagi). Pilihan diingat di peramban.
+  Tombol pintas (I, N, M, B) tetap jalan saat menu diciutkan.
+- **Hotbar agak transparan**; kembali pekat saat disentuh kursor.
+
 ## 0.5.0 — 9 Oktober 2026
 
 **Kode sekali pakai (TOTP) — jawaban yosi atas Y10: "ya"**

@@ -118,7 +118,7 @@ const Inventori = {
           G.tas.harga ? el('span', { kelas: 'redup kecil', teks: `Butuh tempat? Tas +10 slot dijual Bu Sari di Koperasi (${G.tas.harga} koin).` }) : null));
       Hotbar.lukis();
     };
-    Panel.buka('Inventory', isi, {});
+    Panel.buka('Inventory', isi, { kelas: 'ringkas' });
     lukisIsi();
     document.addEventListener('kevi:segar', lukisIsi);
     Panel.saatTutup = () => document.removeEventListener('kevi:segar', lukisIsi);
@@ -152,6 +152,6 @@ const Masak = {
         })));
     };
     lukisIsi();
-    Panel.buka('Masak', isi, {});
+    Panel.buka('Masak', isi, { kelas: 'ringkas' });
   },
 };

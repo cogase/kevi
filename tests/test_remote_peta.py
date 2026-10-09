@@ -84,6 +84,31 @@ def test_peta_utama_disunting_admin(kon):
             permainan.peta_dasar(kon, buruk)
 
 
+def test_peta_simpan_draf(kon):
+    d = permainan.baca_peta(kon)
+    assert d["rev"] == 0
+    draf = {"rev": 0, "lantai": {"2,3": "lantai_parket"}, "tembok": {"4,4": "#112233", " 5,4": "#112233"},
+            "benda": [{"n": "sofa_krem", "x": 96, "y": 96, "r": 0}, {"id": 7, "n": "sofa_krem", "x": 120, "y": 96, "r": 0, "kunci": True},
+                      {"id": 7, "n": "sofa_krem", "x": 144, "y": 96, "r": 99}]}
+    d = permainan.peta_simpan(kon, draf)
+    assert d["rev"] == 1 and d["lantai"] == {"2,3": "lantai_parket"} and set(d["tembok"]) == {"4,4", "5,4"}
+    ids = [o["id"] for o in d["benda"]]
+    assert len(set(ids)) == 3 and 7 in ids and d["urut"] == max(ids)            # id kembar dan id kosong diberi id baru
+    assert d["benda"][1].get("kunci") is True and "kunci" not in d["benda"][0] and d["benda"][2]["r"] == 0
+    with pytest.raises(Ditolak) as e:
+        permainan.peta_simpan(kon, draf)                                        # revisi basi: admin lain sudah menyimpan
+    assert "tempat lain" in str(e.value)
+    for buruk in ({"lantai": {"2,3": "ngawur"}}, {"lantai": {"99,3": "lantai_parket"}}, {"lantai": {"x": "lantai_parket"}},
+                  {"tembok": {"1,1": "merah"}}, {"benda": [{"n": "tidak_ada", "x": 1, "y": 1}]}, {"benda": [{"n": "sofa_krem", "x": 99999, "y": 1}]},
+                  {"benda": [{"n": "sofa_krem", "x": 1.5, "y": 1}]}, {"benda": "x"}, {"lantai": []}):
+        with pytest.raises(Ditolak):
+            permainan.peta_simpan(kon, {"rev": 1, "lantai": {}, "tembok": {}, "benda": [], **buruk})
+    assert permainan.baca_peta(kon)["rev"] == 1                                 # yang ditolak tidak mengubah apa pun
+    d = permainan.peta_simpan(kon, {"rev": 1, "lantai": {}, "tembok": {}, "benda": []})
+    assert d["rev"] == 2 and not d["benda"] and d["urut"] == max(ids)           # id lama tidak dipakai ulang
+    assert permainan.peta_pasang(kon, {"barang": "sofa_krem", "x": 100, "y": 100})["rev"] == 3
+
+
 def test_level_barang():
     assert permainan.level_barang("kebun_petak") == 1 and permainan.level_barang("benih:sawi") == 1 and permainan.level_barang("lantai:lantai_parket") == 1
     assert permainan.level_barang("benih:mangga") == 7 and permainan.level_barang("kandang_ternak") == 5

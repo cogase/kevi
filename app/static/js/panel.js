@@ -3,6 +3,31 @@
 
 /* ---------- panel (satu jendela modal) ---------- */
 
+// Jendela bisa digeser lewat kepalanya. Geseran terakhir diingat per kunci selama halaman terbuka; kalau jendela
+// jadi di luar layar (ukuran layar berubah), geserannya dikembalikan ke nol.
+const GESER_JENDELA = {};
+function bisaDigeser(kotak, pegangan, kunci) {
+  const p = GESER_JENDELA[kunci] || (GESER_JENDELA[kunci] = { x: 0, y: 0 });
+  const pasang = () => { kotak.style.transform = p.x || p.y ? `translate(${p.x}px, ${p.y}px)` : ''; };
+  pasang();
+  const r0 = kotak.getBoundingClientRect();
+  if (r0.right < 80 || r0.left > innerWidth - 80 || r0.top < 0 || r0.top > innerHeight - 40) { p.x = 0; p.y = 0; pasang(); }
+  pegangan.classList.add('pegangan');
+  pegangan.addEventListener('pointerdown', (ev) => {
+    if (ev.button !== 0 || ev.target.closest('button, input, select, a')) return;
+    ev.preventDefault();
+    const r = kotak.getBoundingClientRect(), ax = ev.clientX, ay = ev.clientY, x0 = p.x, y0 = p.y;
+    const gerak = (e) => {              // kepala jendela selalu tetap terjangkau
+      p.x = x0 + Math.max(80 - r.right, Math.min(innerWidth - 80 - r.left, e.clientX - ax));
+      p.y = y0 + Math.max(-r.top, Math.min(innerHeight - 40 - r.top, e.clientY - ay));
+      pasang();
+    };
+    const lepas = () => { removeEventListener('pointermove', gerak); removeEventListener('pointerup', lepas); };
+    addEventListener('pointermove', gerak);
+    addEventListener('pointerup', lepas);
+  });
+}
+
 const Panel = {
   buka(judul, isi, opsi = {}) {
     this.tutup();
@@ -14,6 +39,7 @@ const Panel = {
     document.body.classList.add('ada-panel');
     this.terkunci = !!opsi.tanpaTutup;
     this.saatTutup = opsi.saatTutup || null;
+    bisaDigeser(kotak, kotak.querySelector('header'), 'panel:' + judul);
     Mesin.tombol.clear();
     const fokus = kotak.querySelector('[autofocus], input, textarea, button.utama');
     if (fokus) setTimeout(() => fokus.focus(), 0);
@@ -146,7 +172,9 @@ const Hud = {
   adegan() {
     const di = $('#hud-tempat');
     if (di) di.textContent = G.adegan === 'kantor' ? 'Kantor' : (G.rumahSaya ? 'Rumah' : 'Rumah ' + G.pemilikRumah.nama);
-    $('#tb-bangun').hidden = !(G.adegan !== 'kantor' && G.rumahSaya);
+    const tb = $('#tb-bangun'), kantor = G.adegan === 'kantor';
+    tb.hidden = kantor ? G.saya.peran !== 'admin' : !G.rumahSaya;
+    tb.replaceChildren(kantor ? 'Edit Map ' : 'Bangun ', el('kbd', { teks: 'B' }));
   },
   sambungan(ok) { $('#hud-sambung').hidden = ok; },
   terputus(pesan) { Panel.buka('Terputus', el('div', {}, el('p', { teks: pesan }), el('button', { kelas: 'tombol utama', teks: 'Muat ulang', on: { click: () => location.reload() } })), { sempit: true, tanpaTutup: true }); },
@@ -168,6 +196,20 @@ const Hud = {
       'tb-bangun': () => (G.bangun ? Rumah.keluarBangun() : Rumah.masukBangun()) };
     for (const [id, fn] of Object.entries(peta)) $('#' + id).addEventListener('click', (ev) => { ev.currentTarget.blur(); fn(); });
     $('#hud-koin-kotak').addEventListener('click', () => Panel.kas());
+    // Menu atas bisa diciutkan supaya tidak menutupi tepi atas peta; pilihan diingat di peramban.
+    const ciut = (v) => {
+      document.body.classList.toggle('hud-ciut', v);
+      const tb = $('#tb-ciut');
+      tb.textContent = v ? '▾ Menu' : '▴';
+      tb.title = v ? 'Buka menu atas' : 'Minimize menu atas';
+      tb.setAttribute('aria-label', tb.title);
+      tb.setAttribute('aria-expanded', String(!v));
+      try { localStorage.setItem('kevi.hudCiut', v ? '1' : ''); } catch (e) { /* penyimpanan dimatikan */ }
+    };
+    let awal = false;
+    try { awal = localStorage.getItem('kevi.hudCiut') === '1'; } catch (e) { /* abaikan */ }
+    ciut(awal);
+    $('#tb-ciut').addEventListener('click', (ev) => { ev.currentTarget.blur(); ciut(!document.body.classList.contains('hud-ciut')); });
   },
 };
 
@@ -243,7 +285,7 @@ const Toko = {
   tab: 'benih', kategori: '', cari: '',
   buka() {
     const isi = el('div', { kelas: 'toko' });
-    Panel.buka('Koperasi', isi, { kelas: 'lebar' });
+    Panel.buka('Koperasi', isi, { kelas: 'ringkas' });
     const lukisUlang = () => { if (isi.isConnected) this.lukis(isi); };
     document.addEventListener('kevi:segar', lukisUlang);
     Panel.saatTutup = () => document.removeEventListener('kevi:segar', lukisUlang);

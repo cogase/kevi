@@ -7,6 +7,7 @@ function pasangTombol() {
   addEventListener('keydown', (ev) => {
     const k = ev.key.toLowerCase();
     if (ev.target.closest && ev.target.closest('#term-remote')) return;      // terminal remote memakai semua tombol, termasuk Esc
+    if (G.bangun && G.bangun.sunting && !Panel.terbuka() && Sunting.tombol(ev)) return;      // Edit Map: Ctrl+Z, Delete, panah, Esc
     if (k === 'escape') {
       if (Panel.terbuka()) { if (!Panel.terkunci) Panel.tutup(); }
       else if (Terminal.terbuka()) Terminal.tutup();
