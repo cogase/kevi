@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Masuk · Kevi</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/static/huruf/huruf.css?v={{aset}}">
+<link rel="stylesheet" href="/static/css/kevi.css?v={{aset}}">
+</head>
+<body class="hal-polos">
+<main class="kartu-masuk bingkai">
+  <h1>Kevi</h1>
+  <p class="redup">Kerja Virtual — kantor pixel tempat kamu bekerja, bertani, dan membangun rumah.</p>
+  <form id="form" class="formulir">
+    <label>Username<input id="u" type="text" autocomplete="username" autocapitalize="off" autofocus required></label>
+    <label>Password<input id="p" type="password" autocomplete="current-password" required></label>
+    <p id="galat" class="galat-teks" role="alert" hidden></p>
+    <button class="tombol utama">Masuk</button>
+  </form>
+  <p class="redup kecil">Akun dibuat oleh admin. Kevi {{versi}}</p>
+</main>
+<script>
+document.getElementById('form').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const g = document.getElementById('galat');
+  g.hidden = true;
+  try {
+    const r = await fetch('/api/masuk', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: document.getElementById('u').value, password: document.getElementById('p').value }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.galat || 'Gagal masuk.');
+    location.href = '/';
+  } catch (e) { g.textContent = e.message; g.hidden = false; }
+});
+</script>
+</body>
+</html>

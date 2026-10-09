@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Laporan token · Kevi</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/static/huruf/huruf.css?v={{aset}}">
+<link rel="stylesheet" href="/static/css/kevi.css?v={{aset}}">
+</head>
+<body class="hal-polos">
+<main class="lembar bingkai">
+  <h1>Laporan pemakaian token</h1>
+  <p class="redup">Token Claude yang dihabiskan untuk membuat proyek Kevi saja (sesi lain di server ini tidak ikut), dihitung dari transkrip sesi. <span id="dibuat"></span></p>
+  <div class="baris-tombol">
+    <button id="hitung" class="tombol utama">Hitung ulang</button>
+    <a class="tombol" href="/">Kembali ke Kevi</a>
+  </div>
+  <p id="pesan" class="galat-teks" role="alert" hidden></p>
+
+  <div id="ubin" class="ubin-angka"></div>
+
+  <h2>Per sesi kerja</h2>
+  <div class="tabel-gulung"><table id="sesi"></table></div>
+
+  <h2>Per jam (WIB)</h2>
+  <div class="tabel-gulung"><table id="jam"></table></div>
+
+  <h2>Per model</h2>
+  <div class="tabel-gulung"><table id="model"></table></div>
+
+  <h2>Cara membaca</h2>
+  <ul class="redup">
+    <li><b>Token pekerjaan</b> = keluar + tulis cache + masuk. Inilah isi baru yang benar-benar dihasilkan dan dibaca untuk proyek ini; angka utama laporan.</li>
+    <li><b>Baca ulang (cache)</b> dipisah: itu riwayat sesi yang sama dibaca lagi pada tiap langkah, ditagih jauh lebih murah, dan membengkak hanya karena sesinya panjang.</li>
+    <li><b>Masuk</b>: token yang dikirim ke model tanpa lewat cache.</li>
+    <li><b>Tulis cache</b>: isi percakapan yang disimpan ke cache (ditagih lebih mahal dari masuk biasa, sekali).</li>
+    <li><b>Baca cache</b>: isi percakapan yang dibaca ulang dari cache di tiap langkah (ditagih jauh lebih murah). Angkanya besar karena seluruh riwayat sesi dibaca lagi pada setiap panggilan.</li>
+    <li><b>Keluar</b>: token yang ditulis model (kode, dokumen, penalaran).</li>
+    <li>Nilai uang tidak ditampilkan: transkrip tidak mencatat harga per token, jadi tidak dikarang.</li>
+    <li>Sesi baru yang bekerja di folder proyek ini ikut terhitung otomatis saat <i>Hitung ulang</i> ditekan.</li>
+  </ul>
+</main>
+<script>
+const rb = (n) => (n || 0).toLocaleString('id-ID');
+const el = (tag, teks, kelas) => { const e = document.createElement(tag); if (teks != null) e.textContent = teks; if (kelas) e.className = kelas; return e; };
+const KOLOM = [['kerja', 'Token pekerjaan'], ['keluar', 'Keluar'], ['tulis_cache', 'Tulis cache'], ['masuk', 'Masuk'], ['baca_cache', 'Baca ulang (cache)'], ['panggilan', 'Panggilan']];
+function tabel(id, kepala, baris, label) {
+  const t = document.getElementById(id);
+  t.replaceChildren();
+  const h = t.createTHead().insertRow();
+  h.append(...kepala.map(k => el('th', k)), ...KOLOM.map(([, n]) => el('th', n, 'angka')));
+  const b = t.createTBody();
+  for (const r of baris) { const tr = b.insertRow(); tr.append(...label(r).map(x => el('td', x)), ...KOLOM.map(([k]) => el('td', rb(r[k]), 'angka'))); }
+  if (!baris.length) b.insertRow().append(el('td', 'Belum ada data.'));
+}
+const jamWib = (iso) => iso ? new Date(iso).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '-';
+function tampil(d) {
+  if (d.kosong) { document.getElementById('dibuat').textContent = 'Belum pernah dihitung — tekan Hitung ulang.'; return; }
+  document.getElementById('dibuat').textContent = 'Dihitung ' + new Date(d.dibuat * 1000).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }) + ' WIB.';
+  const t = d.total;
+  document.getElementById('ubin').replaceChildren(...[['kerja', 'Token pekerjaan (dihabiskan)'], ['keluar', 'Keluar: ditulis model'], ['tulis_cache', 'Tulis cache: isi baru'], ['masuk', 'Masuk tanpa cache'], ['panggilan', 'Panggilan model'], ['baca_cache', 'Baca ulang riwayat (cache)']]
+    .map(([k, n]) => { const x = el('div'); x.append(el('b', rb(t[k])), el('span', n)); return x; }));
+  tabel('sesi', ['Sesi', 'Mulai', 'Akhir'], d.sesi, (s) => [(s.judul || 'tanpa judul') + ' · ' + s.id.slice(0, 8), jamWib(s.mulai), jamWib(s.akhir)]);
+  tabel('jam', ['Jam'], d.per_jam, (j) => [j.jam]);
+  tabel('model', ['Model'], d.per_model, (m) => [m.model]);
+}
+async function muat(hitung) {
+  const p = document.getElementById('pesan'), tb = document.getElementById('hitung');
+  p.hidden = true; tb.disabled = true;
+  try {
+    const r = await fetch(hitung ? '/api/laporan-token/hitung' : '/api/laporan-token', hitung ? { method: 'POST' } : {});
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).galat || 'Gagal memuat (' + r.status + ').');
+    tampil(await r.json());
+  } catch (e) { p.textContent = e.message; p.hidden = false; }
+  tb.disabled = false;
+}
+document.getElementById('hitung').addEventListener('click', () => muat(true));
+muat(false);
+</script>
+</body>
+</html>

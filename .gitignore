@@ -1,0 +1,12 @@
+venv/
+data/
+__pycache__/
+*.pyc
+.env
+node_modules/
+.claude/
+docs/laporan-token.json
+docs/laporan-token-sesi.json
+.impeccable/
+*.log
+.pytest_cache/

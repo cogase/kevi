@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="id" data-aset="{{aset}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard admin · Kevi</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/static/huruf/huruf.css?v={{aset}}">
+<link rel="stylesheet" href="/static/css/kevi.css?v={{aset}}">
+</head>
+<body class="hal-polos">
+<main class="lembar bingkai">
+  <h1>Dashboard Kevi</h1>
+  <p class="redup">Pusat kendali game: keadaan seluruh permainan, pemakai, peta kantor, pengaturan, dan catatan kegiatan. <span id="versi"></span></p>
+  <div class="baris-tombol">
+    <a class="tombol" href="/">Masuk ke game</a>
+    <a class="tombol" href="/laporan">Laporan token proyek</a>
+    <button id="segarkan" class="tombol">Refresh</button>
+  </div>
+  <p id="pesan" role="status" hidden></p>
+
+  <nav class="tab-admin" id="tab">
+    <button data-bagian="ringkasan" class="aktif">Ringkasan</button>
+    <button data-bagian="pemakai">Pemakai</button>
+    <button data-bagian="peta">Peta &amp; NPC</button>
+    <button data-bagian="atur">Pengaturan</button>
+    <button data-bagian="log">Log</button>
+  </nav>
+
+  <section class="bagian" id="b-ringkasan">
+    <div id="ubin" class="ubin-angka"></div>
+    <div class="dua-kolom">
+      <div><h2>Sedang daring</h2><div class="tabel-gulung"><table id="t-daring"></table></div></div>
+      <div><h2>Papan peringkat</h2><div class="tabel-gulung"><table id="t-peringkat"></table></div></div>
+    </div>
+    <h2>Pengumuman</h2>
+    <form id="f-umum" class="formulir" style="max-width:620px">
+      <label>Teks pengumuman (muncul di layar semua pemain sekarang dan saat mereka masuk; kosongkan untuk menghapus)
+        <input id="umum" type="text" maxlength="240"></label>
+      <div class="baris-tombol"><button class="tombol utama">Siarkan</button></div>
+    </form>
+  </section>
+
+  <section class="bagian" id="b-pemakai" hidden>
+    <h2>Tambah pemakai</h2>
+    <form id="f-tambah" class="atur-kisi" style="align-items:end">
+      <label>Username<input id="u" type="text" autocapitalize="off" autocomplete="off" required pattern="[a-z0-9][a-z0-9._\-]{2,23}"></label>
+      <label>Password awal (min. 8 karakter)<input id="p" type="text" autocomplete="off" required minlength="8"></label>
+      <label class="centang-baris"><input id="a" type="checkbox"> Admin</label>
+      <div><button class="tombol utama">Tambah</button></div>
+    </form>
+    <p class="redup kecil">Pendaftaran mandiri belum dibuka: akun dibuat di sini. Karakter dibuat pemiliknya saat pertama masuk.</p>
+    <h2>Daftar pemakai</h2>
+    <div class="tabel-gulung"><table id="t-pemakai"></table></div>
+  </section>
+
+  <section class="bagian" id="b-peta" hidden>
+    <div class="sunting-peta" style="margin-bottom:12px">
+      <b>Peta utama</b>
+      <p class="redup kecil" style="margin:0">Isi peta (perabot, lantai, tembok dari katalog Agent Pak) disunting dari dalam game: masuk sebagai admin, berdiri di kantor, tekan <kbd>B</kbd>. Di sini hanya dasarnya.</p>
+      <div class="atur-kisi" style="align-items:end">
+        <label>Dasar<select id="peta-dasar"><option value="default">Default (kantor Agent Pak) + tambahan admin</option><option value="kosong">Kosong, bangun dari nol</option></select></label>
+        <label>Lebar (ubin, 20–80)<input id="peta-lebar" type="number" min="20" max="80" value="45"></label>
+        <label>Tinggi (ubin, 20–80)<input id="peta-tinggi" type="number" min="20" max="80" value="46"></label>
+        <label>Lantai dasar<select id="peta-lantai"></select></label>
+        <label class="centang-baris"><input type="checkbox" id="peta-kosongkan"> Buang semua tambahan admin</label>
+        <div><button id="peta-terapkan" class="tombol kecil utama" type="button">Terapkan dasar</button></div>
+      </div>
+    </div>
+    <p class="redup">Pilih NPC atau titik di daftar, lalu klik peta untuk memindahkannya. Perubahan baru berlaku setelah <b>Simpan peta</b>; semua layar pemain ikut berubah saat itu juga.</p>
+    <div class="peta-wadah">
+      <canvas id="peta" width="720" height="736"></canvas>
+      <div class="peta-sisi">
+        <div class="baris-tombol" style="margin:0">
+          <button id="npc-baru" class="tombol kecil hijau">+ NPC</button>
+          <button id="titik-baru" class="tombol kecil hijau">+ Titik interaksi</button>
+          <button id="peta-simpan" class="tombol kecil utama">Simpan peta</button>
+        </div>
+        <div id="peta-daftar" class="daftar"></div>
+        <div id="peta-sunting"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="bagian" id="b-atur" hidden>
+    <form id="f-atur">
+      <div class="atur-kisi" id="atur-angka"></div>
+      <h2>Pesan sistem berulang</h2>
+      <p class="redup kecil">Satu baris satu pesan. Disiarkan bergiliran ke semua pemain yang daring, tiap sekian menit (kotak "Jeda pesan sistem" di atas). Kosongkan untuk mematikan.</p>
+      <textarea id="pesan-sistem" rows="4" placeholder="Contoh: Jangan lupa isi laporan harian sebelum pulang."></textarea>
+      <h2>Remote SSH / Telnet</h2>
+      <p class="redup kecil">Membuka jalan dari Kevi ke perangkat jaringan. Hanya admin dan pemakai yang diberi izin (tab Pemakai) yang bisa memakainya, dan hanya ke jaringan serta port di bawah ini. Tiap sesi tercatat di tab Log.</p>
+      <div class="atur-kisi">
+        <label class="centang-baris"><input type="checkbox" id="remote-aktif"> Remote menyala</label>
+        <label>Port yang diizinkan (pisahkan koma)<input id="remote-port" type="text"></label>
+      </div>
+      <label class="formulir" style="margin-top:8px">Jaringan yang boleh dituju (satu CIDR per baris)<textarea id="remote-jaringan" rows="4"></textarea></label>
+      <h2>Bookmark browser dalam game</h2>
+      <p class="redup kecil">Satu baris per situs: <code>Nama | https://alamat</code>. Tampil di tab Browser pada Komputer (terbuka di level 4).</p>
+      <textarea id="bookmark" rows="5"></textarea>
+      <div class="baris-tombol"><button class="tombol utama">Simpan pengaturan</button></div>
+    </form>
+  </section>
+
+  <section class="bagian" id="b-log" hidden>
+    <div class="dua-kolom">
+      <div><h2>Terminal (40 terakhir)</h2><div class="tabel-gulung"><table id="t-terminal"></table></div></div>
+      <div><h2>Koin (40 terakhir)</h2><div class="tabel-gulung"><table id="t-kas"></table></div></div>
+    </div>
+    <h2>Remote SSH / Telnet (40 terakhir)</h2>
+    <div class="tabel-gulung"><table id="t-remote"></table></div>
+    <h2>Obrolan (60 terakhir, tanpa bisikan)</h2>
+    <div class="tabel-gulung"><table id="t-obrolan"></table></div>
+  </section>
+</main>
+<script src="/static/js/tokoh.js?v={{aset}}"></script>
+<script src="/static/js/admin.js?v={{aset}}"></script>
+</body>
+</html>

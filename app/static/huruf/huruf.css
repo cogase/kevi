@@ -1,0 +1,103 @@
+/* Huruf Pak Apps (K1, disahkan yosi 1 Oktober 2026): Inter untuk teks, JetBrains Mono untuk kode dan angka teknis.
+   LOKAL, tanpa CDN. Salin seluruh folder token/huruf/ ke repo modul (misalnya static/huruf/ atau src/huruf/),
+   lalu muat berkas ini SEBELUM tokens.css. Jalur url() relatif terhadap berkas ini, jadi kedelapan woff2 harus
+   ikut di folder yang sama.
+
+   Sumber: @fontsource-variable/inter 5.3.0 dan @fontsource-variable/jetbrains-mono 5.3.0 (npm, berkas asli tanpa
+   diubah). Variabel, sumbu wght 100–900 (Inter) dan 100–800 (JetBrains Mono): satu berkas melayani semua berat.
+   Subset Latin + Latin-ext; peramban hanya mengunduh subset yang hurufnya benar-benar dipakai (unicode-range).
+   Lisensi: SIL OFL 1.1, lihat LISENSI-*.txt di folder ini; berkas lisensi WAJIB ikut disalin.
+
+   Nama keluarga sengaja "Inter" dan "JetBrains Mono" (bukan "Inter Variable"), supaya tumpukan --pa-huruf-teks
+   dan --pa-huruf-mono di tokens.css langsung mengenainya.
+
+   Fitur terukur (node token/cek-fitur-huruf.mjs): Inter punya `tnum`, jadi font-variant-numeric: tabular-nums
+   berlaku. JetBrains Mono tidak butuh `tnum` karena semua glifnya memang selebar sama. */
+
+/* ---------- Inter, tegak */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("./inter-latin-ext-wght-normal.woff2") format("woff2-variations"),
+       url("./inter-latin-ext-wght-normal.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("./inter-latin-wght-normal.woff2") format("woff2-variations"),
+       url("./inter-latin-wght-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* ---------- Inter, miring */
+@font-face {
+  font-family: "Inter";
+  font-style: italic;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("./inter-latin-ext-wght-italic.woff2") format("woff2-variations"),
+       url("./inter-latin-ext-wght-italic.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Inter";
+  font-style: italic;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("./inter-latin-wght-italic.woff2") format("woff2-variations"),
+       url("./inter-latin-wght-italic.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* ---------- JetBrains Mono, tegak */
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 800;
+  src: url("./jetbrains-mono-latin-ext-wght-normal.woff2") format("woff2-variations"),
+       url("./jetbrains-mono-latin-ext-wght-normal.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 800;
+  src: url("./jetbrains-mono-latin-wght-normal.woff2") format("woff2-variations"),
+       url("./jetbrains-mono-latin-wght-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* ---------- JetBrains Mono, miring */
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: italic;
+  font-display: swap;
+  font-weight: 100 800;
+  src: url("./jetbrains-mono-latin-ext-wght-italic.woff2") format("woff2-variations"),
+       url("./jetbrains-mono-latin-ext-wght-italic.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: italic;
+  font-display: swap;
+  font-weight: 100 800;
+  src: url("./jetbrains-mono-latin-wght-italic.woff2") format("woff2-variations"),
+       url("./jetbrains-mono-latin-wght-italic.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}

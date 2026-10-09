@@ -1,0 +1,374 @@
+// Uji ujung-ke-ujung Kevi di peramban headless: masuk, buat karakter, jalan WASD, terminal, toko, rumah, kebun.
+// Pakai: node tests/uji_peramban.mjs <port> <username> <password> [folder foto]
+// Instans yang diuji harus memakai DB uji (lihat tests/uji.sh), bukan DB sungguhan.
+import { createRequire } from 'node:module';
+import os from 'node:os';
+// playwright-core dicari di folder KEVI_PLAYWRIGHT (folder apa pun yang punya node_modules/playwright-core).
+const butuh = createRequire((process.env.KEVI_PLAYWRIGHT || os.homedir() + '/tangkap-bantuan') + '/');
+const { chromium } = butuh('playwright-core');
+
+const [, , port = '8811', username = 'penguji', password = 'rahasia-uji-123', foto = ''] = process.argv;
+const b = await chromium.launch({
+  executablePath: process.env.KEVI_CHROME || os.homedir() + '/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome', args: ['--no-sandbox'] });
+const pg = await (await b.newContext({ viewport: { width: 1366, height: 768 } })).newPage();
+const galat = [];
+pg.on('pageerror', e => galat.push('pageerror: ' + e.message));
+pg.on('console', m => { if (m.type() === 'error' && !/status of 40[0134]/.test(m.text())) galat.push('console: ' + m.text()); });
+pg.on('response', r => { if (r.status() === 404) galat.push('404: ' + r.url()); });
+let gagal = 0;
+const cek = (nama, ok, info = '') => { if (!ok) gagal++; console.log((ok ? 'LULUS ' : 'GAGAL ') + nama + (info ? ' — ' + info : '')); };
+const tunggu = (ms) => pg.waitForTimeout(ms);
+const potret = async (n) => { if (foto) await pg.screenshot({ path: `${foto}/${n}.png` }); };
+const tekan = async (k, ms) => { await pg.keyboard.down(k); await tunggu(ms); await pg.keyboard.up(k); await tunggu(60); };
+
+await pg.goto(`http://127.0.0.1:${port}/`);
+cek('tanpa sesi dialihkan ke /masuk', pg.url().endsWith('/masuk'));
+await pg.fill('#u', username); await pg.fill('#p', 'salah-sandi-xx'); await pg.click('button.utama');
+await pg.waitForSelector('#galat:not([hidden])');
+cek('password salah ditolak', (await pg.textContent('#galat')).includes('salah'));
+await pg.fill('#p', password); await pg.click('button.utama');
+await pg.waitForURL(`http://127.0.0.1:${port}/`);
+
+// --- pembuat karakter
+await pg.waitForSelector('.buat');
+cek('pembuat karakter tampil untuk akun baru', true);
+await pg.fill('.buat-kiri input[type=text]', 'Penguji Satu');
+await pg.selectOption('.buat-kanan select >> nth=0', 'rambut_bob');
+await tunggu(400);
+await potret('1-buat-karakter');
+await pg.click('.buat-kiri button.utama');
+await pg.waitForFunction(() => document.body.classList.contains('siap') && G.aku && Jaring.tersambung, null, { timeout: 20000 });
+if (await pg.$('#tirai')) await pg.keyboard.press('Escape');
+await tunggu(500);
+let s = await pg.evaluate(() => ({ koin: G.koin, adegan: G.adegan, inv: G.inventori, npc: [...G.entitas.values()].filter(e => e.jenis === 'npc').length, x: G.aku.x, y: G.aku.y }));
+cek('modal awal diterima', s.koin >= 300 && s.inv.kebun_petak === 6, JSON.stringify({ koin: s.koin, petak: s.inv.kebun_petak }));
+cek('mulai di kantor dengan NPC', s.adegan === 'kantor' && s.npc === 5, `npc ${s.npc}`);
+const npcAwal = await pg.evaluate(() => [...G.entitas.values()].filter(e => e.jenis === 'npc').map(e => [e.x, e.y, e.pose].join()));
+await potret('2-kantor');
+
+// --- jalan WASD + tabrakan
+const p0 = await pg.evaluate(() => [G.aku.x, G.aku.y]);
+await tekan('w', 500);
+const p1 = await pg.evaluate(() => [G.aku.x, G.aku.y]);
+cek('W menggerakkan tokoh ke atas', p1[1] < p0[1] - 10, `${p0[1].toFixed(0)} -> ${p1[1].toFixed(0)}`);
+await pg.evaluate(() => { G.aku.x = 20; G.aku.y = 30 * 16 - 19 + 8; });
+await tekan('a', 700);
+cek('tembok menahan tokoh', (await pg.evaluate(() => G.aku.x)) >= 11.9, String(await pg.evaluate(() => G.aku.x)));
+cek('tokoh tak pernah berhenti di dalam penghalang', await pg.evaluate(() => kakiBebas(G.aku.x, G.aku.y)));
+
+// --- duduk + terminal
+await pg.evaluate(() => { const st = Rumah.titik.find(b => b.jenis === 'kursi'); st.aksi(); });
+await pg.waitForSelector('#terminal:not([hidden])');
+cek('duduk membuka terminal', await pg.evaluate(() => !!G.duduk && /^(main|duduk|kiri_duduk|kanan_duduk)/.test(G.aku.pose || 'main')));
+await tunggu(300);
+await potret('3-terminal');
+const ketik = async (baris, tungguMs = 400) => { await pg.fill('#term-isi', baris); await pg.keyboard.press('Enter'); await tunggu(tungguMs); };
+await ketik('help');
+cek('help menampilkan daftar perintah', (await pg.textContent('#term-layar')).includes('ping <host>'));
+await ketik('ping 127.0.0.1', 4500);
+await pg.waitForFunction(() => !Terminal.sibuk, null, { timeout: 15000 });
+let layar = await pg.textContent('#term-layar');
+cek('ping berjalan dan mengalir ke layar', /bytes from 127\.0\.0\.1|packets transmitted/.test(layar));
+await ketik('ping -c 9999 x; rm -rf /', 600);
+layar = await pg.textContent('#term-layar');
+cek('sasaran berbahaya ditolak', layar.includes('Sasaran'));
+await ketik('rm -rf /', 400);
+cek('perintah di luar daftar ditolak', (await pg.textContent('#term-layar')).includes('tidak dikenal'));
+await ketik('dns localhost', 1200);
+cek('dns menjawab', (await pg.textContent('#term-layar')).includes('localhost ->'));
+await ketik('catat Uji ping', 600);
+cek('catat menyimpan ke Note', (await pg.textContent('#term-layar')).includes('Tersimpan di Note'));
+await pg.keyboard.press('Escape');
+cek('Esc menutup terminal dan berdiri', await pg.evaluate(() => $('#terminal').hidden && !G.duduk));
+
+// --- Note
+await pg.keyboard.press('n');
+await pg.waitForSelector('.note');
+cek('Note berisi catatan dari terminal', (await pg.textContent('.note-daftar')).includes('Uji ping'));
+await pg.keyboard.press('Escape');
+
+// --- NPC + toko
+await pg.evaluate(() => Npc.bicara(G.entitas.get('npc:sari')));
+await pg.waitForSelector('.toko');
+await pg.click('.toko .kartu >> nth=0', { modifiers: ['Shift'] });   // 5 benih sawi
+await tunggu(500);
+s = await pg.evaluate(() => ({ koin: G.koin, sawi: G.inventori['benih:sawi'] }));
+cek('beli benih memotong koin', s.sawi === 11 && s.koin < 350, JSON.stringify(s));
+await pg.click('.tab button >> nth=2'); await tunggu(300);
+cek('katalog perabot terisi', (await pg.$$('.toko .kartu')).length > 50);
+const terbukaAwal = (await pg.$$('.toko .kartu:not(.gembok)')).length;
+await pg.fill('.toko input[type=search]', 'sofa'); await tunggu(300);
+cek('perabot mahal terkunci level, yang dasar terbuka', terbukaAwal > 20 && (await pg.$$('.toko .kartu.gembok')).length >= 5 && (await pg.textContent('.toko .kisi')).includes('Lv '));
+await pg.evaluate(() => { Toko.cari = ''; });
+cek('server menolak beli barang terkunci', await pg.evaluate(async () => (await fetch('/api/toko/beli', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ barang: 'sofa_krem', jumlah: 1 }) })).status === 400));
+await potret('4-toko');
+await pg.keyboard.press('Escape');
+
+// --- obrolan
+await pg.keyboard.press('Enter');
+await pg.keyboard.type('halo semua');
+await pg.keyboard.press('Enter');
+await tunggu(400);
+cek('obrolan tampil di log dan gelembung', (await pg.textContent('#obrolan-log')).includes('halo semua') && await pg.evaluate(() => !!G.aku.gelembung));
+
+// --- lari & stamina
+await pg.evaluate(() => { G.aku.x = 40; G.aku.y = 44 * 16; G.stamina.nilai = G.level.stamina; G.stamina.lelah = false; });
+const xJalan0 = await pg.evaluate(() => G.aku.x);
+await tekan('d', 600);
+const jalan = (await pg.evaluate(() => G.aku.x)) - xJalan0;
+await pg.evaluate(() => { G.aku.x = 40; });
+await pg.keyboard.down('Shift'); await tekan('d', 600); await pg.keyboard.up('Shift');
+const lari = (await pg.evaluate(() => G.aku.x)) - 40;
+cek('Shift membuat lari lebih cepat dari jalan', lari > jalan * 1.4, `jalan ${jalan.toFixed(0)} px, lari ${lari.toFixed(0)} px`);
+cek('lari menguras stamina', await pg.evaluate(() => G.stamina.nilai < G.level.stamina - 8), String(await pg.evaluate(() => G.stamina.nilai.toFixed(1))));
+await pg.evaluate(() => { G.stamina.nilai = 0.5; G.aku.x = 40; });
+await pg.keyboard.down('Shift'); await tekan('d', 500); await pg.keyboard.up('Shift');
+cek('stamina habis = tak bisa lari', await pg.evaluate(() => G.stamina.lelah && $('#hud-stamina').classList.contains('lelah')));
+await tunggu(1500);
+cek('stamina pulih saat diam', await pg.evaluate(() => G.stamina.nilai > 20));
+
+// --- level: terkunci di level 1, lalu admin menaikkan XP
+cek('HUD menampilkan level', (await pg.textContent('#hud-level')).startsWith('Lv '));
+await pg.evaluate(() => Arcade.buka()); await tunggu(300);
+cek('arcade terkunci sebelum level 3', !(await pg.$('.arcade-papan')) && await pg.evaluate(() => G.level.level < 3));
+const idSaya = await pg.evaluate(() => G.saya.id);
+await pg.evaluate((id) => fetch('/api/admin/pemakai/ubah', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, xp: 3000 }) }), idSaya);
+await pg.waitForFunction(() => G.level.level === 5, null, { timeout: 5000 });
+cek('admin menyetel XP: level langsung naik di layar', (await pg.textContent('#hud-level')) === 'Lv 5');
+
+// --- kuis jaringan
+await pg.evaluate(() => Kuis.buka());
+await pg.waitForSelector('.pilihan-kuis');
+cek('kuis menampilkan soal dengan 4 pilihan', (await pg.$$('.pilihan-kuis')).length === 4);
+await pg.click('.pilihan-kuis >> nth=0'); await tunggu(600);
+cek('kuis menandai jawaban benar', (await pg.$$('.pilihan-kuis.benar')).length >= 1);
+await pg.keyboard.press('Escape');
+
+// --- arcade: selesaikan dengan mencocokkan semua pasangan
+await pg.evaluate(() => Arcade.buka());
+await pg.waitForSelector('.arcade-papan');
+cek('arcade membuka 16 kartu', (await pg.$$('.arcade-kartu')).length === 16);
+await pg.click('.arcade-kartu >> nth=0'); await pg.click('.arcade-kartu >> nth=1'); await tunggu(800);
+cek('arcade: dua kartu dibalik lalu tertutup atau cocok', await pg.evaluate(() => document.querySelectorAll('.arcade-kartu.buka:not(.cocok)').length === 0));
+await pg.keyboard.press('Escape');
+
+// --- Komputer: tab Browser
+await pg.evaluate(() => { const st = Rumah.titik.find(b => b.jenis === 'kursi'); st.aksi(); });
+await pg.waitForSelector('#terminal:not([hidden])');
+await pg.click('.term-tab[data-tab=browser]');
+await pg.waitForSelector('#term-browser iframe');
+cek('browser dalam game punya bookmark dan bingkai ber-sandbox', await pg.evaluate(() => !document.querySelector('#term-browser iframe').sandbox.contains('allow-top-navigation')));
+await pg.click('.term-tab[data-tab=terminal]');
+await ketik('trace 127.0.0.1', 2500);
+await pg.waitForFunction(() => !Terminal.sibuk, null, { timeout: 15000 });
+cek('trace terbuka sesudah level 2', /127\.0\.0\.1/.test(await pg.textContent('#term-layar')) && !(await pg.textContent('#term-layar')).includes('terbuka di level'));
+await pg.keyboard.press('Escape');
+
+// --- pulang lewat tepi bawah peta
+await pg.evaluate(() => { G.aku.x = 264; G.aku.y = 44 * 16; });
+await tekan('s', 900);
+await pg.waitForFunction(() => G.adegan.startsWith('rumah:'), null, { timeout: 8000 }).catch(async () => {
+  console.log('DIAGNOSA pulang:', JSON.stringify(await pg.evaluate(() => ({ adegan: G.adegan, y: G.aku.y, h: Mesin.dunia.h, sibuk: Mesin.sibuk(), aktif: document.activeElement.tagName + '#' + document.activeElement.id,
+    kelas: document.body.className, duduk: !!G.duduk, berjalan: Mesin.pindahBerjalan, tombol: [...Mesin.tombol] }))));
+  throw new Error('tidak sampai rumah');
+});
+cek('jalan ke bawah = pulang, muncul di jalan atas rumah', await pg.evaluate(() => G.aku.y < 130), String(await pg.evaluate(() => G.aku.y)));
+await pg.evaluate(() => { G.aku.y = 250; });
+await tunggu(300);
+
+// --- bangun: taruh 2 petak + kotak kiriman
+await pg.keyboard.press('b');
+await pg.waitForSelector('#bangun .slot');
+const taruh = async (barang, x, y) => {
+  await pg.evaluate((b) => { G.bangun.barang = b; Rumah.lukisBilah(); }, barang);
+  const p = await pg.evaluate(([x, y]) => Mesin.keLayar(x, y), [x, y]);
+  await pg.mouse.move(p.x, p.y); await pg.mouse.down(); await pg.mouse.up(); await tunggu(350);
+};
+await taruh('kebun_petak', 200, 300); await taruh('kebun_petak', 216, 300); await taruh('kebun_kotak_kiriman', 260, 300);
+s = await pg.evaluate(() => ({ benda: G.rumah.benda.map(o => o.n), petak: G.inventori.kebun_petak }));
+cek('perabot terpasang dari inventory', s.benda.filter(n => n === 'kebun_petak').length === 2 && s.petak === 4 && s.benda.includes('kebun_kotak_kiriman'), JSON.stringify(s));
+await potret('5-bangun');
+await pg.keyboard.press('b');
+
+// --- hotbar: benih harus dipegang untuk menanam; perabot dipegang = siap ditaruh
+await pg.evaluate(() => { G.aku.x = 212; G.aku.y = 286; }); await tunggu(250);
+await pg.keyboard.press('e'); await tunggu(400);
+cek('tanam ditolak bila benih belum dipegang', await pg.evaluate(() => !Object.values(G.rumah.petak).some(p => p.t)));
+await pg.evaluate(() => Hotbar.isi(0, 'benih:sawi')); await pg.keyboard.press('1'); await tunggu(200);
+cek('tombol 1 memegang isi slot hotbar pertama', await pg.evaluate(() => Hotbar.dipegang() === 'benih:sawi' && document.querySelector('.hb-sel.aktif') !== null));
+await pg.keyboard.press('e'); await tunggu(500);
+cek('E menanam benih yang dipegang', await pg.evaluate(() => Object.values(G.rumah.petak).filter(p => p.t === 'sawi').length === 1));
+await pg.evaluate(() => Hotbar.isi(1, 'kebun_petak')); await pg.keyboard.press('2'); await tunggu(200);
+cek('memegang perabot di rumah = mode taruh', await pg.evaluate(() => !!G.bangun && G.bangun.barang === 'kebun_petak'));
+await pg.keyboard.press('2'); await tunggu(200);
+cek('melepas pegangan = keluar mode taruh', await pg.evaluate(() => !G.bangun));
+await pg.keyboard.press('i'); await pg.waitForSelector('.inv-kisi');
+cek('inventory berslot: 20 slot awal + baris hotbar', await pg.evaluate(() => document.querySelectorAll('.inv-kisi:not(.hotbar) .inv-sel').length === 20 && document.querySelectorAll('.inv-kisi.hotbar .inv-sel').length === 10));
+await pg.keyboard.press('Escape');
+await pg.evaluate(() => aksi('/api/toko/beli', { barang: 'makan:roti', jumlah: 1 })); await tunggu(400);
+await pg.evaluate(() => { Hotbar.isi(2, 'makan:roti'); G.stamina.nilai = 10; }); await pg.keyboard.press('3'); await pg.keyboard.press('f'); await tunggu(500);
+cek('F memakan makanan yang dipegang: stamina naik, barang berkurang', await pg.evaluate(() => G.stamina.nilai >= 30 && !G.inventori['makan:roti']));
+cek('tata letak hotbar tersimpan di server', await pg.evaluate(async () => { await new Promise(r => setTimeout(r, 900)); return (await (await fetch('/api/saya')).json()).tata.hotbar[0] === 'benih:sawi'; }));
+
+// --- kebun: tanam, siram, tunggu matang (KEVI_LAJU uji besar), panen, jual
+const idPetak = await pg.evaluate(() => { const o = G.rumah.benda.filter(o => o.n === 'kebun_petak'); return (o.find(x => (G.rumah.petak[x.id] || {}).t) || o[0]).id; });
+await pg.evaluate((id) => (G.rumah.petak[id] && G.rumah.petak[id].t) ? null : api('/api/kebun/tanam', { id, t: 'sawi' }).then(serap), idPetak); await tunggu(300);
+await pg.evaluate((id) => api('/api/kebun/siram', { id }).then(serap), idPetak); await tunggu(300);
+s = await pg.evaluate((id) => G.rumah.petak[id], idPetak);
+cek('petak tertanam dan basah', s && s.t === 'sawi' && s.basah, JSON.stringify(s));
+await pg.waitForFunction((id) => G.rumah.petak[id] && G.rumah.petak[id].matang, idPetak, { timeout: 30000 });
+cek('tanaman matang seiring waktu', true);
+await potret('6-kebun');
+await pg.evaluate((id) => { const o = G.rumah.benda.find(x => x.id === id); G.aku.x = o.x - 4; G.aku.y = o.y + Rumah.oy - 4; }, idPetak); await tunggu(250);
+cek('petunjuk E menawarkan panen', (await pg.textContent('#petunjuk')).includes('Panen'), JSON.stringify(await pg.evaluate((id) => ({ teks: $('#petunjuk').textContent, sembunyi: $('#petunjuk').hidden, bangun: !!G.bangun, aku: [G.aku.x, G.aku.y], petak: G.rumah.petak[id], o: G.rumah.benda.find(x => x.id === id) }), idPetak)));
+await pg.keyboard.press('e'); await tunggu(500);
+cek('panen masuk inventory', await pg.evaluate(() => G.inventori['panen:sawi'] === 1));
+const koinSebelum = await pg.evaluate(() => G.koin);
+await pg.evaluate(() => Rumah.jualHasil()); await tunggu(500);
+cek('jual hasil menambah koin', (await pg.evaluate(() => G.koin)) >= koinSebelum + 30);
+
+// --- kembali ke kantor: jalan terus ke ATAS dari rumah, tiba di tepi bawah kantor
+await pg.evaluate(() => { G.aku.x = 232; G.aku.y = 6; }); await tunggu(200);
+await tekan('w', 700);
+await pg.waitForFunction(() => G.adegan === 'kantor', null, { timeout: 8000 });
+cek('jalan ke atas dari rumah = tiba di bawah kantor', await pg.evaluate(() => G.aku.y > Mesin.dunia.h - 80), String(await pg.evaluate(() => G.aku.y)));
+
+// --- zoom
+const skala0 = await pg.evaluate(() => G.kamera.skala);
+await pg.keyboard.press('-'); await tunggu(150);
+cek('tombol − memperkecil pandangan', (await pg.evaluate(() => G.kamera.skala)) < skala0, `${skala0} -> ${await pg.evaluate(() => G.kamera.skala)}`);
+await pg.mouse.move(683, 400); await pg.mouse.wheel(0, -200); await tunggu(150);
+await pg.click('#zoom-nilai'); await tunggu(150);
+cek('klik angka zoom mengembalikan zoom otomatis', (await pg.evaluate(() => G.kamera.skala)) === skala0);
+await pg.keyboard.press('m'); await pg.waitForSelector('.misi');
+cek('panel misi harian berisi 3 misi', (await pg.$$('.baris.misi')).length === 3);
+await potret('7-misi');
+await pg.keyboard.press('Escape');
+
+// --- pemain kedua: saling melihat, obrolan sampai, bertamu
+const pg2 = await (await b.newContext({ viewport: { width: 1100, height: 700 } })).newPage();
+pg2.on('pageerror', e => galat.push('pageerror(2): ' + e.message));
+await pg2.goto(`http://127.0.0.1:${port}/masuk`);
+await pg2.fill('#u', username + '2'); await pg2.fill('#p', password); await pg2.click('button.utama');
+await pg2.waitForSelector('.buat');
+await pg2.fill('.buat-kiri input[type=text]', 'Penguji Dua');
+await pg2.click('.buat-kiri button.utama');
+await pg2.waitForFunction(() => document.body.classList.contains('siap') && G.aku && Jaring.tersambung, null, { timeout: 20000 });
+if (await pg2.$('#tirai')) await pg2.keyboard.press('Escape');
+await tunggu(700);
+const lihat = async (hal) => hal.evaluate(() => [...G.entitas.values()].filter(e => e.jenis === 'pemain').map(e => e.nama));
+cek('pemain pertama melihat pemain kedua', (await lihat(pg)).includes('Penguji Dua'), JSON.stringify(await lihat(pg)));
+cek('pemain kedua melihat pemain pertama', (await lihat(pg2)).includes('Penguji Satu'), JSON.stringify(await lihat(pg2)));
+const x2 = await pg.evaluate(() => [...G.entitas.values()].find(e => e.nama === 'Penguji Dua').tx);
+await pg2.keyboard.down('d'); await pg2.waitForTimeout(600); await pg2.keyboard.up('d'); await tunggu(400);
+cek('gerak pemain kedua tersiar', (await pg.evaluate(() => [...G.entitas.values()].find(e => e.nama === 'Penguji Dua').tx)) > x2 + 10);
+await pg2.keyboard.press('Enter'); await pg2.keyboard.type('pagi juga'); await pg2.keyboard.press('Enter'); await tunggu(500);
+cek('obrolan pemain kedua sampai', (await pg.textContent('#obrolan-log')).includes('pagi juga'));
+// --- interaksi antarpemain: emote, tos, kirim koin, suit, obrolan saluran Semua
+await pg2.evaluate(() => { const a = [...G.entitas.values()].find(e => e.jenis === 'pemain'); G.aku.x = a.x + 20; G.aku.y = a.y; });
+await tunggu(400);
+await pg2.keyboard.press('Shift+Digit3'); await tunggu(400);
+cek('emote pemain kedua terlihat pemain pertama', await pg.evaluate(() => { const e = [...G.entitas.values()].find(x => x.nama === 'Penguji Dua'); return !!(e.emot && e.emot.n === 'hati'); }));
+cek('pemain level 1 belum bisa tos', await pg2.evaluate(() => !terbuka('tos')));
+const id2 = await pg2.evaluate(() => G.saya.id);
+await pg.evaluate((id) => fetch('/api/admin/pemakai/ubah', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, xp: 3000 }) }), id2);
+await pg2.waitForFunction(() => G.level.level === 5, null, { timeout: 5000 });
+const xpTos = await pg2.evaluate(() => G.level.xp);
+await pg.evaluate((id) => Jaring.kirim({ t: 'tos', ke: id }), id2); await tunggu(600);
+cek('tos memberi XP kepada kedua pemain', (await pg2.evaluate(() => G.level.xp)) > xpTos);
+const koin2 = await pg2.evaluate(() => G.koin);
+await pg.evaluate((id) => aksi('/api/interaksi/kirim', { ke: id, jumlah: 25 }), id2); await tunggu(500);
+cek('kirim koin sampai ke penerima seketika', (await pg2.evaluate(() => G.koin)) === koin2 + 25);
+await pg.evaluate((id) => Jaring.kirim({ t: 'suit_ajak', ke: id, taruhan: 10 }), id2);
+await pg2.waitForSelector('.panel .tombol.utama');
+cek('ajakan suit muncul di layar lawan', (await pg2.textContent('.panel-isi')).includes('menantangmu suit'));
+await pg2.click('.panel .tombol.utama');
+await pg.waitForSelector('.suit-pilih'); await pg2.waitForSelector('.suit-pilih');
+const sebelumSuit = [await pg.evaluate(() => G.koin), await pg2.evaluate(() => G.koin)];
+await pg.click('.suit-pilih .kartu >> nth=0'); await pg2.click('.suit-pilih .kartu >> nth=1');     // batu lawan gunting
+await pg.waitForSelector('.suit-hasil'); await tunggu(500);
+cek('suit: batu mengalahkan gunting dan taruhan berpindah', (await pg.textContent('.panel h3')).includes('menang')
+  && (await pg.evaluate(() => G.koin)) === sebelumSuit[0] + 10 && (await pg2.evaluate(() => G.koin)) === sebelumSuit[1] - 10);
+await pg.keyboard.press('Escape'); await pg2.keyboard.press('Escape');
+await pg2.evaluate(() => Obrolan.kirim('tes saluran semua', 'semua')); await tunggu(400);
+cek('obrolan saluran Semua bertanda', await pg.evaluate(() => [...document.querySelectorAll('#obrolan-log .obrol')].some(o => o.textContent.includes('tes saluran semua') && o.querySelector('.saluran'))));
+
+// --- bisik: hanya pengirim dan penerima yang melihat
+await tunggu(800);
+await pg2.evaluate(() => Obrolan.kirim('/w Penguji Satu rahasia kita')); await tunggu(900);
+cek('bisikan sampai ke penerima bertanda bisik', await pg.evaluate(() => [...document.querySelectorAll('#obrolan-log .obrol.bisik')].some(o => o.textContent.includes('rahasia kita'))));
+await pg.evaluate(() => Obrolan.kirim('/r siap')); await tunggu(700);
+cek('/r membalas bisikan terakhir', await pg2.evaluate(() => [...document.querySelectorAll('#obrolan-log .obrol.bisik')].some(o => o.textContent.includes('siap'))));
+cek('pemilih emoticon terisi', await pg.evaluate(() => document.querySelectorAll('#emoji-kotak .emoji').length >= 30));
+
+// --- admin menyunting peta utama dari dalam game
+await pg.keyboard.press('b');
+await pg.waitForSelector('#bangun .slot.lebar');
+await pg.evaluate(() => Rumah.pakai('sofa_krem'));
+const titikSofa = await pg.evaluate(() => { const a = G.aku; return Mesin.keLayar(a.x + 40, a.y - 30); });
+await pg.mouse.move(titikSofa.x, titikSofa.y); await pg.mouse.down(); await pg.mouse.up(); await tunggu(700);
+cek('admin menaruh perabot di peta utama (gratis)', await pg.evaluate(() => G.peta.benda.length === 1 && G.peta.benda[0].n === 'sofa_krem'));
+cek('perubahan peta utama tersiar ke pemain lain', await pg2.evaluate(() => G.peta.benda.length === 1));
+await pg.keyboard.press('b');
+cek('pemain biasa tak bisa menyunting peta utama', await pg2.evaluate(async () => !Rumah.bolehBangun() && (await fetch('/api/admin/peta/pasang', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ barang: 'sofa_krem', x: 10, y: 10 }) })).status === 403));
+
+// --- remote: hanya yang berizin, dan hanya ke jaringan yang didaftarkan
+cek('tab Remote hanya untuk yang berizin', await pg.evaluate(() => G.remote) && await pg2.evaluate(() => !G.remote));
+const cobaRemote = (hal, host) => hal.evaluate((host) => new Promise((res) => {
+  const ws = new WebSocket('ws://' + location.host + '/ws/remote'); ws.binaryType = 'arraybuffer'; let teks = '';
+  ws.onopen = () => ws.send(JSON.stringify({ proto: 'ssh', host, port: 22, user: 'admin', kolom: 80, baris: 24 }));
+  ws.onmessage = (ev) => { teks += new TextDecoder().decode(ev.data); };
+  ws.onclose = () => res(teks); setTimeout(() => { ws.close(); res(teks); }, 6000);
+}), host);
+cek('remote ke loopback ditolak', (await cobaRemote(pg, '127.0.0.1')).includes('tidak boleh dituju'));
+cek('remote ke luar jaringan ditolak', (await cobaRemote(pg, '8.8.8.8')).includes('di luar jaringan'));
+cek('pemain tanpa izin ditolak remote', (await cobaRemote(pg2, '10.9.8.1')).includes('tidak punya izin'));
+
+cek('NPC beraktivitas: ada yang berpindah atau berganti pose', JSON.stringify(await pg.evaluate(() => [...G.entitas.values()].filter(e => e.jenis === 'npc' && e.rumahX !== undefined).map(e => [e.x, e.y, e.pose].join()))) !== JSON.stringify(npcAwal));
+
+// --- dashboard admin
+const adm = await (await pg.context()).newPage();
+adm.on('pageerror', e => galat.push('pageerror(admin): ' + e.message));
+await adm.goto(`http://127.0.0.1:${port}/admin`);
+await adm.waitForFunction(() => document.querySelectorAll('#ubin div').length >= 8 && document.querySelectorAll('#t-pemakai tbody tr').length >= 2, null, { timeout: 10000 });
+cek('dashboard: ringkasan dan daftar pemakai terisi', (await adm.textContent('#ubin')).includes('Koin beredar'));
+cek('dashboard: dua pemain tercatat daring', (await adm.$$('#t-daring tbody tr')).length === 2);
+await adm.click('#tab button[data-bagian=peta]');
+await adm.waitForFunction(() => document.querySelectorAll('#peta-daftar .butir-peta').length === 5);
+await adm.click('#titik-baru'); await adm.click('#peta', { position: { x: 200, y: 300 } });
+await adm.click('#npc-baru'); await adm.fill('#peta-sunting input >> nth=0', 'Pak Uji');
+await adm.click('#peta-simpan'); await tunggu(900);
+const dunia = await pg.evaluate(() => ({ titik: G.titik.length, npc: [...G.entitas.values()].filter(e => e.jenis === 'npc').map(e => e.nama), tanda: Rumah.titik.filter(b => b.tanda).length }));
+cek('atur peta: titik dan NPC baru langsung muncul di game', dunia.titik === 1 && dunia.npc.includes('Pak Uji') && dunia.tanda === 1, JSON.stringify(dunia));
+await adm.click('#tab button[data-bagian=atur]');
+await adm.fill('#at-laju_jalan', '120'); await adm.click('#f-atur button.utama'); await tunggu(700);
+cek('pengaturan kecepatan jalan langsung berlaku', await pg.evaluate(() => G.atur.laju_jalan === 120));
+await adm.click('#tab button[data-bagian=ringkasan]');
+await adm.fill('#umum', 'Rapat jam sembilan'); await adm.click('#f-umum button.utama'); await tunggu(600);
+cek('pengumuman admin tersiar ke pemain', (await pg2.textContent('#obrolan-log')).includes('Rapat jam sembilan'));
+await adm.click('#tab button[data-bagian=log]');
+cek('dashboard: log terminal dan obrolan terisi', (await adm.$$('#t-terminal tbody tr')).length >= 2 && (await adm.textContent('#t-obrolan')).includes('halo semua'));
+await adm.screenshot({ path: foto ? `${foto}/8-admin-log.png` : undefined }).catch(() => {});
+await adm.click('#tab button[data-bagian=peta]'); await tunggu(300);
+if (foto) await adm.screenshot({ path: `${foto}/9-admin-peta.png` });
+await adm.close();
+await pg2.goto(`http://127.0.0.1:${port}/admin`);
+cek('pemain biasa ditolak dari dashboard', (await pg2.textContent('body')).includes('Khusus admin'));
+await pg2.goto(`http://127.0.0.1:${port}/`);
+await pg2.waitForFunction(() => document.body.classList.contains('siap') && G.aku && Jaring.tersambung, null, { timeout: 20000 });
+if (await pg2.$('#tirai')) await pg2.keyboard.press('Escape');
+
+const id1 = await pg.evaluate(() => G.saya.id);
+await pg2.evaluate((id) => Mesin.pindah('rumah:' + id), id1); await tunggu(800);
+const tamu = await pg2.evaluate(() => ({ milik: G.rumahSaya, benda: G.rumah.benda.length, titik: Rumah.interaksi().length }));
+cek('bertamu: rumah terlihat tetapi tak bisa diubah', !tamu.milik && tamu.benda === 3 && tamu.titik === 1, JSON.stringify(tamu));
+cek('tamu ditolak server saat mencoba mengambil benda', await pg2.evaluate(async () => {
+  const r = await fetch('/api/rumah/angkat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: G.rumah.benda[0].id }) });
+  return r.status === 400;
+}));
+cek('pemain yang pergi hilang dari kantor', !(await lihat(pg)).includes('Penguji Dua'));
+
+cek('tanpa galat JavaScript', galat.length === 0, galat.slice(0, 5).join(' | '));
+await b.close();
+console.log(gagal ? `\n${gagal} uji GAGAL` : '\nSEMUA LULUS');
+process.exit(gagal ? 1 : 0);

@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="id" data-aset="{{aset}}" data-versi="{{versi}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kevi · Kerja Virtual</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%235a3a1e'/%3E%3Crect x='3' y='3' width='10' height='10' fill='%23f2c14e'/%3E%3Crect x='6' y='5' width='2' height='6' fill='%235a3a1e'/%3E%3Crect x='8' y='7' width='3' height='2' fill='%235a3a1e'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/static/huruf/huruf.css?v={{aset}}">
+<link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v={{aset}}">
+<link rel="stylesheet" href="/static/css/kevi.css?v={{aset}}">
+</head>
+<body>
+<canvas id="dunia" aria-label="Dunia Kevi"></canvas>
+<div id="muat">Memuat Kevi…</div>
+
+<header id="hud" class="bingkai tipis">
+  <div class="hud-kiri">
+    <div class="hud-diri">
+      <div class="hud-baris"><b id="hud-nama"></b><button id="hud-level" class="cip level" title="Level dan yang terbuka (L)">Lv 1</button><span id="hud-tempat" class="cip"></span></div>
+      <div class="hud-bar"><span id="hud-xp" class="bar xp"><i></i></span><span id="hud-stamina" class="bar stamina" title="Stamina — tahan Shift untuk lari"><i></i></span></div>
+    </div>
+    <span id="hud-sambung" class="cip merah" hidden>terputus, menyambung…</span>
+  </div>
+  <button id="hud-koin-kotak" class="koin" title="Riwayat koin"><i></i><span id="hud-koin">0</span></button>
+  <nav class="hud-kanan">
+    <button id="tb-bangun" class="tombol kecil" hidden>Bangun <kbd>B</kbd></button>
+    <button id="tb-inventori" class="tombol kecil">Inventory <kbd>I</kbd></button>
+    <button id="tb-note" class="tombol kecil">Note <kbd>N</kbd></button>
+    <button id="tb-misi" class="tombol kecil">Misi <kbd>M</kbd></button>
+    <button id="tb-menu" class="tombol kecil">Menu</button>
+  </nav>
+</header>
+
+<div id="petunjuk" class="bingkai tipis" hidden></div>
+<div id="zoom" class="bingkai tipis" role="group" aria-label="Zoom">
+  <button id="zoom-kecil" class="tombol kecil" title="Perkecil (−)" aria-label="Perkecil">−</button>
+  <button id="zoom-nilai" class="tombol kecil" title="Kembali otomatis (\)">100%</button>
+  <button id="zoom-besar" class="tombol kecil" title="Perbesar (+)" aria-label="Perbesar">+</button>
+</div>
+<div id="kabar" aria-live="polite"></div>
+
+<section id="obrolan">
+  <div id="obrolan-log" aria-live="polite"></div>
+  <div class="obrolan-baris">
+    <button id="obrolan-saluran" class="tombol kecil" title="Ganti saluran (Tab)">Sekitar</button>
+    <input id="obrolan-isi" type="text" maxlength="160" placeholder="Enter untuk mengobrol…" autocomplete="off">
+    <button id="obrolan-emoji" class="tombol kecil" title="Emoticon" aria-label="Emoticon">☺</button>
+  </div>
+  <div id="emoji-kotak" class="bingkai tipis" hidden></div>
+</section>
+
+<section id="bangun" class="bingkai tipis"></section>
+<section id="hotbar-wadah"><div id="hotbar-nama"></div><div id="hotbar" class="bingkai tipis" role="toolbar" aria-label="Hotbar"></div></section>
+
+<section id="terminal" data-tab="terminal" hidden>
+  <header>
+    <span class="term-tabs"><button class="term-tab aktif" data-tab="terminal">Terminal</button><button class="term-tab" data-tab="browser">Browser</button><button class="term-tab" data-tab="remote" id="tab-remote" hidden>Remote</button></span>
+    <span class="term-judul">Komputer kantor</span>
+    <button id="term-tutup" aria-label="Tutup komputer">Esc ✕</button>
+  </header>
+  <div id="term-layar"></div>
+  <label class="term-baris"><span>$</span><input id="term-isi" type="text" maxlength="300" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+  <div id="term-browser"></div>
+  <div id="term-remote">
+    <form id="remote-form" class="remote-bilah">
+      <select id="remote-proto" aria-label="Protokol"><option value="ssh">SSH</option><option value="telnet">Telnet</option></select>
+      <input id="remote-host" type="text" placeholder="alamat perangkat (IP atau nama)" autocapitalize="off" spellcheck="false" required>
+      <input id="remote-port" type="number" min="1" max="65535" value="22" aria-label="Port">
+      <input id="remote-user" type="text" placeholder="username perangkat" autocapitalize="off" spellcheck="false" autocomplete="off">
+      <button class="tombol kecil utama" id="remote-sambung">Sambung</button>
+      <button class="tombol kecil bahaya" id="remote-putus" type="button" hidden>Putus</button>
+    </form>
+    <div id="remote-layar"></div>
+  </div>
+</section>
+
+<script src="/static/js/inti.js?v={{aset}}"></script>
+<script src="/static/js/tokoh.js?v={{aset}}"></script>
+<script src="/static/js/mesin.js?v={{aset}}"></script>
+<script src="/static/js/rumah.js?v={{aset}}"></script>
+<script src="/static/js/panel.js?v={{aset}}"></script>
+<script src="/static/js/hotbar.js?v={{aset}}"></script>
+<script src="/static/js/main.js?v={{aset}}"></script>
+</body>
+</html>
