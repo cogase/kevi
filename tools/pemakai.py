@@ -3,6 +3,7 @@
     venv/bin/python -m tools.pemakai tambah <username> [--admin] [--password <sandi>]
     venv/bin/python -m tools.pemakai sandi <username> [--password <sandi>]
     venv/bin/python -m tools.pemakai daftar
+    venv/bin/python -m tools.pemakai totp-hapus <username>      (jalan pulih bila perangkat autentikator hilang)
 
 Tanpa --password, sandi acak dibuat dan dicetak SEKALI. Jalankan dari akar proyek.
 """
@@ -26,12 +27,21 @@ def main() -> int:
     s.add_argument("username")
     s.add_argument("--password")
     sub.add_parser("daftar")
+    sub.add_parser("totp-hapus").add_argument("username")
     a = p.parse_args()
     kon = basis.buka(konfig.BASIS_DATA)
     try:
         if a.perintah == "daftar":
-            for r in kon.execute("SELECT id, username, peran, aktif FROM pemakai ORDER BY id"):
-                print(f"{r['id']:>3}  {r['username']:<24} {r['peran']:<7} {'aktif' if r['aktif'] else 'nonaktif'}")
+            for r in kon.execute("SELECT id, username, peran, aktif, totp FROM pemakai ORDER BY id"):
+                print(f"{r['id']:>3}  {r['username']:<24} {r['peran']:<7} {'aktif' if r['aktif'] else 'nonaktif':<9}{'TOTP' if r['totp'] else ''}")
+            return 0
+        if a.perintah == "totp-hapus":
+            r = kon.execute("SELECT id FROM pemakai WHERE username = ?", (a.username.lower(),)).fetchone()
+            if not r:
+                print("Username tidak ditemukan.", file=sys.stderr)
+                return 1
+            akun.totp_hapus(kon, r["id"])
+            print(f"TOTP {a.username.lower()} dihapus.")
             return 0
         sandi = a.password or secrets.token_urlsafe(9)
         if a.perintah == "tambah":

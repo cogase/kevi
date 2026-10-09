@@ -119,6 +119,11 @@ def _migrasi(kon: sqlite3.Connection) -> None:
         kon.execute("ALTER TABLE karakter ADD COLUMN tata TEXT NOT NULL DEFAULT '{}'")
     if "remote" not in {r["name"] for r in kon.execute("PRAGMA table_info(pemakai)")}:      # 0.3.0 — izin remote SSH/telnet
         kon.execute("ALTER TABLE pemakai ADD COLUMN remote INTEGER NOT NULL DEFAULT 0")
+    if "totp" not in {r["name"] for r in kon.execute("PRAGMA table_info(pemakai)")}:        # 0.5.0 — kode sekali pakai
+        kon.execute("ALTER TABLE pemakai ADD COLUMN totp TEXT")                 # rahasia base32 yang berlaku
+        kon.execute("ALTER TABLE pemakai ADD COLUMN totp_calon TEXT")           # rahasia yang belum dibuktikan
+        kon.execute("ALTER TABLE pemakai ADD COLUMN totp_langkah INTEGER NOT NULL DEFAULT 0")   # langkah terakhir yang dipakai
+        kon.execute("ALTER TABLE sesi ADD COLUMN totp REAL")                    # kapan sesi ini terakhir membuktikan kode
 
 
 def muat_json(teks, bawaan):

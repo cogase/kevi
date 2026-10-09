@@ -170,6 +170,7 @@ body.mode-bangun #petunjuk, body.ada-terminal #petunjuk { display: none; }
 input[type=text], input[type=password], input[type=search], input[type=number], select, textarea { background: #070b14; border: 2px solid var(--garis); border-radius: 6px; padding: 7px 10px; width: 100%; }
 textarea { resize: vertical; font-family: var(--mono); font-size: 13px; }
 .galat-teks { color: #fca5a5; font-weight: 600; }
+.kunci-totp { margin: 0; padding: 8px 10px; border: 1px solid var(--garis); border-radius: 6px; background: #070b14; font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 15px; letter-spacing: .06em; word-break: break-all; user-select: all; }
 .xp-besar { height: 14px; background: #070b14; border: 1px solid #000; border-radius: 3px; overflow: hidden; margin-bottom: 8px; }
 .xp-besar i { display: block; height: 100%; background: linear-gradient(180deg, #c4b5fd, #8b5cf6); }
 

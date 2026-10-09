@@ -3,6 +3,7 @@
 // Instans yang diuji harus memakai DB uji (lihat tests/uji.sh), bukan DB sungguhan.
 import { createRequire } from 'node:module';
 import os from 'node:os';
+import crypto from 'node:crypto';
 // playwright-core dicari di folder KEVI_PLAYWRIGHT (folder apa pun yang punya node_modules/playwright-core).
 const butuh = createRequire((process.env.KEVI_PLAYWRIGHT || os.homedir() + '/tangkap-bantuan') + '/');
 const { chromium } = butuh('playwright-core');
@@ -19,6 +20,14 @@ let gagal = 0;
 const cek = (nama, ok, info = '') => { if (!ok) gagal++; console.log((ok ? 'LULUS ' : 'GAGAL ') + nama + (info ? ' — ' + info : '')); };
 const tunggu = (ms) => pg.waitForTimeout(ms);
 const potret = async (n) => { if (foto) await pg.screenshot({ path: `${foto}/${n}.png` }); };
+// Kode sekali pakai (RFC 6238, SHA-1, 6 angka, 30 detik) dari kunci base32.
+const totp = (rahasia, geser = 0) => {
+  const bit = [...rahasia].map(c => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'.indexOf(c).toString(2).padStart(5, '0')).join('');
+  const kunci = Buffer.from(bit.match(/.{8}/g).map(x => parseInt(x, 2)));
+  const hitung = Buffer.alloc(8); hitung.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 30000) + geser));
+  const h = crypto.createHmac('sha1', kunci).update(hitung).digest(), o = h[19] & 15;
+  return String((h.readUInt32BE(o) & 0x7fffffff) % 1e6).padStart(6, '0');
+};
 const tekan = async (k, ms) => { await pg.keyboard.down(k); await tunggu(ms); await pg.keyboard.up(k); await tunggu(60); };
 
 await pg.goto(`http://127.0.0.1:${port}/`);
@@ -320,6 +329,17 @@ const cobaRemote = (hal, host) => hal.evaluate((host) => new Promise((res) => {
   ws.onmessage = (ev) => { teks += new TextDecoder().decode(ev.data); };
   ws.onclose = () => res(teks); setTimeout(() => { ws.close(); res(teks); }, 6000);
 }), host);
+cek('remote tanpa kode sekali pakai ditolak (admin sekalipun)', (await cobaRemote(pg, '127.0.0.1')).includes('Pasang dulu'));
+// Pasang TOTP lewat Menu: password -> kunci tampil -> bukti kode.
+await pg.evaluate(() => Panel.totp());
+await pg.fill('#tirai input[type=password]', password); await pg.click('#tirai button.utama');
+await pg.waitForSelector('#totp-rahasia');
+const rahasiaTotp = (await pg.textContent('#totp-rahasia')).replace(/\s/g, '');
+await pg.fill('#tirai input[inputmode=numeric]', '000000'); await pg.click('#tirai button.utama'); await tunggu(300);
+cek('kode salah tidak memasang TOTP', await pg.evaluate(() => !G.totp && !!document.querySelector('#totp-rahasia')));
+await pg.fill('#tirai input[inputmode=numeric]', totp(rahasiaTotp)); await pg.click('#tirai button.utama');
+await pg.waitForFunction(() => G.totp && !document.querySelector('#tirai'));
+cek('TOTP terpasang lewat Menu', await pg.evaluate(async () => { const t = await (await fetch('/api/totp')).json(); return t.terpasang && t.segar; }));
 cek('remote ke loopback ditolak', (await cobaRemote(pg, '127.0.0.1')).includes('tidak boleh dituju'));
 cek('remote ke luar jaringan ditolak', (await cobaRemote(pg, '8.8.8.8')).includes('di luar jaringan'));
 cek('pemain tanpa izin ditolak remote', (await cobaRemote(pg2, '10.9.8.1')).includes('tidak punya izin'));
@@ -369,6 +389,18 @@ cek('tamu ditolak server saat mencoba mengambil benda', await pg2.evaluate(async
 cek('pemain yang pergi hilang dari kantor', !(await lihat(pg)).includes('Penguji Dua'));
 
 cek('tanpa galat JavaScript', galat.length === 0, galat.slice(0, 5).join(' | '));
+
+// --- masuk ulang dengan kode sekali pakai (paling akhir: masuk dari konteks lain memutus sambungan dunia yang lama)
+const pg3 = await (await b.newContext({ viewport: { width: 1366, height: 768 } })).newPage();
+await pg3.goto(`http://127.0.0.1:${port}/masuk`);
+cek('isian kode tersembunyi sebelum diminta', await pg3.isHidden('#baris-kode'));
+await pg3.fill('#u', username); await pg3.fill('#p', password); await pg3.click('button.utama');
+await pg3.waitForSelector('#baris-kode:not([hidden])');
+cek('akun ber-TOTP: password saja belum cukup, kode diminta', pg3.url().endsWith('/masuk') && (await pg3.textContent('#galat')).includes('kode sekali pakai'));
+await pg3.fill('#k', totp(rahasiaTotp, 1)); await pg3.click('button.utama');
+await pg3.waitForURL(`http://127.0.0.1:${port}/`);
+cek('masuk dengan kode sekali pakai berhasil', true);
+
 await b.close();
 console.log(gagal ? `\n${gagal} uji GAGAL` : '\nSEMUA LULUS');
 process.exit(gagal ? 1 : 0);

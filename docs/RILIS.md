@@ -2,6 +2,23 @@
 
 Melengkapi PRD, GDD, dan TDD untuk rilis sesudah 0.2.0. Angka dan aturan di sini adalah yang berlaku di kode.
 
+## 0.5.0 — 9 Oktober 2026
+
+**Kode sekali pakai (TOTP) — jawaban yosi atas Y10: "ya"**
+- Tiap akun bisa memasang kode sekali pakai lewat Menu, "Kode sekali pakai (TOTP)": ketik password, kunci tampil
+  SEKALI (ketik ke aplikasi autentikator, jenis berbasis waktu; tautan `otpauth://` juga disediakan), lalu buktikan
+  dengan satu kode. Standar RFC 6238: SHA-1, 6 angka, 30 detik. Belum ada gambar QR.
+- Akun yang sudah memasang: masuk butuh password DAN kode. Isian kode baru muncul setelah password benar.
+- **Remote kini wajib TOTP, admin sekalipun.** Akun tanpa TOTP ditolak remote. Akun ber-TOTP harus membuktikan kode
+  dalam 10 menit terakhir di sesi peramban itu; kalau sudah lewat, kode diminta lagi sebelum sambungan dibuka.
+- Kode yang sudah dipakai tidak bisa dipakai ulang; 8 kode salah dalam 10 menit menahan akun itu sementara.
+- Melepas TOTP: Menu yang sama, butuh password dan kode. Remote mati untuk akun itu sampai dipasang lagi.
+- Jalan pulih bila perangkat autentikator hilang: admin lain menekan "Hapus TOTP" di dashboard (tab pemakai), atau
+  dari server `venv/bin/python -m tools.pemakai totp-hapus <username>`. Admin tidak bisa menghapus TOTP dirinya
+  sendiri lewat dashboard.
+- Belum dipaksa: admin atau akun berizin remote yang BELUM memasang TOTP masih bisa masuk dengan password saja
+  (hanya remote-nya yang tertutup). Lihat Y13.
+
 ## 0.4.0 — 9 Oktober 2026
 
 **Inventory berslot dan hotbar (ala Minecraft)**
@@ -75,8 +92,8 @@ Pagar yang berlaku:
 **Risiko yang perlu disadari.** Begitu Kevi dibuka lewat domain publik, fitur ini menjadi jalan dari internet ke
 jaringan dalam yang dijaga oleh password akun Kevi (ditambah kredensial perangkat itu sendiri). Itu menggantikan
 VPN dengan satu lapis login web. Saran: password admin yang kuat dan tidak dipakai di tempat lain, persempit daftar
-jaringan ke segmen perangkat yang memang perlu, beri izin remote hanya ke orang yang perlu, dan pertimbangkan
-kode sekali pakai (TOTP) untuk akun berizin remote (belum dibuat; ada di ROADMAP). Telnet mengirim password
+jaringan ke segmen perangkat yang memang perlu, dan beri izin remote hanya ke orang yang perlu. Sejak 0.5.0 remote
+juga wajib kode sekali pakai (TOTP). Telnet mengirim password
 tanpa enkripsi dari server ke perangkat, sama seperti telnet biasa.
 
 ### Domain kevi.dud.co.id
@@ -98,7 +115,8 @@ Yang perlu dikerjakan yosi:
 | Kode | Pertanyaan | Bawaan saat ini |
 |---|---|---|
 | Y9 - Jaringan remote | Jaringan mana yang boleh dituju remote | Semua alamat privat |
-| Y10 - TOTP | Perlukah kode sekali pakai untuk akun berizin remote sebelum domain dibuka | Belum ada |
+| Y10 - TOTP | Perlukah kode sekali pakai untuk akun berizin remote sebelum domain dibuka | DIJAWAB "ya"; dibuat di 0.5.0 |
+| Y13 - Paksa TOTP saat masuk | Haruskah admin dan akun berizin remote DIPAKSA memasang TOTP sebelum bisa bermain atau membuka dashboard | Tidak dipaksa; tanpa TOTP hanya remote yang tertutup |
 | Y11 - Health | Bilah "health" diminta, tetapi belum ada mekanik kesehatan; mau dibuat seperti apa | Hanya stamina dan XP |
 | Y12 - Angka makanan dan tas | Harga tas, harga jajanan, dan nilai stamina masakan adalah tebakan awal | Seperti tertulis |
 | Y13 - Bisikan | Bisikan tidak disimpan dan tidak terlihat admin; mau tetap begitu | Tidak disimpan |

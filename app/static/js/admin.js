@@ -64,12 +64,13 @@ async function muatDasbor() {
     const ubah = async (badan, ok) => { if (await coba(() => ambil('/api/admin/pemakai/ubah', Object.assign({ id: p.id }, badan)), ok)) muatDasbor(); };
     const tanya = (teks, bawaan) => { const v = prompt(teks, bawaan); return v === null || v.trim() === '' ? null : v.trim(); };
     return [p.username, p.peran, p.nama || '(belum dibuat)', p.level ?? '-', p.nama ? rb(p.xp) : '-', p.nama ? rb(p.koin) : '-', (p.statistik || {}).terminal || 0, (p.statistik || {}).panen || 0,
-      (p.aktif ? 'aktif' : 'nonaktif') + (daring.has(p.id) ? ' · daring' : ''),
+      (p.aktif ? 'aktif' : 'nonaktif') + (daring.has(p.id) ? ' · daring' : '') + (p.totp ? ' · TOTP' : ''),
       el('div', { kelas: 'aksi-sel' },
         tb('Password', '', () => { const v = tanya('Password baru untuk ' + p.username + ' (min. 8 karakter):'); if (v) ubah({ password: v }, 'Password ' + p.username + ' diganti; semua sesinya dicabut.'); }),
         p.nama ? tb('Koin ±', '', () => { const v = tanya('Tambah (atau kurangi dengan angka minus) koin ' + p.nama + ':', '100'); if (v && Number.isInteger(Number(v))) ubah({ koin: Number(v) }, 'Koin ' + p.nama + ' disesuaikan.'); }) : null,
         p.nama ? tb('XP', '', () => { const v = tanya('Setel total XP ' + p.nama + ' (level 2 = 100, 3 = 300, 4 = 600, 5 = 1000):', String(p.xp)); if (v && Number.isInteger(Number(v))) ubah({ xp: Number(v) }, 'XP ' + p.nama + ' disetel.'); }) : null,
         p.peran === 'admin' ? null : tb(p.remote ? 'Cabut remote' : 'Izinkan remote', p.remote ? 'bahaya' : '', () => ubah({ remote: !p.remote }, 'Izin remote ' + p.username + (p.remote ? ' dicabut.' : ' diberikan.'))),
+        p.totp ? tb('Hapus TOTP', 'bahaya', () => { if (confirm('Hapus kode sekali pakai ' + p.username + '? Ia bisa masuk dengan password saja sampai memasangnya lagi.')) ubah({ totp_hapus: true }, 'TOTP ' + p.username + ' dihapus.'); }) : null,
         tb(p.peran === 'admin' ? 'Jadikan pemain' : 'Jadikan admin', '', () => ubah({ peran: p.peran === 'admin' ? 'pemain' : 'admin' }, 'Peran ' + p.username + ' diubah.')),
         tb(p.aktif ? 'Nonaktifkan' : 'Aktifkan', p.aktif ? 'bahaya' : 'hijau', () => ubah({ aktif: !p.aktif }, p.username + (p.aktif ? ' dinonaktifkan.' : ' diaktifkan.'))))];
   }));

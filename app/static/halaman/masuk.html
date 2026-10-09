@@ -15,6 +15,7 @@
   <form id="form" class="formulir">
     <label>Username<input id="u" type="text" autocomplete="username" autocapitalize="off" autofocus required></label>
     <label>Password<input id="p" type="password" autocomplete="current-password" required></label>
+    <label id="baris-kode" hidden>Kode sekali pakai<input id="k" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="6 angka dari aplikasi autentikator"></label>
     <p id="galat" class="galat-teks" role="alert" hidden></p>
     <button class="tombol utama">Masuk</button>
   </form>
@@ -27,8 +28,9 @@ document.getElementById('form').addEventListener('submit', async (ev) => {
   g.hidden = true;
   try {
     const r = await fetch('/api/masuk', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: document.getElementById('u').value, password: document.getElementById('p').value }) });
+      body: JSON.stringify({ username: document.getElementById('u').value, password: document.getElementById('p').value, kode: document.getElementById('k').value }) });
     const d = await r.json().catch(() => ({}));
+    if (d.butuh_kode) { document.getElementById('baris-kode').hidden = false; document.getElementById('k').focus(); }
     if (!r.ok) throw new Error(d.galat || 'Gagal masuk.');
     location.href = '/';
   } catch (e) { g.textContent = e.message; g.hidden = false; }

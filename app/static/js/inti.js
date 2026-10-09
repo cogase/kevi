@@ -35,6 +35,7 @@ const G = {
   peta: null,            // peta utama (kantor): dasar + tambahan admin
   zoom: 0,               // 0 = otomatis
   remote: false,         // boleh memakai remote SSH/telnet
+  totp: false,           // akun ini memasang kode sekali pakai
   tas: { jumlah: 0, kapasitas: 20, harga: 300 },
   tata: { urut: [], hotbar: [], bilah: true },      // tata letak inventory, isi hotbar, pilihan tampilan
 };

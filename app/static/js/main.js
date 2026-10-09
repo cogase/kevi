@@ -66,7 +66,7 @@ function putaran() {
     await muatAset();
     const s = await api('/api/saya');
     G.saya = s.pemakai; G.toko = s.toko; G.terminalAktif = s.terminal;
-    G.peta = s.peta; G.remote = !!s.remote;
+    G.peta = s.peta; G.remote = !!s.remote; G.totp = !!s.totp;
     try { G.zoom = Number(localStorage.getItem('kevi.zoom')) || 0; } catch (e) { G.zoom = 0; }
     G.buka = s.buka || {}; G.namaBuka = s.nama_buka || {}; G.hadiahNaik = s.hadiah_naik || 40; G.atur = s.atur || G.atur;
     Mesin.ukur();

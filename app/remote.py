@@ -2,6 +2,8 @@
 
 Ini membuka jalan dari peramban ke perangkat di jaringan dalam, jadi pagarnya berlapis:
   * hanya admin, atau pemain yang diberi izin `remote` oleh admin;
+  * akun itu harus memasang kode sekali pakai (TOTP), dan sesi perambannya harus membuktikan kode dalam
+    10 menit terakhir (akun.TOTP_SEGAR) sebelum sesi remote dibuka;
   * fitur bisa dimatikan seluruhnya (pengaturan `remote_aktif`);
   * sasaran harus berada di jaringan yang didaftarkan admin (`remote_jaringan`) dan port yang diizinkan
     (`remote_port`); nama host di-resolve DULU lalu alamat IP-nya yang diperiksa dan dipakai menyambung;
@@ -234,7 +236,7 @@ async def _berpacu(*kerja) -> None:
         await asyncio.gather(*tugas, return_exceptions=True)
 
 
-async def sesi(ws: WebSocket, kon, pemakai) -> None:
+async def sesi(ws: WebSocket, kon, pemakai, totp_segar: bool = False) -> None:
     """Satu sesi remote. Pesan pertama dari peramban: {proto, host, port, user, kolom, baris}."""
     uid = pemakai["id"]
 
@@ -254,6 +256,10 @@ async def sesi(ws: WebSocket, kon, pemakai) -> None:
             d = atur.baca(kon)
             if not boleh(kon, pemakai):
                 raise RemoteDitolak("Kamu tidak punya izin remote, atau fitur ini dimatikan admin.")
+        if not pemakai["totp"]:
+            raise RemoteDitolak("Remote butuh kode sekali pakai (TOTP). Pasang dulu lewat Menu.")
+        if not totp_segar:
+            raise RemoteDitolak("Masukkan kode sekali pakai dulu sebelum membuka remote.")
         proto = m.get("proto")
         if proto not in ("ssh", "telnet"):
             raise RemoteDitolak("Protokol harus ssh atau telnet.")

@@ -72,6 +72,7 @@ const Panel = {
         el('button', { kelas: 'tombol', teks: 'Bilah stamina & XP di atas karakter: ' + (G.tata.bilah ? 'nyala' : 'mati'), on: { click: () => { G.tata.bilah = !G.tata.bilah; Hotbar.simpan(); Panel.menu(); } } }),
         el('button', { kelas: 'tombol', teks: 'Riwayat koin', on: { click: () => Panel.kas() } }),
         el('button', { kelas: 'tombol', teks: 'Ganti password', on: { click: () => Panel.sandi() } }),
+        el('button', { kelas: 'tombol', teks: 'Kode sekali pakai (TOTP): ' + (G.totp ? 'terpasang' : 'belum'), on: { click: () => Panel.totp() } }),
         G.adegan === 'kantor' ? el('button', { kelas: 'tombol', teks: 'Pulang ke rumah', on: { click: () => { Panel.tutup(); Mesin.pindah('rumah:' + G.saya.id); } } })
           : el('button', { kelas: 'tombol', teks: 'Berangkat ke kantor', on: { click: () => { Panel.tutup(); Mesin.pindah('kantor'); } } }),
         G.saya.peran === 'admin' ? el('a', { kelas: 'tombol', href: '/admin', target: '_blank', teks: 'Admin: dashboard game' }) : null,
@@ -93,6 +94,49 @@ const Panel = {
       try { await api('/api/sandi', { lama: lama.value, baru: baru.value }); Panel.tutup(); kabar('Password diganti.'); }
       catch (e) { kabar(e.message, 'galat'); }
     } } }, lama, baru, el('button', { kelas: 'tombol utama', teks: 'Simpan' })), { sempit: true });
+  },
+
+  // Kode sekali pakai: pasang (password -> rahasia -> bukti kode) atau lepas (password + kode).
+  totp() {
+    const sandi = el('input', { type: 'password', placeholder: 'Password akun', autocomplete: 'current-password' });
+    const kode = () => el('input', { type: 'text', inputmode: 'numeric', maxlength: 7, placeholder: '6 angka dari aplikasi', autocomplete: 'one-time-code' });
+    const form = (isi, kirim) => el('form', { kelas: 'formulir', on: { submit: async (ev) => { ev.preventDefault(); try { await kirim(); } catch (e) { kabar(e.message, 'galat'); } } } }, isi);
+    if (G.totp) {
+      const k = kode();
+      Panel.buka('Kode sekali pakai', form([
+        el('p', { kelas: 'redup', teks: 'Terpasang. Kode diminta tiap masuk, dan lagi saat membuka remote bila bukti terakhir sudah lewat 10 menit.' }),
+        el('p', { kelas: 'redup kecil', teks: 'Melepasnya mematikan remote untuk akun ini sampai dipasang lagi.' }),
+        sandi, k, el('button', { kelas: 'tombol bahaya', teks: 'Lepas kode sekali pakai' })],
+      async () => { await api('/api/totp/lepas', { password: sandi.value, kode: k.value }); G.totp = false; Panel.tutup(); kabar('Kode sekali pakai dilepas.'); }), { sempit: true });
+      return;
+    }
+    Panel.buka('Kode sekali pakai', form([
+      el('p', { kelas: 'redup', teks: 'Pengaman tambahan: selain password, masuk butuh 6 angka dari aplikasi autentikator (Google Authenticator, Aegis, 2FAS, dan sejenisnya). Wajib untuk memakai remote.' }),
+      sandi, el('button', { kelas: 'tombol utama', teks: 'Mulai pasang' })],
+    async () => {
+      const d = await api('/api/totp/mulai', { password: sandi.value });
+      const k = kode();
+      Panel.buka('Kode sekali pakai', form([
+        el('p', { kelas: 'redup', teks: 'Di aplikasi autentikator pilih "masukkan kunci" lalu ketik kunci ini (jenis: berbasis waktu):' }),
+        el('p', { kelas: 'kunci-totp', id: 'totp-rahasia', teks: d.rahasia.replace(/(.{4})/g, '$1 ').trim() }),
+        el('p', { kelas: 'redup kecil', teks: 'Atau salin tautan ini ke aplikasi yang menerimanya:' }),
+        el('input', { type: 'text', readonly: '', value: d.uri, on: { focus: (ev) => ev.target.select() } }),
+        el('p', { kelas: 'redup kecil', teks: 'Kunci hanya tampil sekali ini. Lalu ketik kode yang muncul di aplikasi:' }),
+        k, el('button', { kelas: 'tombol utama', teks: 'Pasang' })],
+      async () => { await api('/api/totp/pasang', { kode: k.value }); G.totp = true; Panel.tutup(); kabar('Kode sekali pakai terpasang. Mulai sekarang masuk butuh kode.'); }), { sempit: true });
+      k.focus();
+    }), { sempit: true });
+  },
+
+  // Minta kode untuk menyegarkan bukti sesi ini; `lanjut` dipanggil bila kodenya benar.
+  kodeSegar(lanjut) {
+    const k = el('input', { type: 'text', inputmode: 'numeric', maxlength: 7, placeholder: '6 angka dari aplikasi', autocomplete: 'one-time-code' });
+    Panel.buka('Kode sekali pakai', el('form', { kelas: 'formulir', on: { submit: async (ev) => {
+      ev.preventDefault();
+      try { await api('/api/totp/segar', { kode: k.value }); Panel.tutup(); lanjut(); }
+      catch (e) { kabar(e.message, 'galat'); }
+    } } }, el('p', { kelas: 'redup', teks: 'Membuka remote butuh kode sekali pakai yang baru.' }), k, el('button', { kelas: 'tombol utama', teks: 'Lanjut' })), { sempit: true });
+    k.focus();
   },
 };
 
@@ -643,7 +687,12 @@ const Remote = {
     setTimeout(() => { this.pas.fit(); (this.ws ? this.term : $('#remote-host')).focus(); }, 30);
   },
 
-  sambung() {
+  async sambung() {
+    if (this.ws) return;
+    if (!G.totp) { kabar('Remote butuh kode sekali pakai (TOTP). Pasang dulu lewat Menu.', 'galat'); return; }
+    let t;
+    try { t = await api('/api/totp'); } catch (e) { kabar(e.message, 'galat'); return; }
+    if (!t.segar) { Panel.kodeSegar(() => this.sambung()); return; }
     if (this.ws) return;
     const badan = { proto: $('#remote-proto').value, host: $('#remote-host').value.trim(), port: Number($('#remote-port').value), user: $('#remote-user').value.trim(),
       kolom: this.term.cols, baris: this.term.rows };

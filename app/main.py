@@ -171,7 +171,10 @@ async def api_masuk(request: Request):
     alamat = _alamat(request)
     try:
         with basis.KUNCI:
-            token, _ = akun.masuk(KON, str(d.get("username") or ""), str(d.get("password") or ""), alamat, konfig.UMUR_SESI)
+            token, _ = akun.masuk(KON, str(d.get("username") or ""), str(d.get("password") or ""), alamat, konfig.UMUR_SESI,
+                                  str(d.get("kode") or ""))
+    except akun.ButuhKode as e:
+        return JSONResponse({"galat": str(e), "butuh_kode": True}, status_code=401)
     except akun.AkunDitolak as e:
         return galat(str(e), 401)
     jawab = JSONResponse({"ok": True})
@@ -204,12 +207,43 @@ async def api_sandi(request: Request):
     return {"ok": True}
 
 
+def _rute_totp(jalur: str, fn):
+    """Rute kode sekali pakai. Galat dijawab 400 (bukan 401) supaya klien tidak mengira sesinya habis."""
+    async def penangan(request: Request):
+        p = _pemakai(request)
+        if not p:
+            return galat("Belum masuk.", 401)
+        d = await _badan(request)
+        try:
+            with basis.KUNCI:
+                hasil = fn(p["id"], d, request.cookies.get(akun.NAMA_COOKIE))
+        except akun.AkunDitolak as e:
+            return galat(str(e))
+        return hasil or {"ok": True}
+    app.post(jalur)(penangan)
+
+
+_rute_totp("/api/totp/mulai", lambda uid, d, token: akun.totp_mulai(KON, uid, str(d.get("password") or "")))
+_rute_totp("/api/totp/pasang", lambda uid, d, token: akun.totp_pasang(KON, uid, str(d.get("kode") or ""), token))
+_rute_totp("/api/totp/lepas", lambda uid, d, token: akun.totp_lepas(KON, uid, str(d.get("password") or ""), str(d.get("kode") or "")))
+_rute_totp("/api/totp/segar", lambda uid, d, token: akun.totp_segarkan(KON, uid, str(d.get("kode") or ""), token))
+
+
+@app.get("/api/totp")
+async def api_totp(request: Request):
+    p = _pemakai(request)
+    if not p:
+        return galat("Belum masuk.", 401)
+    with basis.KUNCI:
+        return {"terpasang": bool(p["totp"]), "segar": akun.totp_segar(KON, request.cookies.get(akun.NAMA_COOKIE))}
+
+
 def _potret_saya(p) -> dict:
     k = KON.execute("SELECT * FROM karakter WHERE pemakai_id = ?", (p["id"],)).fetchone()
     hasil = {"pemakai": {"id": p["id"], "username": p["username"], "peran": p["peran"]}, "versi": konfig.VERSI,
              "karakter": None, "toko": permainan.info_toko(), "terminal": konfig.TERMINAL_AKTIF,
              "atur": atur.publik(atur.baca(KON)), "buka": permainan.BUKA, "nama_buka": permainan.NAMA_BUKA,
-             "hadiah_naik": permainan.HADIAH_NAIK, "remote": remote.boleh(KON, p), "peta": permainan.baca_peta(KON)}
+             "hadiah_naik": permainan.HADIAH_NAIK, "remote": remote.boleh(KON, p), "totp": bool(p["totp"]), "peta": permainan.baca_peta(KON)}
     if k:
         hasil["karakter"] = {"nama": k["nama"], "tampilan": basis.muat_json(k["tampilan"], {}), "adegan": k["adegan"], "x": k["x"],
                              "y": k["y"], "statistik": basis.muat_json(k["statistik"], {})}
@@ -426,6 +460,10 @@ async def admin_ubah(request: Request):
                     KON.execute("DELETE FROM sesi WHERE pemakai_id = ?", (uid,))
             if "remote" in d:
                 KON.execute("UPDATE pemakai SET remote = ? WHERE id = ?", (1 if d["remote"] else 0, uid))
+            if d.get("totp_hapus"):
+                if uid == saya["id"]:
+                    return galat("TOTP sendiri dilepas lewat Menu di dalam game (butuh password dan kode).")
+                akun.totp_hapus(KON, uid)
             if d.get("peran") in ("admin", "pemain"):
                 if uid == saya["id"] and d["peran"] != "admin":
                     return galat("Tidak bisa mencabut admin diri sendiri.")
@@ -464,10 +502,10 @@ async def admin_dasbor(request: Request):
             "catatan": satu("SELECT COUNT(*) FROM catatan"),
         }
         pemakai = []
-        for r in KON.execute("SELECT p.id, p.username, p.peran, p.aktif, p.remote, p.dibuat, k.nama, k.koin, k.xp, k.statistik, r.data AS rumah "
+        for r in KON.execute("SELECT p.id, p.username, p.peran, p.aktif, p.remote, p.totp IS NOT NULL AS totp, p.dibuat, k.nama, k.koin, k.xp, k.statistik, r.data AS rumah "
                              "FROM pemakai p LEFT JOIN karakter k ON k.pemakai_id = p.id LEFT JOIN rumah r ON r.pemakai_id = p.id ORDER BY p.id"):
             rumah = basis.muat_json(r["rumah"], {})
-            pemakai.append({"id": r["id"], "username": r["username"], "peran": r["peran"], "aktif": r["aktif"], "remote": r["remote"], "nama": r["nama"],
+            pemakai.append({"id": r["id"], "username": r["username"], "peran": r["peran"], "aktif": r["aktif"], "remote": r["remote"], "totp": r["totp"], "nama": r["nama"],
                             "koin": r["koin"], "xp": r["xp"], "level": permainan.level_dari(r["xp"] or 0) if r["nama"] else None,
                             "statistik": basis.muat_json(r["statistik"], {}),
                             "benda": len(rumah.get("benda") or []) + len(rumah.get("lantai") or {}) + len(rumah.get("tembok") or {})})
@@ -602,11 +640,12 @@ async def ws_remote(ws: WebSocket):
         return
     with basis.KUNCI:
         pemakai = akun.dari_token(KON, ws.cookies.get(akun.NAMA_COOKIE))
+        segar = akun.totp_segar(KON, ws.cookies.get(akun.NAMA_COOKIE))
     if not pemakai:
         await ws.close(code=4401)
         return
     await ws.accept()
-    await remote.sesi(ws, KON, pemakai)
+    await remote.sesi(ws, KON, pemakai, segar)
 
 
 app.mount("/static", StaticFiles(directory=str(konfig.STATIS)), name="static")
