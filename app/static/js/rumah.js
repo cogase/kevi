@@ -12,6 +12,7 @@
 const JALUR_ATAS = 3;                       // rumah: baris di ATAS tanah (jalan dari kantor + pagar bergerbang)
 const ALAS_TANAH = /^(karpet|keset|em_tikar_|tidur_karpet|kebun_petak|kebun_jalan|kebun_batu_pijakan|kota_zebra|kota_manhole)/;
 const TITIK_JUAL = /^kebun_(kotak_kiriman|peti_tani|peti_hasil|lumbung_)/;
+const PERABOT_DUDUK = /(^|_)(kursi|sofa|bangku|bean_bag|puff)(_|$)/;
 const WARNA_TEMBOK = ['#8b9bb4', '#c98a4b', '#b5651d', '#7c9a6a', '#b0606a', '#e8e2d0', '#4a5568'];
 // Perabot yang "berfungsi" bila ditaruh admin di peta utama (nama sprite Agent Pak).
 const FUNGSI_BENDA = [
@@ -265,6 +266,10 @@ const Rumah = {
         else if (TITIK_JUAL.test(o.n)) daftar.push({ x: o.x, y: b.y, w: b.w, h: b.h, label: 'Jual hasil panen', aksi: () => Rumah.jualHasil() });
         else if (G.toko.kandang[o.n]) daftar.push({ x: o.x, y: b.y, w: b.w, h: b.h, label: 'Urus ' + G.toko.kandang[o.n].nama.toLowerCase(), aksi: () => Rumah.panelKandang(o) });
       }
+    }
+    // Perabot duduk (kursi, sofa, bangku, bean bag, puff) bisa diduduki siapa pun, di kantor maupun di rumah mana pun.
+    for (const b of this.urut) {
+      if (PERABOT_DUDUK.test(b.o.n) && !daftar.some(t => t.x === b.o.x && t.y === b.y)) daftar.push({ x: b.o.x, y: b.y, w: b.w, h: b.h, label: 'Duduk', duduk: true, aksi: () => Mesin.dudukSantai(b) });
     }
     this.titik = daftar;
   },

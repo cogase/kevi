@@ -301,6 +301,22 @@ const hewan0 = await pg.evaluate(() => { const s = [...Rumah.hewan.values()].fin
 await tunggu(700);
 cek('hewan kandang berjalan-jalan sendiri', await pg.evaluate((a) => [...Rumah.hewan.values()].some(s => Math.hypot(s.x - a.x, s.y - a.y) > 2), hewan0));
 
+// --- perabot duduk: kursi yang ditaruh bisa diduduki, berdiri dengan tombol gerak
+const kursiUji = await pg.evaluate(async () => {
+  const n = Object.keys(G.katalog.barang).find(x => /^kursi/.test(x) && hargaBeli(x) != null && levelBarang(x) <= G.level.level);
+  const d = G.rumah, badan = { lantai: d.lantai, tembok: d.tembok, ruang: d.ruang || [], benda: [...d.benda, { n, x: 96, y: 200, r: 0 }] };
+  serap(await api('/api/rumah/simpan', badan));
+  return { n, titik: Rumah.interaksi().filter(t => t.duduk).length };
+});
+cek('kursi yang ditaruh menjadi titik "Duduk"', kursiUji.titik === 1, JSON.stringify(kursiUji));
+await pg.evaluate(() => { G.health.nilai = 5; Rumah.interaksi().find(t => t.duduk).aksi(); });
+await tunggu(600);
+cek('duduk santai: berpose duduk, tanpa Komputer, lelah pulih', await pg.evaluate(() => G.duduk && G.duduk.santai && /duduk/.test(G.aku.pose) && !Terminal.terbuka() && G.health.nilai > 12),
+  JSON.stringify(await pg.evaluate(() => ({ pose: G.aku.pose, health: G.health.nilai }))));
+await tekan('s', 250);
+cek('tombol gerak membuat berdiri lagi', await pg.evaluate(() => !G.duduk));
+await pg.evaluate(async (n) => { const d = G.rumah; serap(await api('/api/rumah/simpan', { lantai: d.lantai, tembok: d.tembok, ruang: d.ruang || [], benda: d.benda.filter(o => o.n !== n) })); await aksi('/api/toko/jual', { barang: n, jumlah: 1 }); }, kursiUji.n);
+
 // --- peti: taruh di rumah, titip barang, ambil satu, peti berisi tak bisa diangkat
 await pg.evaluate(async () => {
   await aksi('/api/toko/beli', { barang: 'gudang_peti_kayu', jumlah: 1 });

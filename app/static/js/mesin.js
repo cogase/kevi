@@ -186,6 +186,16 @@ const Mesin = {
     a.arah = s.hadap;
     Terminal.buka('meja');
   },
+  // Duduk santai di perabot yang ditaruh (kursi, sofa, bangku, bean bag): tanpa Komputer, lelah pulih lebih cepat.
+  // Arah hadap mengikuti putaran perabotnya. Berdiri: tombol gerak, Esc, atau tombol E di layar sentuh.
+  dudukSantai(b) {
+    const a = G.aku, o = b.o, hadap = ['bawah', 'kiri', 'atas', 'kanan'][o.r || 0] || 'bawah';
+    G.duduk = { kursi: { hadap }, santai: true, dari: { x: a.x, y: a.y, arah: a.arah } };
+    a.x = Math.round(o.x + b.w / 2 - 8); a.y = Math.round(b.y + b.h - 25); a.jalan = false; a.arah = hadap;
+    this.tombol.clear();
+    this.aturTerdekat(null);
+    kabar('Duduk santai. Tekan tombol gerak atau Esc untuk berdiri.');
+  },
   berdiri() {
     if (!G.duduk) return;
     const a = G.aku;
@@ -201,6 +211,11 @@ const Mesin = {
     if (Rumah.menyunting) {                 // Edit Map: karakter beku, tombol gerak menggeser kamera
       a.jalan = false; a.langkah = 0;
       Sunting.geserKamera(dt, this.sibuk() ? null : this.tombol);
+    } else if (G.duduk && G.duduk.santai) {
+      const h = G.duduk.kursi.hadap, st = G.health;
+      a.pose = h === 'kiri' || h === 'kanan' ? h + '_duduk' : 'duduk_a';
+      st.nilai = Math.min(G.level.stamina, st.nilai + LELAH.pulihDiam * 1.5 * faktorLapar() * dt);      // duduk = istirahat
+      if (!this.sibuk() && ['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].some(k => this.tombol.has(k))) this.berdiri();
     } else if (G.duduk) {
       const h = G.duduk.kursi.hadap, f = Math.floor(G.kini * (Terminal.sibuk ? 3.6 : 1.5)) % 2;
       a.pose = h === 'bawah' ? (f ? 'duduk_b' : 'duduk_a') : (h === 'kiri' || h === 'kanan') ? h + '_duduk' : (f ? 'main_b' : 'main_a');

@@ -2,6 +2,13 @@
 
 Melengkapi PRD, GDD, dan TDD untuk rilis sesudah 0.2.0. Angka dan aturan di sini adalah yang berlaku di kode.
 
+## 0.15.1 — 9 Oktober 2026
+
+**Perabot bisa diduduki (kata yosi).** Kursi, sofa, bangku, bean bag, dan puff yang ditaruh di peta utama atau di
+rumah mana pun kini punya interaksi "Duduk" (tekan E di dekatnya; tamu juga bisa). Karakter berpose duduk menghadap
+sesuai putaran perabotnya, tanpa membuka Komputer, dan lelah (Health) pulih lebih cepat selagi duduk. Berdiri dengan
+tombol gerak, Esc, atau tombol E di layar sentuh. Kursi meja kerja tetap membuka Komputer seperti biasa.
+
 ## 0.15.0 — 9 Oktober 2026
 
 **Edit Rumah: pengalaman yang sama dengan Edit Map / Edit Layout Agent Pak (kata yosi)**
