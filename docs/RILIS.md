@@ -2,6 +2,14 @@
 
 Melengkapi PRD, GDD, dan TDD untuk rilis sesudah 0.2.0. Angka dan aturan di sini adalah yang berlaku di kode.
 
+## 0.6.1 — 9 Oktober 2026
+
+**Perbaikan: Remote SSH tidak pernah tersambung.** Sejak 0.3.0 setiap sambungan SSH putus seketika (telnet tidak
+terkena). Sebabnya: Kevi menyiapkan terminal untuk program `ssh` dengan cara yang hanya benar di mesin asyncio
+bawaan; uvicorn di produksi memakai uvloop, dan di sana proses `ssh` gagal dinyalakan ("Exception occurred in
+preexec_fn"). Terminal kini dibuka lewat nama pty-nya, benar di kedua mesin. Uji penjaga menjalankan proses ber-pty
+di bawah uvloop, dan perintah `ssh` yang sama diuji sampai muncul prompt password.
+
 ## 0.6.0 — 9 Oktober 2026
 
 **Edit Map: penyunting peta utama setara Edit Layout Agent Pak (kata yosi: "tools edit map masih belum lengkap")**

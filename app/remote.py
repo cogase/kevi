@@ -91,14 +91,21 @@ def _ukuran(fd: int, kolom, baris) -> None:
     fcntl.ioctl(fd, termios.TIOCSWINSZ, struct.pack("HHHH", baris, kolom, 0, 0))
 
 
+def siapkan_tty(nama: str):
+    """preexec_fn untuk proses anak: sesi baru + pty `nama` sebagai terminal kendali (ssh meminta password di /dev/tty).
+    Pty dibuka lewat NAMANYA: tty pertama yang dibuka pemimpin sesi menjadi terminal kendalinya. Jangan memakai
+    ioctl(0, TIOCSCTTY): di bawah uvloop (uvicorn) preexec_fn berjalan sebelum stdin dialihkan ke pty, jadi fd 0
+    belum berupa terminal dan proses gagal dinyalakan ("Exception occurred in preexec_fn")."""
+    def siapkan() -> None:
+        os.setsid()
+        os.close(os.open(nama, os.O_RDWR))
+    return siapkan
+
+
 async def _ssh(ws: WebSocket, ip: str, port: int, user: str, m: dict, sentuh) -> None:
     induk, anak = os.openpty()
     _ukuran(induk, m.get("kolom"), m.get("baris"))
-
-    def siapkan() -> None:          # di proses anak: sesi baru + pty sebagai terminal kendali (ssh meminta password di /dev/tty)
-        os.setsid()
-        fcntl.ioctl(0, termios.TIOCSCTTY, 0)
-
+    siapkan = siapkan_tty(os.ttyname(anak))
     kenal = konfig.BASIS_DATA.parent / "remote_known_hosts"
     proses = await asyncio.create_subprocess_exec(
         "ssh", *OPSI_SSH, "-o", f"UserKnownHostsFile={kenal}", "-p", str(port), "-l", user, "--", ip,

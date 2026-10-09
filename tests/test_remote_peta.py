@@ -61,6 +61,33 @@ def test_pengaturan_remote_dan_pesan_disaring(kon):
     atur.lupa()
 
 
+@pytest.mark.parametrize("pakai_uvloop", [False, True])
+def test_proses_remote_mendapat_terminal_kendali(pakai_uvloop):
+    """ssh meminta password lewat /dev/tty. Produksi (uvicorn) memakai uvloop; di sana cara lama (ioctl pada fd 0) gagal
+    menyalakan proses, jadi SSH tidak pernah tersambung. Uji ini menjalankan anak ber-pty di kedua jenis loop."""
+    import asyncio
+    import os
+
+    async def coba() -> str:
+        induk, anak = os.openpty()
+        p = await asyncio.create_subprocess_exec("sh", "-c", "echo ctty-ok > /dev/tty", stdin=anak, stdout=anak, stderr=anak,
+                                                 preexec_fn=remote.siapkan_tty(os.ttyname(anak)), close_fds=True)
+        os.close(anak)
+        await p.wait()
+        try:
+            return os.read(induk, 200).decode()
+        finally:
+            os.close(induk)
+
+    if pakai_uvloop:
+        uvloop = pytest.importorskip("uvloop")
+        with asyncio.Runner(loop_factory=uvloop.new_event_loop) as r:
+            hasil = r.run(coba())
+    else:
+        hasil = asyncio.run(coba())
+    assert "ctty-ok" in hasil
+
+
 def test_peta_utama_disunting_admin(kon):
     d = permainan.baca_peta(kon)
     assert d["dasar"] == "default" and (d["lebar"], d["tinggi"]) == (45, 46)
