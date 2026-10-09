@@ -178,6 +178,13 @@ const Hud = {
   },
   sambungan(ok) { $('#hud-sambung').hidden = ok; },
   terputus(pesan) { Panel.buka('Terputus', el('div', {}, el('p', { teks: pesan }), el('button', { kelas: 'tombol utama', teks: 'Muat ulang', on: { click: () => location.reload() } })), { sempit: true, tanpaTutup: true }); },
+  // Kontrol zoom sembunyi sendiri: tampil sebentar saat dipanggil (kursor mendekat, atau zoom baru saja berubah).
+  tampakZoom() {
+    const z = $('#zoom');
+    z.classList.add('tampak');
+    clearTimeout(this.jedaZoom);
+    this.jedaZoom = setTimeout(() => z.classList.remove('tampak'), 2200);
+  },
   lapar() {
     const s = G.stamina, b = $('#hud-stamina');
     b.firstElementChild.style.transform = 'scaleX(' + Math.max(0, Math.min(1, s.nilai / s.maks)).toFixed(3) + ')';      // transform, bukan width: tanpa tata letak ulang
@@ -202,6 +209,7 @@ const Hud = {
       'tb-bangun': () => (G.bangun ? Rumah.keluarBangun() : Rumah.masukBangun()) };
     for (const [id, fn] of Object.entries(peta)) $('#' + id).addEventListener('click', (ev) => { ev.currentTarget.blur(); fn(); });
     $('#hud-koin-kotak').addEventListener('click', () => Panel.kas());
+    addEventListener('pointermove', (ev) => { if (innerWidth - ev.clientX < 240 && innerHeight - ev.clientY < 150) this.tampakZoom(); }, { passive: true });
     // Menu atas bisa diciutkan supaya tidak menutupi tepi atas peta; pilihan diingat di peramban.
     const ciut = (v) => {
       document.body.classList.toggle('hud-ciut', v);

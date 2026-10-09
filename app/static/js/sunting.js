@@ -13,7 +13,8 @@ const JEPRET = 8, MAKS_URUNG = 60;
 const ARAH = ['Depan', 'Kiri', 'Belakang', 'Kanan'];
 const ALAT_SUNTING = [
   ['Alat', [['pilih', '↖', 'Pilih', 'Pilih / geser'], ['area', '⬚', 'Area', 'Pilih area (grup)'], ['hapus', '⌫', 'Hapus', 'Hapus']]],
-  ['Bangun', [['ruang', '▢', 'Ruang', 'Ruang (dinding, lantai, pintu)'], ['tembok', '▥', 'Tembok', 'Tembok'], ['lantai', '▦', 'Lantai', 'Lantai']]],
+  ['Bangun', [['ruang', '▢', 'Ruang', 'Ruang (dinding, lantai, pintu)'], ['tembok', '▥', 'Tembok', 'Tembok'], ['lantai', '▦', 'Lantai', 'Lantai'],
+    ['halang', '▨', 'Halang', 'Penghalang (ubin yang tak boleh dilewati)']]],
   ['Katalog', [['perabot', '▣', 'Perabot', 'Katalog perabot']]],
 ];
 const PETUNJUK_SUNTING = {
@@ -23,18 +24,19 @@ const PETUNJUK_SUNTING = {
   hapus: 'Klik benda untuk menghapusnya. Seret untuk menghapus tembok dan lantai ubin demi ubin.',
   tembok: 'Seret di peta untuk menarik garis tembok lurus.',
   lantai: 'Seret di peta untuk menggambar kotak lantai.',
+  halang: 'Seret untuk menandai ubin yang tak boleh dilewati (merah, tidak terlihat oleh pemain). Hapus dengan alat Hapus.',
   perabot: 'Klik di peta untuk menaruh. R memutar. Alat tetap aktif untuk menaruh lagi.',
 };
 const jepret = (v, kisi = JEPRET) => Math.round(v / kisi) * kisi;
 
 const Sunting = {
   aktif: false, alat: 'pilih', akar: '', rev: 0, kotor: false, urung: [], pilih: null, grup: null, seret: null,
-  sprite: null, r: 0, lantai: null, warna: WARNA_TEMBOK[0], halang: true, ikutUbin: false, terakhir: [],
+  sprite: null, r: 0, lantai: null, warna: WARNA_TEMBOK[0], lihatHalang: true, ikutUbin: false, terakhir: [],
   mx: -99, my: -99, pesan: '', tanya: 0, sibuk: false, luar: null, kat: { mode: 'perabot', kategori: '', cari: '' },
   pilihRuang: null, bawaIsi: true, kam: { x: 0, y: 0 },
 
   get d() { return G.peta; },
-  inti(d) { return JSON.stringify({ lantai: d.lantai, tembok: d.tembok, benda: d.benda, ruang: d.ruang || [], urut: d.urut }); },
+  inti(d) { return JSON.stringify({ lantai: d.lantai, tembok: d.tembok, benda: d.benda, ruang: d.ruang || [], halang: d.halang || {}, urut: d.urut }); },
   benda(id) { return this.d.benda.find(o => o.id === id); },
   ruang(id) { return (this.d.ruang || []).find(r => r.id === id); },
   kotakRuang(r) { return { x: r.gx * T, y: r.gy * T, w: r.w * T, h: r.h * T }; },
@@ -68,6 +70,7 @@ const Sunting = {
     this.rev = G.peta.rev || 0;
     G.peta = JSON.parse(this.akar);
     if (!Array.isArray(G.peta.ruang)) G.peta.ruang = [];
+    if (!G.peta.halang || typeof G.peta.halang !== 'object') G.peta.halang = {};
     Object.assign(this, { aktif: true, alat: 'pilih', kotor: false, urung: [], pilih: null, pilihRuang: null, grup: null, seret: null, luar: null, tanya: 0, sibuk: false, pesan: '' });
     this.kam = { x: G.aku ? G.aku.x + 8 : 0, y: G.aku ? G.aku.y + 10 : 0 };
     Mesin.tombol.clear();
@@ -84,9 +87,10 @@ const Sunting = {
     this.kabar('menyimpan…');
     try {
       const d = this.d;
-      const j = await api('/api/admin/peta/simpan', { rev: this.rev, lantai: d.lantai, tembok: d.tembok, benda: d.benda, ruang: d.ruang || [] });
+      const j = await api('/api/admin/peta/simpan', { rev: this.rev, lantai: d.lantai, tembok: d.tembok, benda: d.benda, ruang: d.ruang || [], halang: d.halang || {} });
       G.peta = j.peta;
       if (!Array.isArray(G.peta.ruang)) G.peta.ruang = [];
+    if (!G.peta.halang || typeof G.peta.halang !== 'object') G.peta.halang = {};
       this.akar = JSON.stringify(j.peta);
       this.rev = j.peta.rev;
       Object.assign(this, { kotor: false, urung: [], pilih: null, pilihRuang: null, grup: null, luar: null });
@@ -273,7 +277,7 @@ const Sunting = {
   // Pindahkan (atau buang) lantai dan tembok di dalam kotak ubin sejauh tx, ty ubin.
   pindahUbin(k, tx, ty, buang) {
     const d = this.d;
-    for (const peta of [d.lantai, d.tembok]) {
+    for (const peta of [d.lantai, d.tembok, d.halang || {}]) {
       const ambil = [];
       for (const kunci of Object.keys(peta)) {
         const [gx, gy] = kunci.split(',').map(Number);
@@ -394,12 +398,15 @@ const Sunting = {
     } else if (this.alat === 'lantai') {
       if (!this.lantai) { this.bukaKatalog('lantai'); return; }
       this.seret = { mode: 'isi', gx0: u.gx, gy0: u.gy, gx1: u.gx, gy1: u.gy };
+    } else if (this.alat === 'halang') {
+      this.seret = { mode: 'halang', gx0: u.gx, gy0: u.gy, gx1: u.gx, gy1: u.gy };
     }
   },
 
   hapusUbin() {
     const u = this.ubinKursor(), kunci = u.gx + ',' + u.gy, d = this.d;
     if (kunci in d.tembok) delete d.tembok[kunci];
+    else if (d.halang && kunci in d.halang) delete d.halang[kunci];
     else if (kunci in d.lantai) delete d.lantai[kunci];
     else return false;
     this.seret.gerak = true;
@@ -434,7 +441,7 @@ const Sunting = {
       const w = Math.max(3, Math.min(d.lebar - r.gx, u.gx - r.gx + 1)), h = Math.max(3, Math.min(d.tinggi - r.gy, u.gy - r.gy + 1));
       if (w !== r.w || h !== r.h) { r.w = w; r.h = h; this.jepitPintu(r); s.gerak = true; Rumah.segarkan(); }
     } else if (s.mode === 'hapus') this.hapusUbin();
-    else if (s.mode === 'garis' || s.mode === 'isi' || s.mode === 'ruang') {
+    else if (s.mode === 'garis' || s.mode === 'isi' || s.mode === 'ruang' || s.mode === 'halang') {
       const u = this.ubinKursor();
       s.gx1 = u.gx; s.gy1 = u.gy;
       if (s.mode === 'garis') { if (Math.abs(u.gx - s.gx0) >= Math.abs(u.gy - s.gy0)) s.gy1 = s.gy0; else s.gx1 = s.gx0; }     // dikunci ke sumbu yang dominan
@@ -490,7 +497,7 @@ const Sunting = {
       if (k.x1 < k.x0 || k.y1 < k.y0) return;
       this.ubah((d) => {
         for (let gy = k.y0; gy <= k.y1; gy++) for (let gx = k.x0; gx <= k.x1; gx++) {
-          if (s.mode === 'garis') d.tembok[gx + ',' + gy] = this.warna; else d.lantai[gx + ',' + gy] = this.lantai;
+          if (s.mode === 'garis') d.tembok[gx + ',' + gy] = this.warna; else if (s.mode === 'halang') d.halang[gx + ',' + gy] = 1; else d.lantai[gx + ',' + gy] = this.lantai;
         }
       });
     }
@@ -539,9 +546,16 @@ const Sunting = {
       k.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
       k.setLineDash([]);
     };
-    if (this.halang && G.grid) {                           // ubin yang tak bisa dilewati
+    if (this.lihatHalang && G.grid) {                           // ubin yang tak bisa dilewati
       k.fillStyle = 'rgba(239,68,68,.2)';
       for (let gy = gy0; gy < gy1; gy++) for (let gx = gx0; gx < gx1; gx++) if (G.grid.sel[gy * G.grid.w + gx] === 1) k.fillRect(gx * T, gy * T, T, T);
+    }
+    k.fillStyle = 'rgba(220,38,38,.42)';                   // penghalang buatan admin: selalu tampil, lebih pekat, bersilang
+    for (const kunci of Object.keys(d.halang || {})) {
+      const [gx, gy] = kunci.split(',').map(Number);
+      if (gx < gx0 || gx >= gx1 || gy < gy0 || gy >= gy1) continue;
+      k.fillRect(gx * T, gy * T, T, T);
+      k.strokeStyle = 'rgba(254,202,202,.8)'; k.lineWidth = garis; k.beginPath(); k.moveTo(gx * T + 3, gy * T + 3); k.lineTo(gx * T + T - 3, gy * T + T - 3); k.moveTo(gx * T + T - 3, gy * T + 3); k.lineTo(gx * T + 3, gy * T + T - 3); k.stroke();
     }
     k.fillStyle = 'rgba(255,255,255,.13)';                 // garis kisi
     for (let gx = gx0; gx <= gx1; gx++) k.fillRect(gx * T, gy0 * T, garis, (gy1 - gy0) * T);
@@ -572,12 +586,13 @@ const Sunting = {
       k.fillStyle = 'rgba(96,165,250,.14)'; k.fillRect(r.x, r.y, r.w, r.h);
       if (r.w > 1 && r.h > 1) bingkai(r, '#60a5fa', true);
     }
-    if (s && (s.mode === 'garis' || s.mode === 'isi' || s.mode === 'ruang')) {
+    if (s && (s.mode === 'garis' || s.mode === 'isi' || s.mode === 'ruang' || s.mode === 'halang')) {
       const u = this.ubinSeret(s), r = { x: u.x0 * T, y: u.y0 * T, w: (u.x1 - u.x0 + 1) * T, h: (u.y1 - u.y0 + 1) * T };
       if (r.w > 0 && r.h > 0) {
         k.globalAlpha = 0.6;
         if (s.mode === 'ruang') { k.globalAlpha = 0.3; k.fillStyle = '#f472b6'; k.fillRect(r.x, r.y, r.w, r.h); k.globalAlpha = 0.8; k.fillStyle = this.warna; k.fillRect(r.x, r.y, r.w, 4); k.fillRect(r.x, r.y + r.h - 4, r.w, 4); k.fillRect(r.x, r.y, 4, r.h); k.fillRect(r.x + r.w - 4, r.y, 4, r.h); }
         else if (s.mode === 'garis') { k.fillStyle = this.warna; k.fillRect(r.x, r.y, r.w, r.h); }
+        else if (s.mode === 'halang') { k.fillStyle = '#dc2626'; k.fillRect(r.x, r.y, r.w, r.h); }
         else if ((u.x1 - u.x0 + 1) * (u.y1 - u.y0 + 1) <= 600) { for (let gy = u.y0; gy <= u.y1; gy++) for (let gx = u.x0; gx <= u.x1; gx++) lukis(k, this.lantai, gx * T, gy * T); }
         else { k.fillStyle = '#f472b6'; k.fillRect(r.x, r.y, r.w, r.h); }
         k.globalAlpha = 1;
@@ -596,7 +611,7 @@ const Sunting = {
     else if (this.alat === 'hapus' || this.alat === 'pilih' || this.alat === 'area') {
       const di = this.kena({ x: this.mx, y: this.my });
       if (di && di.id !== this.pilih) bingkai(this.kotak(di), this.alat === 'hapus' ? '#fca5a5' : 'rgba(255,255,255,.7)');
-      else if (!di && this.alat === 'hapus' && ((u.gx + ',' + u.gy) in d.tembok || (u.gx + ',' + u.gy) in d.lantai)) bingkai(ubin, '#fca5a5');
+      else if (!di && this.alat === 'hapus' && ((u.gx + ',' + u.gy) in d.tembok || (u.gx + ',' + u.gy) in d.lantai || (u.gx + ',' + u.gy) in (d.halang || {}))) bingkai(ubin, '#fca5a5');
     }
   },
 
@@ -683,7 +698,7 @@ const Sunting = {
         el('b', { teks: 'Edit Map' }), el('span', { id: 'sunting-kabar', kelas: 'redup kecil tumbuh', role: 'status', teks: this.pesan }),
         tb('Simpan', 'utama', () => this.simpan(), { id: 'sunting-simpan', disabled: !this.kotor || this.sibuk, title: 'Simpan dan siarkan ke semua pemain (Ctrl+S)' }),
         tb('↶ Urungkan', '', () => this.urungkan(), { id: 'sunting-urung', disabled: !this.urung.length, title: 'Urungkan (Ctrl+Z)' }),
-        tb('▦ Penghalang', this.halang ? 'aktif' : '', () => { this.halang = !this.halang; this.lukisDok(); }, { title: 'Lihat ubin yang tak bisa dilewati', 'aria-pressed': String(this.halang) }),
+        tb('▦ Penghalang', this.lihatHalang ? 'aktif' : '', () => { this.lihatHalang = !this.lihatHalang; this.lukisDok(); }, { title: 'Lihat ubin yang tak bisa dilewati', 'aria-pressed': String(this.lihatHalang) }),
         tb('✕ Keluar', '', () => Rumah.keluarBangun(), { id: 'sunting-keluar', title: 'Keluar dari Edit Map (B)' })),
       el('div', { kelas: 'sunting-alat' }, ALAT_SUNTING.map(([judul, daftar]) => el('div', { kelas: 'sunting-kelompok' }, el('small', { teks: judul }),
         el('div', {}, daftar.map(([kunci, tanda, pendek, panjang]) => el('button', { kelas: 'slot alat' + (this.alat === kunci ? ' aktif' : ''), title: panjang, 'data-alat': kunci, 'aria-pressed': String(this.alat === kunci),
@@ -708,23 +723,27 @@ const Sunting = {
       const dipilih = mode === 'lantai' ? this.lantai : this.sprite;
       kisi.replaceChildren(...daftar.slice(0, 240).map(n => {
         const b = mode === 'lantai' ? 'lantai:' + n : n;
-        return el('button', { kelas: 'kartu' + (n === dipilih ? ' aktif' : ''), title: namaBarang(b), 'data-n': n, on: { click: () => {
+        return el('button', { kelas: 'kartu' + (n === dipilih ? ' aktif' : ''), title: namaBarang(b), 'aria-label': namaBarang(b), 'data-n': n, on: { click: () => {
           const r = mode === 'lantai' && this.alat === 'pilih' && this.pilihRuang != null ? this.ruang(this.pilihRuang) : null;
           if (r) this.ubah(() => { r.lantai = n; });        // katalog dibuka dari properti ruang: motif untuk ruang itu
           else if (mode === 'lantai') { this.lantai = n; if (this.alat !== 'ruang') { this.alat = 'lantai'; this.pilih = null; this.grup = null; } this.lukisDok(); }
           else this.pakaiSprite(n);
           lukisKisi();
-        } } }, ikonBarang(b, 36), el('b', { teks: namaBarang(b).replace(/^Lantai /, '') }));
+        } } }, ikonBarang(b, 28));      // nama cukup di hover (title) supaya ruang kerja lega
       }), daftar.length > 240 ? el('p', { kelas: 'redup kecil', teks: `+${daftar.length - 240} lagi. Persempit dengan kategori atau cari.` }) : '',
       daftar.length ? '' : el('p', { kelas: 'redup', teks: 'Tidak ada yang cocok.' }));
     };
     const diam = { keydown: (ev) => ev.stopPropagation() };
-    const pilihKategori = mode === 'lantai' ? null : el('select', { 'aria-label': 'Kategori', on: Object.assign({ change: (ev) => { kat.kategori = ev.target.value; lukisKisi(); } }, diam) },
-      el('option', { value: '', teks: 'Semua perabot' }), G.katalog.kategori.map(k => el('option', { value: k.nama, teks: k.nama, selected: k.nama === kat.kategori })));
+    // Kategori di bilah sisi kiri (hanya untuk perabot); isi katalog di kanan.
+    const B0 = G.katalog.barang, hitung = (nama) => Object.keys(B0).filter(n => !nama || B0[n].k.startsWith(nama + '/')).length;
+    const sisi = mode === 'lantai' ? null : el('nav', { kelas: 'kat-sisi', 'aria-label': 'Kategori perabot' },
+      [{ nama: '' }, ...G.katalog.kategori].map(k => el('button', { kelas: k.nama === kat.kategori ? 'aktif' : '', 'data-kategori': k.nama, title: (k.nama || 'Semua perabot') + ' (' + hitung(k.nama) + ')',
+        teks: k.nama || 'Semua', on: { click: (ev) => { kat.kategori = k.nama; for (const s of sisi.children) s.classList.toggle('aktif', s === ev.currentTarget); kisi.scrollTop = 0; lukisKisi(); } } })));
     const cari = el('input', { type: 'search', placeholder: mode === 'lantai' ? 'Cari motif lantai…' : 'Cari perabot…', value: kat.cari, on: Object.assign({ input: (ev) => { kat.cari = ev.target.value; lukisKisi(); } }, diam) });
     lukisKisi();
     const kepala = el('header', {}, el('b', { teks: mode === 'lantai' ? 'Motif lantai' : 'Katalog perabot' }), el('button', { kelas: 'tutup', 'aria-label': 'Tutup katalog', teks: '✕', on: { click: () => this.tutupKatalog() } }));
-    const jendela = el('section', { id: 'sunting-katalog', kelas: 'bingkai tipis', 'aria-label': 'Katalog' }, kepala, el('div', { kelas: 'saring' }, pilihKategori, cari), kisi);
+    const jendela = el('section', { id: 'sunting-katalog', kelas: 'bingkai tipis' + (sisi ? ' bersisi' : ''), 'aria-label': 'Katalog' }, kepala,
+      el('div', { kelas: 'kat-badan' }, sisi, el('div', { kelas: 'kat-isi' }, el('div', { kelas: 'saring' }, cari), kisi)));
     document.body.append(jendela);
     bisaDigeser(jendela, kepala, 'sunting-katalog');
   },

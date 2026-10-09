@@ -2,6 +2,17 @@
 
 Melengkapi PRD, GDD, dan TDD untuk rilis sesudah 0.2.0. Angka dan aturan di sini adalah yang berlaku di kode.
 
+## 0.12.0 — 9 Oktober 2026
+
+**Perapian Edit Map dan tampilan (kata yosi)**
+- **Alat Penghalang** (kelompok Bangun): seret kotak untuk menandai ubin yang tak boleh dilewati. Tampil merah
+  bersilang hanya di Edit Map, tidak terlihat oleh pemain. Dihapus dengan alat Hapus, ikut dipindah bersama grup
+  bila "Ikutkan lantai & tembok" dicentang, dan bisa diurungkan.
+- **Katalog perabot lebih hemat tempat**: kategori pindah ke bilah sisi kiri, isi katalog di kanan berupa ikon kecil
+  tanpa tulisan. Nama perabot muncul saat kursor di atas ikonnya.
+- **Kontrol zoom sembunyi sendiri**: muncul saat kursor mendekati pojok kanan bawah atau saat zoom berubah (roda
+  tetikus, tombol + dan −), lalu menghilang lagi setelah dua detik. Di layar sentuh tetap tampil.
+
 ## 0.11.0 — 9 Oktober 2026
 
 **Toko pakaian dan lemari (kata yosi: ubah karakter jangan gratis, supaya ada progres)**

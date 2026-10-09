@@ -529,7 +529,7 @@ PETA_UKURAN = (20, 80)
 
 def peta_kosong() -> dict:
     return {"v": 1, "dasar": "default", "lebar": 45, "tinggi": 46, "lantai_dasar": "lantai_luar_rumput", "lantai": {}, "tembok": {},
-            "benda": [], "ruang": [], "urut": 0, "rev": 0}
+            "benda": [], "ruang": [], "halang": {}, "urut": 0, "rev": 0}
 
 
 def baca_peta(kon: sqlite3.Connection) -> dict:
@@ -564,7 +564,7 @@ def peta_dasar(kon: sqlite3.Connection, p: dict) -> dict:
             raise Ditolak("Lantai dasar tidak dikenal.")
         d.update(dasar="kosong", lebar=w, tinggi=h, lantai_dasar=lantai)
     if p.get("kosongkan"):
-        d.update(lantai={}, tembok={}, benda=[], ruang=[])
+        d.update(lantai={}, tembok={}, benda=[], ruang=[], halang={})
     _simpan_peta(kon, d)
     return d
 
@@ -695,7 +695,11 @@ def peta_simpan(kon: sqlite3.Connection, p: dict) -> dict:
         urut = max(urut, bid)
     if len(ruang_baru) > PETA_RUANG_MAKS:
         raise Ditolak(f"Terlalu banyak ruang (paling banyak {PETA_RUANG_MAKS}).")
-    d.update(lantai=lantai_baru, tembok=tembok_baru, benda=benda_baru, ruang=ruang_baru, urut=urut)
+    halang = p.get("halang") or {}
+    if not isinstance(halang, dict):
+        raise Ditolak("Daftar penghalang tidak sah.")
+    halang_baru = {_kunci_ubin(d, kunci): 1 for kunci in halang}         # ubin tak terlihat yang tak bisa dilewati
+    d.update(lantai=lantai_baru, tembok=tembok_baru, benda=benda_baru, ruang=ruang_baru, halang=halang_baru, urut=urut)
     _simpan_peta(kon, d)
     return d
 

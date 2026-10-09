@@ -325,6 +325,7 @@ const Mesin = {
     try { localStorage.setItem('kevi.zoom', String(G.zoom)); } catch (e) { /* mode privat */ }
     this.ukur();
     $('#zoom-nilai').textContent = Math.round(G.kamera.skala / this.skalaOtomatis * 100) + '%';
+    if (typeof Hud !== 'undefined') Hud.tampakZoom();
   },
 
   kamera() {

@@ -74,6 +74,7 @@ const Rumah = {
       this.lukisTembok(k, peta, gx, gy, warna, oy);
       gridHalang(g, gx, gy + J);
     }
+    for (const kunci of Object.keys(d.halang || {})) { const [gx, gy] = kunci.split(',').map(Number); gridHalang(g, gx, gy + J); }      // penghalang tak terlihat (Edit Map)
     if (!kantor) {                               // pagar di atas tanah, kecuali celah gerbang
       const gerbang = this.gerbang();
       for (let gx = 0; gx < W; gx++) {

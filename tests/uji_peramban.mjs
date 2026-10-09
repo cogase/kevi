@@ -384,6 +384,11 @@ await pg.click('#tb-ciut');
 cek('menu atas dibuka lagi', await pg.evaluate(() => !document.body.classList.contains('hud-ciut') && getComputedStyle($('#tb-inventori')).display !== 'none'));
 await pg.mouse.move(400, 300);
 cek('hotbar agak transparan saat tidak disentuh', await pg.evaluate(() => Number(getComputedStyle($('#hotbar')).opacity) < 0.8));
+await pg.waitForTimeout(2500);
+cek('kontrol zoom sembunyi sendiri saat kursor jauh', await pg.evaluate(() => getComputedStyle($('#zoom')).opacity === '0'));
+await pg.mouse.move(1300, 740); await pg.waitForTimeout(450);
+cek('kontrol zoom muncul saat kursor mendekati pojok kanan bawah', await pg.evaluate(() => $('#zoom').classList.contains('tampak') && Number(getComputedStyle($('#zoom')).opacity) > 0.9));
+await pg.mouse.move(400, 300);
 const kotakPanel = () => pg.evaluate(() => { const r = $('#tirai .panel').getBoundingClientRect(); return { x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width) }; });
 await pg.keyboard.press('i');
 await pg.waitForSelector('#tirai .panel.ringkas');
@@ -408,9 +413,16 @@ const sofa = () => pg.evaluate(() => { const o = G.peta.benda[0]; return o && { 
 await pg.keyboard.press('b');
 await pg.waitForSelector('#bangun .slot.alat');
 await pg.evaluate(() => { Sunting.kam.y -= 55; });      // geser pandangan supaya area uji tidak tertutup menu atas
-cek('Edit Map terbuka dengan tujuh alat', await pg.evaluate(() => Sunting.aktif && document.querySelectorAll('#bangun .slot.alat').length === 7 && $('#sunting-simpan').disabled));
+cek('Edit Map terbuka dengan delapan alat', await pg.evaluate(() => Sunting.aktif && document.querySelectorAll('#bangun .slot.alat').length === 8 && $('#sunting-simpan').disabled));
 await pg.click('#bangun [data-alat=perabot]');
 await pg.waitForSelector('#sunting-katalog .kartu');
+cek('katalog perabot: kategori di bilah sisi, ikon kecil tanpa tulisan (nama di hover)', await pg.evaluate(() => {
+  const k = $('#sunting-katalog'), kartu = k.querySelector('.kartu');
+  return k.querySelectorAll('.kat-sisi button').length > 5 && !k.querySelector('.kartu b') && !!kartu.title && kartu.getBoundingClientRect().width < 56;
+}));
+await pg.click('#sunting-katalog .kat-sisi button:nth-child(2)');
+cek('klik kategori di bilah sisi menyaring isi katalog', await pg.evaluate(() => { const s = $('#sunting-katalog .kat-sisi button.aktif'); return s && s.dataset.kategori === Sunting.kat.kategori && Sunting.kat.kategori !== ''; }));
+await pg.click('#sunting-katalog .kat-sisi button:nth-child(1)');
 await pg.fill('#sunting-katalog input[type=search]', 'sofa krem');
 await pg.click('#sunting-katalog .kartu[data-n=sofa_krem]');
 const aku = await pg.evaluate(() => ({ x: G.aku.x, y: G.aku.y, gx: Math.floor(G.aku.x / 16), gy: Math.floor(G.aku.y / 16) }));
@@ -433,6 +445,11 @@ cek('seret memindah benda (jepret 8 piksel)', s1.x === s0.x + 32 && s1.y === s0.
 await pg.click('#bangun [data-alat=tembok]');
 await seretPeta((aku.gx + 4) * 16 + 8, (aku.gy - 5) * 16 + 8, (aku.gx + 8) * 16 + 8, (aku.gy - 4) * 16 + 8);
 cek('tembok ditarik sebagai garis lurus', await pg.evaluate(([gx, gy]) => { const k = Object.keys(G.peta.tembok); return k.length === 5 && k.every(x => x.endsWith(',' + gy)) && (gx + ',' + gy) in G.peta.tembok; }, [aku.gx + 4, aku.gy - 5]));
+await pg.click('#bangun [data-alat=halang]');
+await seretPeta((aku.gx + 4) * 16 + 8, (aku.gy - 3) * 16 + 8, (aku.gx + 5) * 16 + 8, (aku.gy - 2) * 16 + 8);
+cek('alat Penghalang menandai ubin yang tak bisa dilewati', await pg.evaluate(([gx, gy]) => Object.keys(G.peta.halang).length === 4 && G.grid.sel[gy * G.grid.w + gx] === 1, [aku.gx + 4, aku.gy - 3]));
+await pg.keyboard.press('Control+z');
+cek('penghalang bisa diurungkan', await pg.evaluate(() => Object.keys(G.peta.halang).length === 0));
 await pg.evaluate(() => { Sunting.lantai = G.katalog.lantai[0]; Sunting.pakaiAlat('lantai'); });
 await seretPeta((aku.gx + 4) * 16 + 8, (aku.gy - 3) * 16 + 8, (aku.gx + 6) * 16 + 8, (aku.gy - 2) * 16 + 8);
 cek('lantai digambar sebagai kotak', await pg.evaluate(() => Object.keys(G.peta.lantai).length === 6));
