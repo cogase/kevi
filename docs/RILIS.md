@@ -2,6 +2,19 @@
 
 Melengkapi PRD, GDD, dan TDD untuk rilis sesudah 0.2.0. Angka dan aturan di sini adalah yang berlaku di kode.
 
+## 0.20.1 — 9 Oktober 2026
+
+**Battle: rupa zombie dan cara memukul (kata yosi)**
+- **Zombie** kini kurus (tokohnya dipersempit) dengan **kedua tangan lurus ke depan** searah hadapnya; lengannya naik
+  turun sedikit selagi berjalan. Zombie besar dibuat lebih tinggi, bukan lebih lebar.
+- **Memukul**: selain **Spasi**, kini juga dengan **klik** di peta (atau ketuk layar) selagi ada zombie. Tanpa senjata
+  tetap bisa memukul dengan tangan kosong (damage 1); senjata yang dipegang di hotbar hanya menambah damage dan
+  jangkauan.
+- Selama serangan tampil **petunjuk tetap** di bawah layar: cara memukul (Spasi atau klik; di ponsel tombol Pukul atau
+  ketuk layar) dan senjata yang sedang dipegang.
+- **Ponsel**: tombol **Pukul** kini besar dan sejajar dengan tombol E, berubah merah saat ada zombie; tombol lari
+  bertulis "Lari (tahan)".
+
 ## 0.20.0 — 9 Oktober 2026
 
 **Siang dan malam mengikuti jam asli, dengan pencahayaan lampu (kata yosi, mengikuti Agent Pak).**

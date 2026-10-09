@@ -291,7 +291,15 @@ body.ada-panel #sentuh, body.ada-terminal #sentuh { display: none !important; }
 #sentuh-aksi { position: fixed; right: 12px; bottom: 118px; z-index: var(--z-hud); display: grid; grid-template-columns: 56px 56px; gap: 8px; justify-items: end; }
 .sentuh-tombol { width: 56px; height: 56px; border-radius: 50%; border: 2px solid rgba(255,255,255,.3); background: rgba(7,11,20,.5); color: var(--krem); font: 700 14px Inter, sans-serif; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
 .sentuh-tombol.ditekan { background: rgba(222,75,139,.8); border-color: #f79ac3; }
-#sentuh-e { grid-column: 2; width: 64px; height: 64px; font-size: 18px; }
+/* Baris 1 Lari (tahan), baris 2 F, baris 3 dua tombol utama: Pukul di kiri, E di kanan. */
+#sentuh-makan { grid-row: 2; grid-column: 2; }
+#sentuh-e { grid-row: 3; grid-column: 2; width: 64px; height: 64px; font-size: 18px; }
+#sentuh-pukul { grid-row: 3; grid-column: 1; width: 64px; height: 64px; font-size: 13px; }
+body.ada-zombie #sentuh-pukul { background: rgba(220,38,38,.78); border-color: #fecaca; color: #fff; }
+#battle-petunjuk { position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%); z-index: var(--z-hud); max-width: min(92vw, 560px); padding: 5px 12px; font-size: 13px; text-align: center; color: var(--krem); pointer-events: none; border-color: #dc2626; }
+#battle-petunjuk b { color: #fca5a5; }
+body.ada-panel #battle-petunjuk, body.menyunting #battle-petunjuk { display: none; }
+@media (pointer: coarse) { #battle-petunjuk { bottom: auto; top: 132px; } }
 #sentuh-lari { grid-column: 1 / span 2; width: auto; padding: 0 14px; height: 40px; border-radius: 20px; }
 body.menyunting #sentuh-aksi { display: none; }
 body.menyunting #sentuh-tongkat { bottom: 190px; }

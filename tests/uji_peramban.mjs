@@ -874,16 +874,30 @@ await adm.click('#zombie-panggil');
 await pg.waitForFunction(() => Battle.z.size === 1, null, { timeout: 8000 });
 const zombie0 = await pg.evaluate(() => { const z = [...Battle.z.values()][0]; return { jenis: z.jenis, hp: z.hp, maks: z.maks, suasana: Suara.suasanaKini, kelas: document.body.classList.contains('ada-zombie'), lagu: Suara.lagu, rupa: !!bingkaiTokoh(z.look, 'bawah_diam') }; });
 cek('battle: gelombang yang dipanggil admin memunculkan zombie dan musik berganti tegang', battle0.zombie === 0 && battle0.suasana === 'tenang' && battle0.jago && zombie0.maks === 3 && zombie0.suasana === 'tegang' && zombie0.lagu === 'tegang' && zombie0.kelas && zombie0.rupa, JSON.stringify([battle0, zombie0]));
+const rupaZombie = await pg.evaluate(() => {
+  const kv = document.createElement('canvas'); kv.width = 96; kv.height = 48;
+  const k = kv.getContext('2d'), hijau = (x, y) => { const p = k.getImageData(x, y, 1, 1).data; return p[3] > 200 && p[1] > p[0] && p[1] > p[2]; };
+  const buat = (arah, x) => ({ id: 0, jenis: 'biasa', x, y: 16, tx: x, ty: 16, hp: 6, maks: 6, arah, jalan: false, langkah: 0, kena: 0, look: Battle.look('biasa'), pose: '' });
+  const lebar = (x0) => { const d = k.getImageData(x0 - 4, 14, 24, 24).data; let kiri = 99, kanan = -1; for (let y = 0; y < 24; y++) for (let x = 0; x < 24; x++) if (d[(y * 24 + x) * 4 + 3] > 120) { kiri = Math.min(kiri, x); kanan = Math.max(kanan, x); } return kanan - kiri + 1; };
+  k.imageSmoothingEnabled = false;
+  Battle.lukisZombie(k, buat('kanan', 8), performance.now()); Battle.lukisZombie(k, buat('bawah', 40), performance.now());
+  const zLebar = lebar(40);
+  lukisEntitas(k, Object.assign(buat('bawah', 70), { look: G.aku.look }));
+  return { tanganKanan: hijau(22, 26) || hijau(21, 26) || hijau(22, 25), tanganDepan: hijau(45, 28) || hijau(45, 27) || hijau(46, 28), zLebar, tokohLebar: lebar(70), petunjuk: ($('#battle-petunjuk') || {}).textContent || '' };
+});
+cek('zombie kurus dengan kedua tangan lurus ke depan searah hadapnya; petunjuk cara memukul tampil selama serangan', rupaZombie.tanganKanan && rupaZombie.tanganDepan && rupaZombie.zLebar < rupaZombie.tokohLebar
+  && rupaZombie.petunjuk.includes('Spasi atau klik') && rupaZombie.petunjuk.includes('Tangan kosong bisa'), JSON.stringify(rupaZombie));
 let pukulan = 0, kenaTerlihat = false;
 for (let i = 0; i < 60 && await pg.evaluate(() => Battle.z.size > 0); i++) {          // datangi zombienya, lalu Spasi
   await pg.evaluate(() => { const z = [...Battle.z.values()][0]; if (!z) return; G.aku.x = z.tx + 12; G.aku.y = z.ty; Jaring.kirim({ t: 'pos', x: G.aku.x, y: G.aku.y, arah: 'kiri', jalan: false, pose: '' }); });
   await tunggu(120);
-  await pg.keyboard.press('Space'); pukulan++;
+  if (i % 2) await pg.keyboard.press('Space'); else await pg.mouse.click(683, 330);      // bergantian: Spasi dan klik di peta
+  pukulan++;
   await tunggu(430);
   kenaTerlihat = kenaTerlihat || await pg.evaluate(() => [...Battle.z.values()].some(z => z.hp < z.maks) || Battle.bangkai.length > 0);
 }
 const battle1 = await pg.evaluate(() => ({ zombie: Battle.z.size, bangkai: Battle.bangkai.length, koin: Battle.koin.size, xp: G.level.xp, suasana: Suara.suasanaKini }));
-cek('battle: Spasi memukul zombie terdekat sampai tumbang; EXP bertambah dan koin jatuh', battle1.zombie === 0 && kenaTerlihat && pukulan >= 3 && battle1.xp > battle0.xp && battle1.suasana === 'tenang', JSON.stringify([battle1, pukulan]));
+cek('battle: Spasi maupun klik memukul zombie terdekat dengan tangan kosong sampai tumbang; EXP bertambah dan koin jatuh', battle1.zombie === 0 && kenaTerlihat && pukulan >= 3 && battle1.xp > battle0.xp && battle1.suasana === 'tenang', JSON.stringify([battle1, pukulan]));
 await pg.evaluate(() => { const c = [...Battle.koin.values()][0]; if (c) { G.aku.x = c.x - 8; G.aku.y = c.y - 14; Jaring.kirim({ t: 'pos', x: G.aku.x, y: G.aku.y, arah: 'bawah', jalan: false, pose: '' }); } });
 await pg.waitForFunction((k) => Battle.koin.size === 0 && G.koin > k, battle0.koin, { timeout: 6000 }).catch(() => {});
 cek('battle: koin jatuh dipungut dengan menginjaknya', await pg.evaluate((k) => Battle.koin.size === 0 && G.koin > k, battle0.koin), JSON.stringify(await pg.evaluate(() => ({ koin: G.koin, sisa: Battle.koin.size }))));
@@ -971,6 +985,11 @@ await hp.fill('#u', 'penguji2'); await hp.fill('#p', password); await hp.click('
 await hp.waitForFunction(() => document.body.classList.contains('siap') && G.aku && Jaring.tersambung, null, { timeout: 20000 });
 if (await hp.$('#tirai')) await hp.evaluate(() => Panel.tutup());
 cek('ponsel: joystick dan tombol aksi tampil', await hp.evaluate(() => getComputedStyle($('#sentuh')).display !== 'none' && !!$('#sentuh-e') && !!$('#sentuh-lari')));
+cek('ponsel: tombol Pukul dan Lari ada, Pukul sejajar dengan E dan tidak bertumpuk dengan tombol lain', await hp.evaluate(() => {
+  const k = (s) => $(s).getBoundingClientRect(), p = k('#sentuh-pukul'), e = k('#sentuh-e'), f = k('#sentuh-makan'), l = k('#sentuh-lari');
+  const tumpuk = (a, b) => a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1;
+  return p.width >= 60 && Math.abs(p.top - e.top) < 3 && p.right <= e.left + 1 && ![[p, e], [p, f], [p, l], [e, f], [e, l], [f, l]].some(([a, b]) => tumpuk(a, b)) && $('#sentuh-lari').textContent.includes('Lari') && e.right <= innerWidth;
+}));
 const tongkat = await hp.evaluate(() => { const r = $('#sentuh-tongkat').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
 const dorong = async (dx, dy) => {
   await hp.dispatchEvent('#sentuh-tongkat', 'pointerdown', { clientX: tongkat.x + dx, clientY: tongkat.y + dy, pointerId: 7, bubbles: true });

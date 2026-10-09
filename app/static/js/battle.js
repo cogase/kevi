@@ -10,6 +10,7 @@ const TAMPANG_ZOMBIE = {
   gesit: { kulit: '#a3c98e', rambut_warna: '#3a2a2a', baju: '#7a3b3b', celana: '#2f2a3a', sepatu: '#23262d', gaya_rambut: 'rambut_keriting', kepala: '', mata: '' },
   besar: { kulit: '#5f8f52', rambut_warna: '#1f2620', baju: '#3f3a52', celana: '#26283a', sepatu: '#15161c', gaya_rambut: 'rambut_cepak', kepala: '', mata: '' },
 };
+const LEBAR_ZOMBIE = 0.78;      // tokoh dipersempit supaya zombie tampak kurus (kata yosi)
 const NAMA_SENJATA = { sapu: 'Sapu', kunci_inggris: 'Kunci inggris', tongkat_bisbol: 'Tongkat bisbol', kabel_lan: 'Kabel LAN', pemadam_api: 'Pemadam api' };
 const WARNA_SENJATA = { '': '#f8fafc', sapu: '#fcd34d', kunci_inggris: '#cbd5e1', tongkat_bisbol: '#d6a26a', kabel_lan: '#60a5fa', pemadam_api: '#f87171' };
 
@@ -21,6 +22,11 @@ const Battle = {
   // Senjata yang sedang dipegang di hotbar ('' = tangan kosong). Server memeriksa lagi bahwa barangnya memang dimiliki.
   senjata() { const b = typeof Hotbar !== 'undefined' ? Hotbar.dipegang() : null; return b && b.startsWith('senjata:') ? b.slice(8) : ''; },
 
+  // Memukul: Spasi, klik atau ketuk di peta selagi ada zombie, atau tombol Pukul di layar sentuh. Tanpa senjata pun
+  // bisa (tangan kosong); senjata yang dipegang di hotbar hanya menambah damage dan jangkauan.
+  pasang() {
+    kanvas.addEventListener('pointerdown', (ev) => { if (ev.button === 0 && !G.bangun && this.z.size && !Mesin.sibuk()) this.pukul(); });
+  },
   pukul() {
     if (G.adegan !== 'kantor' || G.bangun || G.duduk || !Jaring.tersambung) return;
     const kini = performance.now();
@@ -109,6 +115,14 @@ const Battle = {
     if (tegang === this.menyerang) return;
     this.menyerang = tegang;
     document.body.classList.toggle('ada-zombie', tegang);
+    // Petunjuk tetap selama serangan: cara memukul, di papan ketik maupun layar sentuh.
+    const lama = $('#battle-petunjuk');
+    if (lama) lama.remove();
+    if (tegang) {
+      const sentuh = document.body.classList.contains('sentuh') || (typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches), s = this.senjata();
+      document.body.append(el('div', { id: 'battle-petunjuk', kelas: 'bingkai tipis', role: 'status' }, el('b', { teks: 'Zombie menyerang! ' }),
+        (sentuh ? 'Dekati lalu tekan tombol Pukul atau ketuk layar.' : 'Dekati lalu tekan Spasi atau klik.') + (s ? ' Senjata: ' + (NAMA_SENJATA[s] || s) + '.' : ' Tangan kosong bisa; senjata dari Bang Jago lebih kuat.')));
+    }
     Suara.suasana(tegang ? 'tegang' : 'tenang');
   },
   // Keluar dari kantor (pulang, bertamu): zombie tidak ikut, musik kembali tenang.
@@ -137,15 +151,24 @@ const Battle = {
     this.ayunan = this.ayunan.filter(a => kini - a.lahir < 200);
     for (const a of this.ayunan) daftar.push({ alas: a.e.y + 40, lukis: () => this.lukisAyun(k, a, kini) });
   },
+  // Zombie: tokoh yang dikuruskan (dipersempit), dengan kedua lengan lurus ke depan searah hadapnya. Zombie besar
+  // lebih tinggi, bukan lebih lebar.
   lukisZombie(k, z, kini) {
-    const besar = z.jenis === 'besar' ? 1.35 : 1, kena = kini - z.kena < 140;
+    const besar = z.jenis === 'besar', sx = besar ? 0.92 : LEBAR_ZOMBIE, sy = besar ? 1.3 : 1, kena = kini - z.kena < 140;
     k.save();
-    if (besar !== 1) { k.translate(z.x + 8, z.y + 20); k.scale(besar, besar); k.translate(-(z.x + 8), -(z.y + 20)); }
+    k.translate(z.x + 8, z.y + 20); k.scale(sx, sy); k.translate(-(z.x + 8), -(z.y + 20));
     if (kena) { k.filter = 'brightness(2.6) saturate(.3)'; k.translate(Math.sin(kini / 18) * 1.5, 0); }
+    const x = Math.round(z.x), y = Math.round(z.y), kulit = (TAMPANG_ZOMBIE[z.jenis] || TAMPANG_ZOMBIE.biasa).kulit, bayang = campurWarna(kulit, '#0b1220', 0.35), tangan = campurWarna(kulit, '#ffffff', 0.25);
+    const goyang = z.jalan ? Math.round(Math.sin(z.langkah * 1.6)) : 0;      // lengan naik-turun sedikit selagi berjalan
+    const lengan = (lx, ly, w, h, warna) => { k.fillStyle = warna; k.fillRect(lx, ly, w, h); };
+    if (z.arah === 'atas') { lengan(x + 3, y + 6 + goyang, 2, 4, bayang); lengan(x + 11, y + 6 - goyang, 2, 4, bayang); }      // membelakangi layar: lengan di balik badan
     lukisEntitas(k, z);
+    if (z.arah === 'kanan') { lengan(x + 9, y + 11 - goyang, 6, 1, bayang); lengan(x + 9, y + 9 + goyang, 7, 2, kulit); lengan(x + 15, y + 9 + goyang, 2, 2, tangan); }
+    else if (z.arah === 'kiri') { lengan(x + 1, y + 11 - goyang, 6, 1, bayang); lengan(x, y + 9 + goyang, 7, 2, kulit); lengan(x - 1, y + 9 + goyang, 2, 2, tangan); }
+    else if (z.arah !== 'atas') { lengan(x + 4, y + 9, 2, 5 + goyang, kulit); lengan(x + 10, y + 9, 2, 5 - goyang, kulit); lengan(x + 4, y + 13 + goyang, 2, 2, tangan); lengan(x + 10, y + 13 - goyang, 2, 2, tangan); }
     k.restore();
     if (z.hp < z.maks) {                                 // bilah HP baru muncul sesudah terluka
-      const lebar = 16, bx = Math.round(z.x), by = Math.round(z.y - 5 - (besar - 1) * 22);
+      const lebar = 16, bx = Math.round(z.x), by = Math.round(z.y - 5 - (sy - 1) * 22);
       k.fillStyle = 'rgba(7,11,20,.85)'; k.fillRect(bx - 1, by - 1, lebar + 2, 4);
       k.fillStyle = '#ef4444'; k.fillRect(bx, by, Math.max(1, Math.round(lebar * z.hp / z.maks)), 2);
     }
