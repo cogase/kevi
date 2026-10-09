@@ -685,6 +685,8 @@ def peta_simpan(kon: sqlite3.Connection, p: dict) -> dict:
             baru["l"] = o["l"]
         if o.get("t"):                               # tembus: bisa dilewati walau katalognya padat (bunga, tangga, terumbu)
             baru["t"] = 1
+        if o.get("g") and o["n"].startswith("kendaraan_"):      # bergerak: kendaraan menyusuri ubin jalan (dihitung peramban)
+            baru["g"] = 1
         benda_baru.append(baru)
     ruang_baru = []
     for r in p.get("ruang") or []:
@@ -1069,6 +1071,8 @@ def _rencana_rumah(kon: sqlite3.Connection, uid: int, p: dict) -> dict:
                 satu[tanda] = nilai
         if o.get("l") in ("bawah", "atas"):
             satu["l"] = o["l"]
+        if o.get("g") and o["n"].startswith("kendaraan_"):
+            satu["g"] = 1
         baru["benda"].append(satu)
     for r in (p.get("ruang") or [])[:PETA_RUANG_MAKS]:
         ruang = _ruang_sah(d, r, kat)

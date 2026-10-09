@@ -544,6 +544,71 @@ cek('hapus grup bisa diurungkan', await pg.evaluate(() => G.peta.benda.length ==
 await pg.click('#sunting-simpan');
 await pg.waitForFunction(() => !Sunting.kotor && !Sunting.sibuk);
 cek('Simpan menulis draf ke server', await pg.evaluate(() => G.peta.benda.length === 1 && G.peta.benda[0].l === 'atas' && G.peta.rev >= 1 && $('#sunting-kabar').textContent.includes('Tersimpan')));
+
+// --- benda hidup (hidup.js): dok ringkas, kendaraan Bergerak, meja kerja berkursi, hewan air
+const dokUji = await pg.evaluate(() => { const a = $('#bangun .slot.alat').getBoundingClientRect(); return { w: a.width, h: a.height, pilihan: getComputedStyle($('.sunting-pilihan')).flexWrap, dok: $('#bangun').getBoundingClientRect().height }; });
+cek('Edit Map: tombol alat kecil, baris detail boleh dua baris, dok tetap pendek', dokUji.w <= 48 && dokUji.h <= 34 && dokUji.pilihan === 'wrap' && dokUji.dok <= 190, JSON.stringify(dokUji));
+await pg.evaluate(() => Sunting.ubah((d) => {
+  for (let gx = 1; gx <= 14; gx++) d.lantai[gx + ',44'] = 'lantai_kota_aspal';
+  for (let gx = 20; gx <= 22; gx++) for (let gy = 43; gy <= 44; gy++) d.lantai[gx + ',' + gy] = 'lantai_luar_air';
+  d.urut += 1; d.benda.push({ id: d.urut, n: 'kendaraan_sedan_diam', x: 32, y: 44 * 16 + 16 - 24, r: 0 });
+  d.urut += 1; d.benda.push({ id: d.urut, n: 'meja_lurus', x: 26 * 16, y: 43 * 16, r: 0 });
+  d.urut += 1; d.benda.push({ id: d.urut, n: 'hewan_koi_diam', x: 21 * 16, y: 43 * 16, r: 0 });
+  d.urut += 1; d.benda.push({ id: d.urut, n: 'hewan_kura_diam', x: 30 * 16, y: 44 * 16, r: 0 });
+}));
+await pg.click('#bangun [data-alat=pilih]');
+await pg.evaluate(() => { Sunting.pilih = Sunting.d.benda.find(o => o.n === 'kendaraan_sedan_diam').id; Sunting.lukisDok(); });
+cek('Edit Map: kendaraan punya centang Bergerak, perabot lain tidak', await pg.evaluate(() => { const ada = !!$('#sunting-gerak') && !$('#sunting-gerak').checked;
+  Sunting.pilih = Sunting.d.benda.find(o => o.n === 'meja_lurus').id; Sunting.lukisDok(); const tanpa = !$('#sunting-gerak');
+  Sunting.pilih = Sunting.d.benda.find(o => o.n === 'kendaraan_sedan_diam').id; Sunting.lukisDok(); return ada && tanpa; }));
+await pg.check('#sunting-gerak');
+await pg.click('#sunting-simpan');
+await pg.waitForFunction(() => !Sunting.kotor && !Sunting.sibuk);
+await pg.keyboard.press('b');
+await pg.waitForFunction(() => !G.bangun);
+cek('kendaraan Bergerak tersimpan di server dan tidak menghalangi jalan', await pg.evaluate(() => { const o = G.peta.benda.find(o => o.n === 'kendaraan_sedan_diam'); return o.g === 1 && !G.peta.benda.find(o => o.n === 'meja_lurus').g && Rumah.jalanDi(2, 44) && Rumah.jalanDi(14, 44) && !Rumah.jalanDi(15, 44); }));
+const mobilUji = await pg.evaluate(() => {
+  const b = Rumah.urut.find(b => b.o.n === 'kendaraan_sedan_diam'), xs = [], nama = new Set();
+  let diJalan = true, t = 1000;
+  Rumah.mobil.clear();
+  for (let i = 0; i < 1500; i++) { t += 0.08; const s = Rumah.kendara(b.o, b, t), q = Rumah.mobil.get(b.o.id); xs.push(s.x); nama.add(s.n.replace(/__f\d$/, ''));
+    if (!q.diRumah && !Rumah.jalanDi(Math.floor(q.x / 16), Math.floor((q.y - 1) / 16))) diJalan = false; }
+  Rumah.mobil.clear();
+  return { min: Math.min(...xs), maks: Math.max(...xs), diJalan, nama: [...nama].sort() };
+});
+cek('kendaraan Bergerak menyusuri ubin jalan bolak-balik dengan sprite arahnya dan tidak keluar jalan', mobilUji.diJalan && mobilUji.maks - mobilUji.min > 120 && mobilUji.maks <= 15 * 16 && mobilUji.min >= 0
+  && mobilUji.nama.includes('kendaraan_sedan_kanan') && mobilUji.nama.includes('kendaraan_sedan_kiri'), JSON.stringify(mobilUji));
+const hewanUji = await pg.evaluate(() => {
+  const jalan = (n, langkah) => { const b = Rumah.urut.find(b => b.o.n === n), kunci = 'uji-' + n, m = /^hewan_([a-z]+)_diam$/.exec(n)[1]; let t = 5000, air = true, gerak = 0, lama = null;
+    for (let i = 0; i < langkah; i++) { t += 0.1; const s = Rumah.jelajah(kunci, m, { x: b.o.x - 64, y: b.y - 64, w: b.w + 128, h: b.h + 128 }, t, { rumah: { x: b.o.x, y: b.y } });
+      const q = Rumah.hewan.get(kunci);
+      if (!Rumah.ubinAir(Math.floor((q.x + 8) / 16), Math.floor((q.y + 10) / 16))) air = false; if (lama && (lama.x !== s.x || lama.y !== s.y)) gerak++; lama = s; }
+    Rumah.hewan.delete(kunci); return { air, gerak }; };
+  return { koi: jalan('hewan_koi_diam', 1500), kura: jalan('hewan_kura_diam', 600) };
+});
+cek('hewan air: koi berenang hanya di ubin air; kura-kura yang ditaruh di darat diam di tempatnya', hewanUji.koi.air && hewanUji.koi.gerak > 10 && hewanUji.kura.gerak === 0, JSON.stringify(hewanUji));
+const mejaUji = await pg.evaluate(() => {
+  const b = Rumah.urut.find(b => b.o.n === 'meja_lurus'), t = Rumah.interaksi().find(t => t.meja), buat = (n, w, h, r) => Rumah.kursiMeja({ o: { n, x: 0, y: 0, r }, y: 0, w, h, alas: h }).map(s => [s.x + 8, s.y + 14, s.hadap].join());
+  const tabel = { hadap4: buat('meja_hadap4', 64, 40, 0).length, jejer3: buat('meja_jejer3', 96, 24, 0).join(' '), bos: buat('meja_bos', 48, 32, 0).join(), putar: buat('meja_lurus', 32, 24, 2).join(), berdiri: buat('meja_kerja_berdiri', 32, 32, 0).length };
+  const asal = { x: G.aku.x, y: G.aku.y };
+  t.aksi();
+  return { label: t.label, tabel, asal, x: G.aku.x, y: G.aku.y, bx: b.o.x, by: b.y, hadap: G.duduk && G.duduk.kursi.hadap, terminal: Terminal.terbuka(), mejaAlas: b.alas };
+});
+await tunggu(300);
+const dudukMeja = await pg.evaluate(() => ({ pose: G.aku.pose, alas: Rumah.alasEntitas(G.aku) }));
+cek('meja kerja yang ditaruh: E mendudukkan karakter di kursinya (animasi mengetik) dan membuka Komputer', mejaUji.label === 'Duduk & buka Komputer' && mejaUji.x === mejaUji.bx + 8 && mejaUji.y === mejaUji.by + 10
+  && mejaUji.hadap === 'atas' && mejaUji.terminal && /^main_[ab]$/.test(dudukMeja.pose) && dudukMeja.alas > mejaUji.mejaAlas, JSON.stringify([mejaUji, dudukMeja]));
+cek('tabel kursi meja: hadap4 empat kursi, jejer3 tiga, bos menghadap layar, meja diputar pindah sisi, meja berdiri tanpa kursi', mejaUji.tabel.hadap4 === 4 && mejaUji.tabel.jejer3 === '8,10,atas 40,10,atas 72,10,atas'
+  && mejaUji.tabel.bos === '16,7,bawah' && mejaUji.tabel.putar === '8,-2,bawah' && mejaUji.tabel.berdiri === 0, JSON.stringify(mejaUji.tabel));
+await pg.keyboard.press('Escape'); await tunggu(200);
+if (await pg.evaluate(() => !!G.duduk)) { await pg.evaluate(() => { Terminal.tutup && Terminal.tutup(); Mesin.berdiri(); }); await tunggu(150); }
+cek('berdiri dari meja kerja mengembalikan karakter ke tempat semula', await pg.evaluate((a) => !G.duduk && Math.abs(G.aku.x - a.x) < 20 && Math.abs(G.aku.y - a.y) < 20, mejaUji.asal));
+// rapikan: buang benda uji supaya uji berikutnya menemukan peta seperti semula, lalu kembali menyunting
+await pg.keyboard.press('b');
+await pg.waitForFunction(() => Sunting.aktif);
+await pg.evaluate(() => Sunting.ubah((d) => { d.benda = d.benda.filter(o => !/^(kendaraan_sedan_diam|meja_lurus|hewan_koi_diam|hewan_kura_diam)$/.test(o.n)); for (const k of Object.keys(d.lantai)) if (/^(lantai_kota_aspal|lantai_luar_air)$/.test(d.lantai[k])) delete d.lantai[k]; }));
+await pg.click('#sunting-simpan');
+await pg.waitForFunction(() => !Sunting.kotor && !Sunting.sibuk);
 await tunggu(400);
 cek('perubahan peta utama tersiar ke pemain lain setelah Simpan', await pg2.evaluate(() => G.peta.benda.length === 1 && G.peta.benda[0].n === 'sofa_krem'));
 // Koleksi peta: peta baru yang kosong punya denah dan NPC sendiri; berganti peta tersiar ke semua pemain.
@@ -630,6 +695,28 @@ await pg2.fill('#umpan-teks', 'Uji: kursi pantry tidak bisa diduduki.');
 await pg2.click('#tirai button.utama');
 await pg2.waitForFunction(() => !document.querySelector('#tirai'));
 cek('feedback terkirim dari dalam game', true);
+
+// --- sudut tembok menyatu (laporan yosi): balok mendatar tidak menjorok keluar dari sisi luar tembok tegak
+const sudutUji = await pg.evaluate(() => {
+  const kv = document.createElement('canvas'); kv.width = 64; kv.height = 64;
+  const k = kv.getContext('2d'), isi = (x, y) => k.getImageData(x, y, 1, 1).data[3] > 0;
+  const gambar = (ubin) => { k.clearRect(0, 0, 64, 64); const peta = new Map(ubin.map(u => [u, '#8b9bb4'])); for (const u of ubin) { const [x, y] = u.split(',').map(Number); Rumah.lukisTembok(k, peta, x, y, '#8b9bb4'); } };
+  gambar(['1,1', '2,1', '1,2']);            // sudut kiri atas: tembok ke kanan dan ke bawah
+  const kiriAtas = { luar: isi(16 + 2, 16 + 4), dalam: isi(16 + 7, 16 + 4), sambungKanan: isi(16 + 15, 16 + 4), tegakBawah: isi(16 + 7, 32 + 8), luarBawah: isi(16 + 2, 32 + 8) };
+  gambar(['1,2', '2,2', '2,1']);            // sudut kanan bawah: tembok ke kiri dan ke atas
+  const kananBawah = { luar: isi(32 + 13, 32 + 4), dalam: isi(32 + 7, 32 + 4), sambungKiri: isi(32 + 0, 32 + 4), tegakAtas: isi(32 + 7, 16 + 8) };
+  gambar(['1,1', '2,1', '3,1']);            // tembok lurus: tetap selebar ubin penuh
+  const lurus = { kiri: isi(16 + 1, 16 + 4), kanan: isi(48 + 14, 16 + 4) };
+  // Tembok bertumpuk dua baris: baris atas polos (tanpa muka depan), muka depan hanya di baris bawah.
+  const warna = (x, y) => [...k.getImageData(x, y, 1, 1).data].slice(0, 3).join();
+  gambar(['1,1', '2,1', '3,1', '1,2', '2,2', '3,2']);
+  const tumpuk = { atasPolos: warna(32 + 8, 16 + 12) === warna(32 + 8, 16 + 3) && warna(32 + 5, 16 + 12) === warna(32 + 8, 16 + 3), bawahBermuka: warna(32 + 8, 32 + 12) !== warna(32 + 8, 32 + 3),
+    sambung: warna(32 + 8, 16 + 15) === warna(32 + 8, 32 + 0) };
+  return { kiriAtas, kananBawah, lurus, tumpuk };
+});
+cek('tembok: sudut menyatu, balok mendatar berhenti di sisi luar tembok tegak; tembok lurus tetap penuh', !sudutUji.kiriAtas.luar && sudutUji.kiriAtas.dalam && sudutUji.kiriAtas.sambungKanan && sudutUji.kiriAtas.tegakBawah && !sudutUji.kiriAtas.luarBawah
+  && !sudutUji.kananBawah.luar && sudutUji.kananBawah.dalam && sudutUji.kananBawah.sambungKiri && sudutUji.kananBawah.tegakAtas && sudutUji.lurus.kiri && sudutUji.lurus.kanan, JSON.stringify(sudutUji));
+cek('tembok bertumpuk atas-bawah menyatu jadi satu bidang, muka depan hanya di baris terbawah', sudutUji.tumpuk.atasPolos && sudutUji.tumpuk.bawahBermuka && sudutUji.tumpuk.sambung, JSON.stringify(sudutUji.tumpuk));
 
 // --- menu atas: wajah + nama, bilah berlabel dan berangka; pita versi baru
 const hudUji = await pg.evaluate(() => {

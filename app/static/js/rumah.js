@@ -20,7 +20,7 @@ const FUNGSI_BENDA = [
   [/^(mesin_arcade|tv_konsol)/, 'Main arcade: Cocokkan Kartu', () => Arcade.buka()],
   [/^rak_server/, 'Konsol rak server', () => Terminal.buka('rak')],
   [/^(kompor|microwave)/, 'Masak', () => Masak.buka()],
-  [/^(meja_(kerja|direktur|bos|L|lurus|jejer|hadap4|cluster|teknisi|tulis|noc|resepsionis)|monitor)/, 'Buka Komputer', () => Terminal.buka('rak')],
+  [/^(meja_(kerja|direktur|bos|L|lurus|jejer|hadap4|cluster|teknisi|tulis|noc|resepsionis|ganda|mati|nyala)|meja_kaca$|monitor)/, 'Buka Komputer', () => Terminal.buka('rak')],
 ];
 
 function campurWarna(a, b, t) {
@@ -68,6 +68,7 @@ const Rumah = {
       }
     }
     const ef = this.ubinEfektif(d);
+    this.efLantai = ef.lantai;                 // dibaca hidup.js: ubin air dan ubin jalan
     for (const [kunci, n] of Object.entries(ef.lantai)) { const [gx, gy] = kunci.split(',').map(Number); lukis(k, n, gx * T, gy * T + oy); }
     const peta = new Map(Object.entries(ef.tembok));
     for (const [kunci, warna] of peta) {
@@ -91,7 +92,7 @@ const Rumah = {
       const b = { o, w: u.w, h: u.h, y: o.y + oy, alas: o.l === 'atas' ? 1e9 + o.id : o.y + oy + u.h };
       const alasTanah = this.alasTanah(o.n);
       if (alasTanah || o.l === 'bawah') this.alas.push(b); else this.urut.push(b);
-      if (!alasTanah && !info.tembus && !o.t && !/^hewan_/.test(o.n)) gridJejak(g, o.x, b.y, u.w, u.h, !!info.datar);      // o.t = dibuat tembus di Edit Map
+      if (!alasTanah && !info.tembus && !o.t && !/^hewan_/.test(o.n) && !(o.g && POLA_KENDARAAN.test(o.n))) gridJejak(g, o.x, b.y, u.w, u.h, !!info.datar);      // o.t = dibuat tembus di Edit Map
     }
     this.alas.sort((p, q) => p.o.id - q.o.id);
     G.grid = g;
@@ -135,13 +136,22 @@ const Rumah = {
     const gelap = campurWarna(warna, '#0b1220', 0.6), muka = campurWarna(warna, '#0b1220', 0.25), terang = campurWarna(warna, '#ffffff', 0.45);
     const px = x * T, py = y * T + oy;
     if (datar || !tegak) {
-      k.fillStyle = gelap; k.fillRect(px, py, T, T);
-      const kiri = ada(-1, 0) ? 0 : 2, kanan = ada(1, 0) ? 0 : 2;
-      k.fillStyle = muka; k.fillRect(px + kiri, py + 9, T - kiri - kanan, 6);
-      k.fillStyle = terang; k.fillRect(px + kiri, py + 9, T - kiri - kanan, 1);
-    }
-    if (tegak) {
-      const atas = ada(0, -1) ? 0 : 1, bawah = ada(0, 1) ? T : (datar ? 9 : T - 2);
+      // Di sudut (ada tembok tegak, tak ada sambungan ke samping) balok mendatar berhenti tepat di sisi luar tembok
+      // tegak yang selebar 6 px, supaya sudutnya menyatu dan tidak menjorok keluar.
+      const kiri = ada(-1, 0) ? 0 : (tegak ? 5 : 0), kanan = ada(1, 0) ? T : (tegak ? 11 : T);
+      k.fillStyle = gelap; k.fillRect(px + kiri, py, kanan - kiri, T);
+      // Muka depan hanya di baris paling bawah. Tembok yang bertumpuk atas-bawah menjadi satu bidang polos (bukan
+      // kotak-kotak); bila di bawahnya hanya tembok tegak yang ramping, muka tetap ada di kiri-kanan sambungannya.
+      const bawahLebar = ada(0, 1) && (ada(-1, 1) || ada(1, 1));
+      if (!bawahLebar) {
+        const mk = ada(-1, 0) || tegak ? kiri : 2, mn = ada(1, 0) || tegak ? kanan : T - 2;
+        k.fillStyle = muka; k.fillRect(px + mk, py + 9, mn - mk, 6);
+        k.fillStyle = terang; k.fillRect(px + mk, py + 9, mn - mk, 1);
+        if (ada(0, 1)) { k.fillStyle = gelap; k.fillRect(px + 5, py + 9, 6, T - 9); k.fillStyle = terang; k.fillRect(px + 5, py + 9, 1, T - 9); }
+      }
+    } else {
+      // Tembok tegak murni: lajur ramping 6 px yang menyambung ke ubin di atas dan di bawahnya.
+      const atas = ada(0, -1) ? 0 : 1, bawah = ada(0, 1) ? T : T - 2;
       k.fillStyle = gelap; k.fillRect(px + 5, py + atas, 6, bawah - atas);
       k.fillStyle = terang; k.fillRect(px + 5, py + atas, 1, bawah - atas);
     }
@@ -167,14 +177,19 @@ const Rumah = {
       // Hewan yang ditaruh sebagai benda (mis. hasil Generate peta) berjalan-jalan kecil di sekitar tempatnya.
       const liar = !G.bangun && /^hewan_([a-z]+)_diam$/.exec(o.n);
       if (liar) {
-        const s = this.jelajah('b' + o.id, liar[1], { x: o.x - 22, y: b.y - 14, w: b.w + 44, h: b.h + 28 }, t), us = ukuranSprite(s.n);
+        const s = this.jelajah('b' + o.id, liar[1], { x: o.x - 64, y: b.y - 64, w: b.w + 128, h: b.h + 128 }, t, { rumah: { x: o.x, y: b.y } }), us = ukuranSprite(s.n);
         daftar.push({ alas: s.y + us.h, lukis: () => lukis(k, s.n, s.x, s.y) });
         continue;
+      }
+      // Kendaraan yang disetel Bergerak menyusuri ubin jalan (hidup.js); selagi menyunting ia parkir di tempatnya.
+      if (o.g && POLA_KENDARAAN.test(o.n)) {
+        if (G.bangun) this.mobil.delete(o.id);
+        else { const s = this.kendara(o, b, t); daftar.push({ alas: s.alas, lukis: () => lukis(k, s.n, s.x, s.y) }); continue; }
       }
       daftar.push({ alas: b.alas, lukis: () => lukis(k, o.r ? namaPutar(n, o.r) : bingkaiHidup(n, t), o.x, b.y) });
       // Hewan kandang berjalan-jalan di halaman depan kandangnya.
       if (kd) kd.hewan.forEach((h, i) => {
-        const s = this.jelajah('k' + o.id + ':' + i, h.j, { x: o.x - 14, y: b.alas - 2, w: b.w + 28, h: 34 }, t), uh = ukuranSprite(s.n);
+        const s = this.jelajah('k' + o.id + ':' + i, h.j, { x: o.x - 14, y: b.alas - 2, w: b.w + 28, h: 34 }, t, { kandang: true, kenyang: h.kenyang, urut: i }), uh = ukuranSprite(s.n);
         daftar.push({ alas: s.y + uh.h, lukis: () => { k.globalAlpha = h.kenyang ? 1 : 0.7; lukis(k, s.n, s.x, s.y); k.globalAlpha = 1; } });
       });
     }
@@ -197,40 +212,15 @@ const Rumah = {
   // dan server tidak tahu. Dengan "kurangi gerak" di sistem, hewan diam di tempat.
   hewan: new Map(),
   diamSaja: typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches,
-  jelajah(kunci, j, kotak, t) {
-    const dasar = 'hewan_' + j + '_', maksX = Mesin.dunia.w - 14, maksY = Mesin.dunia.h - 14;
-    const acak = () => ({ x: Math.max(2, Math.min(maksX, kotak.x + Math.random() * kotak.w)), y: Math.max(2, Math.min(maksY, kotak.y + Math.random() * kotak.h)) });
-    let s = this.hewan.get(kunci);
-    if (!s) {
-      if (this.hewan.size > 600) this.hewan.clear();
-      s = Object.assign(acak(), { arah: 'bawah', jalan: false, patuk: false, sampai: t + Math.random() * 3, t });
-      for (let c = 0; c < 6 && G.grid && gridPadat(G.grid, Math.floor((s.x + 6) / T), Math.floor((s.y + 10) / T)); c++) Object.assign(s, acak());
-      s.tx = s.x; s.ty = s.y;
-      this.hewan.set(kunci, s);
-    }
-    const dt = Math.min(0.1, Math.max(0, t - s.t));
-    s.t = t;
-    if (this.diamSaja) return { x: Math.round(s.x), y: Math.round(s.y), n: dasar + 'diam' };
-    if (s.jalan) {
-      const dx = s.tx - s.x, dy = s.ty - s.y, jarak = Math.hypot(dx, dy), langkah = 13 * dt;
-      if (jarak <= langkah) { s.x = s.tx; s.y = s.ty; s.jalan = false; s.sampai = t + 1.5 + Math.random() * 4; s.patuk = j === 'ayam' && Math.random() < 0.5; }
-      else { s.x += dx / jarak * langkah; s.y += dy / jarak * langkah; s.arah = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'kiri' : 'kanan') : (dy < 0 ? 'atas' : 'bawah'); }
-    } else if (t >= s.sampai) {
-      for (let c = 0; c < 4 && !s.jalan; c++) {
-        const p = acak();
-        if (G.grid && gridPadat(G.grid, Math.floor((p.x + 6) / T), Math.floor((p.y + 10) / T))) continue;      // jangan menuju ubin terhalang
-        s.tx = p.x; s.ty = p.y; s.jalan = true; s.patuk = false;
-      }
-      if (!s.jalan) s.sampai = t + 1;
-    }
-    const n = s.jalan && atlas[dasar + s.arah] ? dasar + s.arah : (s.patuk && atlas[dasar + 'patuk'] ? dasar + 'patuk' : dasar + 'diam');
-    return { x: Math.round(s.x), y: Math.round(s.y), n: bingkaiHidup(n, t, s.jalan ? 6 : 2) };
-  },
-
   // Urutan kedalaman tokoh = kakinya. Kecuali selagi duduk di perabot berlayer Otomatis: kaki tokoh ada di atas dasar
   // perabot, jadi tanpa ini kursinya tergambar belakangan dan menutupi tokoh. Tokoh duduk digambar tepat di depannya.
   alasEntitas(e) {
     const dasar = e.y + 19;
+    // Duduk di meja kerja yang ditaruh: di depan meja bila membelakangi layar atau menyamping, di baliknya bila menghadap layar.
+    if (/duduk|main_/.test(e.pose || '') && this.kantor) {
+      const m = this.kursiMejaSemua.find(s => Math.abs(s.x + 8 - e.x) <= 1 && Math.abs(s.y + 14 - e.y) <= 1);
+      if (m) return m.hadap === 'bawah' ? Math.min(dasar, m.alas - 0.5) : Math.max(dasar, m.alas + 0.5);
+    }
     if (!/duduk/.test(e.pose || '')) return dasar;
     const cx = e.x + 8, cy = e.y + 25;
     for (const b of this.urut) if (b.o.l !== 'atas' && PERABOT_DUDUK.test(b.o.n) && cx >= b.o.x && cx <= b.o.x + b.w && Math.abs(b.y + b.h - cy) <= 2) return Math.max(dasar, b.alas + 0.5);
@@ -260,9 +250,15 @@ const Rumah = {
     if (this.kantor) {
       if (this.dasarDefault) daftar.push(...Mesin.statisKantor);
       daftar.push(...Mesin.titikAdmin());
-      for (const b of this.urut) {
+      this.kursiMejaSemua = [];
+      for (const b of [...this.alas, ...this.urut]) {
         const f = FUNGSI_BENDA.find(([re]) => re.test(b.o.n));
-        if (f) daftar.push({ x: b.o.x, y: b.y, w: b.w, h: b.h, label: f[1], aksi: f[2] });
+        if (!f) continue;
+        // Meja kerja yang ditaruh: karakter duduk di kursinya (tabel Agent Pak, hidup.js) sambil membuka Komputer.
+        const kursi = f[1] === 'Buka Komputer' ? this.kursiMeja(b) : [];
+        this.kursiMejaSemua.push(...kursi);
+        if (kursi.length) daftar.push({ x: b.o.x, y: b.y, w: b.w, h: b.h, label: 'Duduk & buka Komputer', meja: kursi, aksi: () => this.bukaKomputerMeja(kursi) });
+        else daftar.push({ x: b.o.x, y: b.y, w: b.w, h: b.h, label: f[1], aksi: f[2] });
       }
     } else {
       const gb = this.gerbang();

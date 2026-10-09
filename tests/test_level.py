@@ -147,3 +147,36 @@ def test_laju_kebun_berlaku_seketika(kon):
         assert konfig.JAM_KEBUN == 30
     finally:
         atur.simpan(kon, {"laju": asli})
+
+
+# ---- R1 (yosi 9 Okt): level maksimal 20, diuji di batasnya
+
+def test_level_berhenti_di_dua_puluh():
+    maks = permainan.LEVEL_MAKS
+    assert maks == 20
+    assert permainan.level_dari(permainan.ambang(maks) - 1) == maks - 1
+    assert permainan.level_dari(permainan.ambang(maks)) == maks
+    assert permainan.level_dari(permainan.ambang(maks + 1)) == maks          # XP setara level 21 tetap level 20
+    assert permainan.level_dari(10 ** 7) == maks                             # batas isian XP admin di dashboard
+
+
+def test_potret_level_puncak_tanpa_level_berikutnya(kon, pemain):
+    maks = permainan.LEVEL_MAKS
+    kon.execute("UPDATE karakter SET xp = ? WHERE pemakai_id = ?", (permainan.ambang(maks) - 5, pemain))
+    awal = permainan.saldo(kon, pemain)
+    assert permainan.tambah_xp(kon, pemain, 10) == maks                      # naik ke 20: dibayar sekali
+    assert permainan.saldo(kon, pemain) == awal + permainan.HADIAH_NAIK * maks
+    assert permainan.tambah_xp(kon, pemain, 10 ** 6) == maks                 # sudah di puncak: tak ada level 21, tak ada hadiah lagi
+    assert permainan.saldo(kon, pemain) == awal + permainan.HADIAH_NAIK * maks
+    lv = permainan.potret_level(kon, pemain)
+    assert lv["level"] == maks and lv["lanjut"] is None and lv["dasar"] == permainan.ambang(maks)
+    assert lv["stamina"] == permainan.STAMINA_DASAR + (maks - 1) * permainan.STAMINA_PER_LEVEL
+
+
+def test_tak_ada_syarat_di_atas_level_maksimal():
+    maks = permainan.LEVEL_MAKS
+    assert max(permainan.BUKA.values()) <= maks
+    assert max(permainan.LEVEL_KHUSUS.values()) <= maks
+    assert permainan.LEVEL_BARANG_PUNCAK <= maks and max(lv for _, lv in permainan.TINGKAT_HARGA) <= maks
+    assert max(v[2] for isi in permainan.PAKAIAN.values() for v in isi.values()) <= maks
+    assert max(permainan.level_barang(b) for b in permainan.katalog()["barang"]) <= maks

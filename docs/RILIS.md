@@ -2,6 +2,44 @@
 
 Melengkapi PRD, GDD, dan TDD untuk rilis sesudah 0.2.0. Angka dan aturan di sini adalah yang berlaku di kode.
 
+## 0.17.0 — 9 Oktober 2026
+
+**Meja kerja beranimasi duduk (kata yosi).** Meja kerja yang ditaruh dari katalog (kategori Meja: `meja_L`,
+`meja_lurus`, `meja_jejer2/3/4`, `meja_hadap4`, `meja_ganda`, `meja_bos`, `meja_direktur`, `meja_kaca`, `meja_mati`,
+`meja_nyala`, `meja_kerja_laci`, `meja_noc`, `meja_resepsionis`, dan sejenisnya) kini berlabel **"Duduk & buka
+Komputer"**: tekan E, karakter duduk di kursi meja itu dengan animasi mengetik, lalu Komputer terbuka. Posisi dan arah
+duduk memakai tabel kursi Agent Pak (meja jejer dan hadap4 punya banyak kursi; yang dipakai kursi kosong terdekat).
+Meja yang diputar memindahkan kursinya ke sisi yang sesuai. Tidak perlu memasang kursi sendiri; `meja_kerja_berdiri`
+dan `monitor` tetap membuka Komputer sambil berdiri. Karakter digambar di depan meja, bukan tertutup olehnya.
+
+**Kendaraan bisa berjalan (kata yosi, mengikuti Agent Pak).** Di Edit Map, kendaraan yang dipilih punya centang
+**Bergerak**. Bawaannya diam, sama seperti Agent Pak. Bila dicentang dan kendaraan ditaruh di atas ubin jalan (aspal,
+jalan tanah, kerikil, tanah retak), ia menyusuri jalan itu: lurus selama bisa, sesekali berbelok di persimpangan,
+berhenti sebentar lalu berbalik di jalan buntu, menunggu bila ada kendaraan lain di depannya, dan sesekali parkir lagi
+di tempatnya. Laju, lama parkir, dan kecepatan animasi per jenis (motor paling cepat, traktor paling lambat) disalin
+dari Agent Pak. Kendaraan yang bergerak tidak menghalangi pemain. Yang belum ada dibanding Agent Pak: menjaga lajur
+kiri di jalan lebar dan giliran di jalan satu lajur.
+
+**Hewan mengikuti Agent Pak.** Tiap jenis punya laju dan lama diamnya sendiri (kelinci lincah, sapi dan kura-kura
+lambat). Hewan air (koi, bebek, kura-kura, angsa) hanya bergerak di ubin air dan diam di tempat bila ditaruh di darat;
+hewan darat tidak masuk air dan berhenti bila terhalang. Hewan kandang yang kenyang sesekali mematuk (ayam, itik) atau
+merumput (kambing, sapi). Gerak hewan dan kendaraan dihitung di tiap peramban, jadi posisinya tidak sama antarpemain.
+
+**Dok Edit Map lebih ringkas (kata yosi).** Tombol kelompok Alat / Bangun / Katalog dikecilkan dan judul kelompoknya
+pindah ke samping, sehingga baris detail di bawahnya (properti perabot, ruang, grup) boleh memakai dua baris tanpa
+digulir mendatar.
+
+**Perbaikan tembok (laporan yosi)**
+- Sudut tembok kini menyatu: balok mendatar berhenti tepat di sisi luar tembok tegak, tidak menjorok keluar.
+- Tembok yang disusun bertumpuk atas-bawah menjadi satu bidang polos, tidak lagi kotak-kotak; muka depan tembok hanya
+  digambar di baris paling bawah.
+
+**Level maksimal 20** diperiksa dan diberi uji batas: XP setara level 21 (maupun isian XP admin terbesar) tetap level
+20 tanpa hadiah naik level lagi, panel menulis "Level tertinggi", dan tidak ada barang, pakaian, atau interaksi yang
+mensyaratkan level di atas 20.
+
+Konsep battle zombie ditulis di `docs/KONSEP-battle.md` (rancangan, menunggu kata yosi; belum dibangun).
+
 ## 0.16.0 — 9 Oktober 2026
 
 **Pemberitahuan versi baru (kata yosi).** Tiap rilis memutus sambungan sebentar; begitu halaman menyambung lagi,

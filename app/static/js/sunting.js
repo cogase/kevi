@@ -708,6 +708,8 @@ const Sunting = {
         tb('Duplikat', '', () => this.duplikat()), ...lapis(o.l || ''),
         el('label', { kelas: 'centang-baris' }, el('input', { type: 'checkbox', id: 'sunting-tembus', checked: !!o.t || !!Rumah.infoBarang(o.n).tembus, disabled: !!Rumah.infoBarang(o.n).tembus,
           on: { change: (ev) => { const v = ev.target.checked; this.ubah(() => { if (v) o.t = 1; else delete o.t; }); } } }), 'Bisa dilewati'),
+        POLA_KENDARAAN.test(o.n) ? el('label', { kelas: 'centang-baris', title: 'Menyusuri ubin jalan (aspal, jalan tanah, kerikil, tanah retak) dari tempat parkirnya. Taruh kendaraan di atas ubin jalan.' },
+          el('input', { type: 'checkbox', id: 'sunting-gerak', checked: !!o.g, on: { change: (ev) => { const v = ev.target.checked; this.ubah(() => { if (v) o.g = 1; else delete o.g; }); } } }), 'Bergerak') : null,
         el('label', { kelas: 'centang-baris' }, el('input', { type: 'checkbox', checked: !!o.kunci, on: { change: (ev) => { const v = ev.target.checked; this.ubah(() => { if (v) o.kunci = true; else delete o.kunci; }); } } }), 'Kunci posisi'),
         tb('Hapus', 'bahaya', () => this.hapusPilihan()));
     } else if (this.alat === 'area' && this.grup) {
