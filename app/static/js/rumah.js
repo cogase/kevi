@@ -204,6 +204,7 @@ const Rumah = {
     daftar.sort((p, q) => p.alas - q.alas);
     for (const b of daftar) b.lukis();
     if (bawaan) this.lapisDepan(k, semua);
+    Suasana.gambarJam(k);                        // jam dinding dan jam digital menunjukkan jam asli
     for (const b of this.titik) if (b.tanda) lukis(k, 'seru', b.x, b.y - 14 - Math.abs(Math.sin(t * 2.4)) * 3);
     if (G.bangun) { if (G.bangun.sunting) Sunting.gambar(k); else this.gambarBangun(k); }
   },

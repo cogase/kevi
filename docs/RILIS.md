@@ -2,6 +2,24 @@
 
 Melengkapi PRD, GDD, dan TDD untuk rilis sesudah 0.2.0. Angka dan aturan di sini adalah yang berlaku di kode.
 
+## 0.20.0 — 9 Oktober 2026
+
+**Siang dan malam mengikuti jam asli, dengan pencahayaan lampu (kata yosi, mengikuti Agent Pak).**
+- Waktu mengikuti **jam peramban**: siang 06.00–17.15 terang; senja 17.15–19.00 berangsur gelap dengan semburat
+  jingga; malam 19.00–04.30 gelap 74% (biru tua); fajar 04.30–06.00 berangsur terang dengan semburat merah muda.
+  Jadwal dan angkanya disalin dari Agent Pak.
+- **Tanpa sumber cahaya, tetap redup.** Yang menerangi: semua perabot kategori Lampu (lampu jalan dan taman paling
+  luas, lampu meja paling kecil; lampu disko tidak), layar yang menyala (TV, arcade, layar dinding), monitor meja
+  selagi ada yang duduk bekerja, dan **ruang yang ada orangnya** (seluruh ruang menyala selama berpenghuni). Lampu
+  berpendar hangat, monitor berpendar biru. Berlaku di peta utama maupun di rumah.
+- Nama, gelembung obrolan, menu, dan panel tetap terang. Selagi Edit Map / Edit Rumah, semuanya terang.
+- Tambahan Kevi yang tidak ada di Agent Pak: karakter sendiri selalu sedikit terlihat (cahaya kecil redup), supaya
+  tetap bisa bermain di tempat tanpa lampu.
+- **Jam**: menu atas menampilkan jam asli (HH.MM) dengan warna menurut fasenya; **jam dinding dan jam digital** yang
+  ditaruh di peta (termasuk yang ada di peta Default) kini berjarum dan berangka sesuai jam asli.
+- Menu punya pilihan **Siang & malam**: Ikut jam asli (bawaan), Siang, Senja, Malam; berlaku per peramban, berguna
+  untuk melihat suasana malam di siang hari.
+
 ## 0.19.0 — 9 Oktober 2026
 
 **Battle: serangan zombie (kata yosi; konsep dan keputusannya di `docs/KONSEP-battle.md`).** Bawaannya **mati**:

@@ -756,6 +756,44 @@ const ikonUji = await pg.evaluate(() => {
 });
 cek('ikon sprite: selalu di tengah kotak dan tidak meluber, juga untuk sprite yang jauh lebih besar dari kotaknya', ikonUji.terburuk <= 0.6 && ikonUji.luber <= 0.6 && ikonUji.terbesar > 60 && ikonUji.n >= 12, JSON.stringify(ikonUji));
 
+// --- suasana: siang dan malam mengikuti jam asli, lampu melubangi gelap, jam hidup (kata yosi, mengikuti Agent Pak)
+const suasanaUji = await pg.evaluate(() => {
+  const jam = (j, m = 0) => Suasana.fase(new Date(2026, 0, 5, j, m), 'ikut'), bulat = (v) => Math.round(v * 1000) / 1000;
+  const kv = document.createElement('canvas'); kv.width = 300; kv.height = 300;
+  const k = kv.getContext('2d'), terang = (x, y) => { const p = k.getImageData(x, y, 1, 1).data; return p[0] + p[1] + p[2]; };
+  const lukis = (f, lampu, ruang) => { k.globalCompositeOperation = 'source-over'; k.setTransform(1, 0, 0, 1, 0, 0); k.fillStyle = '#ffffff'; k.fillRect(0, 0, 300, 300); Suasana.gambarMalam(k, kv, [], f, lampu, ruang); };
+  const kam = G.kamera, sk = kam.skala, dunia = (px, py) => ({ x: px / sk + kam.x, y: py / sk + kam.y });
+  const pusat = dunia(150, 150), malam = Suasana.fase(new Date(), 'malam');
+  lukis(Suasana.fase(new Date(), 'siang'), [], []); const siang = terang(20, 20);
+  lukis(malam, [], []); const gelap = terang(20, 20);
+  lukis(malam, [{ x: pusat.x, y: pusat.y, r: 60 / sk, k: 1, hangat: true }], []); const diLampu = terang(150, 150), jauh = terang(10, 10);
+  const pojok = dunia(200, 200);
+  lukis(malam, [], [[pojok.x, pojok.y, 80 / sk, 80 / sk]]); const diRuang = terang(240, 240), luarRuang = terang(60, 60);
+  const semu = [{ n: 'lampu_lantai', x: 100, y: 100, w: 16, h: 32 }, { n: 'lampu_meja_hijau', x: 0, y: 0, w: 16, h: 16 }, { n: 'luar_lampu_jalan', x: 0, y: 0, w: 16, h: 48 }, { n: 'lampu_disko', x: 0, y: 0, w: 16, h: 16 }, { n: 'tv_konsol', x: 0, y: 0, w: 32, h: 24 }, { n: 'sofa_krem', x: 0, y: 0, w: 32, h: 16 }];
+  const c = Suasana.cahaya([{ x: 50, y: 50, pose: 'main_a' }, { x: 80, y: 50, pose: '' }], semu);
+  return { siangTengah: jam(12).gelap, pagi: jam(6).gelap, malam19: jam(19).gelap, malam2: jam(2).gelap, fajar: bulat(jam(5, 15).gelap), senja: bulat(jam(18, 7, 30).gelap), semburatSenja: !!jam(18).semburat, semburatSiang: jam(12).semburat,
+    siang, gelap, diLampu, jauh, diRuang, luarRuang, lampu: c.filter(x => x.hangat).map(x => x.r).join(), layar: c.filter(x => !x.hangat && !x.monitor && x.r === 42).length, monitor: c.filter(x => x.monitor).length,
+    jamHud: $('#hud-jam').textContent, jamAsli: String(new Date().getHours()).padStart(2, '0') + '.' + String(new Date().getMinutes()).padStart(2, '0') };
+});
+cek('suasana: jadwal gelap mengikuti jam (siang terang, 19.00–04.30 gelap 74%, fajar dan senja berangsur dengan semburat)', suasanaUji.siangTengah === 0 && suasanaUji.pagi === 0 && suasanaUji.malam19 === 0.74 && suasanaUji.malam2 === 0.74
+  && suasanaUji.fajar === 0.37 && suasanaUji.senja > 0.3 && suasanaUji.senja < 0.42 && suasanaUji.semburatSenja && suasanaUji.semburatSiang === null, JSON.stringify(suasanaUji));
+cek('suasana: malam menggelapkan layar; lampu dan ruang berpenghuni tetap terang', suasanaUji.siang === 765 && suasanaUji.gelap < 300 && suasanaUji.diLampu > 700 && suasanaUji.jauh < 300 && suasanaUji.diRuang > suasanaUji.luarRuang + 300, JSON.stringify(suasanaUji));
+cek('suasana: perabot lampu jadi sumber cahaya menurut jenisnya, layar ikut menyala, monitor hanya saat dipakai, lampu disko tidak', suasanaUji.lampu === '55,42,70' && suasanaUji.layar === 1 && suasanaUji.monitor === 1, JSON.stringify(suasanaUji));
+cek('jam di menu atas menunjukkan jam asli', /^\d\d\.\d\d$/.test(suasanaUji.jamHud) && Math.abs(Number(suasanaUji.jamHud.replace('.', '')) - Number(suasanaUji.jamAsli.replace('.', ''))) <= 1, JSON.stringify([suasanaUji.jamHud, suasanaUji.jamAsli]));
+const jamUji = await pg.evaluate(() => {
+  const kv = document.createElement('canvas'); kv.width = 64; kv.height = 32;
+  const k = kv.getContext('2d'), merah = (x0, y0, w, h) => { const d = k.getImageData(x0, y0, w, h).data; let n = 0; for (let i = 0; i < d.length; i += 4) if (d[i] > 200 && d[i + 1] < 160) n++; return n; };
+  Suasana.gambarJam(k, new Date(2026, 0, 5, 18, 11, 3), [{ n: 'jam_digital', x: 0, y: 0, w: 32, h: 16 }, { n: 'jam_dinding', x: 40, y: 8, w: 16, h: 16 }]);
+  const putih = k.getImageData(45, 14, 1, 1).data;
+  return { digit1: merah(7, 6, 3, 5), digit8: merah(12, 6, 3, 5), muka: putih[0] > 200 && putih[3] === 255 };
+});
+cek('jam digital dan jam dinding yang ditaruh menunjukkan jam asli', jamUji.digit1 === 8 && jamUji.digit8 === 13 && jamUji.muka, JSON.stringify(jamUji));
+await pg.evaluate(() => { Panel.menu(); });
+await pg.waitForSelector('#menu-waktu');
+await pg.selectOption('#menu-waktu', 'malam');
+cek('Menu: siang dan malam bisa dipaksa per peramban, bawaannya ikut jam asli', await pg.evaluate(() => { const m = Suasana.fase().gelap === 0.74 && $('#hud-jam').dataset.fase === 'malam' && localStorage.getItem('kevi.waktu') === 'malam'; Suasana.pilih('ikut'); return m && Suasana.pilihan() === 'ikut'; }));
+await pg.evaluate(() => Panel.tutup());
+
 // --- sudut tembok menyatu (laporan yosi): balok mendatar tidak menjorok keluar dari sisi luar tembok tegak
 const sudutUji = await pg.evaluate(() => {
   const kv = document.createElement('canvas'); kv.width = 64; kv.height = 64;

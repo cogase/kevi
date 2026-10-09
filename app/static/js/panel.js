@@ -100,6 +100,8 @@ const Panel = {
         el('div', { kelas: 'baris menu-suara' },
           el('label', { kelas: 'centang-baris' }, el('input', { type: 'checkbox', id: 'menu-suara', checked: Suara.atur.hidup, on: { change: (ev) => Suara.hidupkan(ev.target.checked) } }), 'Musik & suara'),
           el('input', { type: 'range', id: 'menu-volume', min: 0, max: 100, value: Math.round(Suara.atur.volume * 100), 'aria-label': 'Volume', on: { input: (ev) => Suara.setVolume(ev.target.value / 100) } })),
+        el('label', { kelas: 'baris menu-suara' }, 'Siang & malam',
+          el('select', { id: 'menu-waktu', on: { change: (ev) => Suasana.pilih(ev.target.value) } }, Object.entries(Suasana.NAMA_FASE).map(([v, t]) => el('option', { value: v, teks: t, selected: Suasana.pilihan() === v })))),
         el('button', { kelas: 'tombol', teks: 'Ganti password', on: { click: () => Panel.sandi() } }),
         el('button', { kelas: 'tombol', teks: 'Kode sekali pakai (TOTP): ' + (G.totp ? 'terpasang' : 'belum'), on: { click: () => Panel.totp() } }),
         G.adegan === 'kantor' ? el('button', { kelas: 'tombol', teks: 'Pulang ke rumah', on: { click: () => { Panel.tutup(); Mesin.pindah('rumah:' + G.saya.id); } } })
@@ -226,6 +228,7 @@ const Hud = {
   },
   pasang() {
     this.potret();
+    Suasana.pasang();
     $('#hud-potret').addEventListener('click', (ev) => { ev.currentTarget.blur(); Profil.buka(); });
     aturKoin(G.koin);
     aturLevel(G.level, false);

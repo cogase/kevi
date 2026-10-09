@@ -118,6 +118,10 @@ body.digigit::after { content: ""; position: fixed; inset: 0; z-index: var(--z-k
 #pingsan { position: fixed; inset: 0; z-index: calc(var(--z-kabar) + 5); pointer-events: none; background: #05070d; animation: pingsan 1.9s ease-in-out forwards; }
 @keyframes pingsan { 0% { opacity: 0; } 25%, 65% { opacity: 1; } 100% { opacity: 0; } }
 .menu-suara { display: flex; align-items: center; gap: 10px; padding: 2px 4px; }
+.menu-suara select { flex: 1; min-width: 0; }
+.cip.jam { font-variant-numeric: tabular-nums; color: var(--krem); }
+.cip.jam[data-fase=malam] { color: #c7d2fe; border-color: #4f5d8f; }
+.cip.jam[data-fase=senja], .cip.jam[data-fase=fajar] { color: #fdba74; border-color: #9a5a2a; }
 .menu-suara input[type=range] { flex: 1; min-width: 0; }
 @media (prefers-reduced-motion: reduce) { body.digigit::after { animation-duration: .01s; } }
 body.ada-versi-baru #hud { top: calc(var(--versi-tinggi, 44px) + 10px); }

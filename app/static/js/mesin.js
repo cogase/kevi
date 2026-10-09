@@ -378,6 +378,7 @@ const Mesin = {
     Rumah.gambar(ktx, semua);
     this.gambarApung();
     ktx.setTransform(1, 0, 0, 1, 0, 0);
+    Suasana.gambarMalam(ktx, kanvas, semua);          // gelap malam + cahaya lampu; nama dan gelembung sesudahnya tetap terang
     this.gambarLabel(semua);
   },
 
