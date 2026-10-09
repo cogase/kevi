@@ -254,6 +254,10 @@ body.hud-ciut #hud::before, body.hud-ciut #hud::after, body.hud-ciut .hud-kiri, 
 body.hud-ciut #petunjuk { top: 14px; }
 body.hud-ciut #kabar { top: 56px; }
 
+.peti h4 { margin: 10px 0 6px; }
+.peti-kisi { min-height: 44px; padding: 4px; border: 1px dashed var(--garis); border-radius: 6px; }
+.peti-kisi > p { grid-column: 1 / -1; margin: 8px 0; text-align: center; }
+
 /* ---------- Edit Map (peta utama, admin) ---------- */
 body.menyunting #bangun { flex-direction: column; align-items: stretch; gap: 6px; width: min(1040px, calc(100vw - 20px)); }
 body.menyunting #hotbar-wadah, body.menyunting #petunjuk { display: none; }

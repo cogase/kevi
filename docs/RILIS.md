@@ -2,6 +2,16 @@
 
 Melengkapi PRD, GDD, dan TDD untuk rilis sesudah 0.2.0. Angka dan aturan di sini adalah yang berlaku di kode.
 
+## 0.8.0 — 9 Oktober 2026
+
+**Peti (permintaan yosi: barang berlebih disimpan di peti, peti dibeli di NPC)**
+- Perabot peti dijual Bu Sari di Koperasi, tab "Makanan & tas", bagian Peti: peti kayu gudang, peti kayu taman,
+  kotak kolong, kotak mainan, dan empat macam loker. Harganya mengikuti harga perabot biasa.
+- Taruh di rumah sendiri (mode Bangun), lalu tekan E di dekatnya: panel dua kisi, isi peti dan Inventory. Klik
+  barang memindah seluruh tumpukan, Shift+klik satu, atau seret ke kisi seberang.
+- Tiap peti memuat 20 jenis barang (tiap jenis menumpuk seperti slot inventory). Boleh punya banyak peti.
+- Peti yang masih berisi tidak bisa diangkat. Tamu tidak bisa melihat isi peti.
+
 ## 0.7.0 — 9 Oktober 2026
 
 **Health dan Stamina dipisah (jawaban yosi atas Y11: health = lelah, stamina = lapar)**

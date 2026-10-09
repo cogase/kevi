@@ -301,7 +301,10 @@ async def api_rumah(request: Request, milik: int | None = None):
         k = KON.execute("SELECT nama FROM karakter WHERE pemakai_id = ?", (uid,)).fetchone()
         if not k:
             return galat("Rumah tidak ditemukan.", 404)
-        return {"rumah": permainan.potret_rumah(KON, uid), "pemilik": {"id": uid, "nama": k["nama"]}, "milik_saya": uid == p["id"]}
+        rumah = permainan.potret_rumah(KON, uid)
+        if uid != p["id"]:
+            rumah["peti"] = {}                # isi peti bukan urusan tamu
+        return {"rumah": rumah, "pemilik": {"id": uid, "nama": k["nama"]}, "milik_saya": uid == p["id"]}
 
 
 def _rute_aksi(jalur: str, fn):
@@ -314,6 +317,7 @@ def _rute_aksi(jalur: str, fn):
 _rute_aksi("/api/rumah/pasang", lambda uid, d: permainan.pasang(KON, uid, d))
 _rute_aksi("/api/rumah/angkat", lambda uid, d: permainan.angkat(KON, uid, d))
 _rute_aksi("/api/rumah/pindah", lambda uid, d: permainan.pindah(KON, uid, d))
+_rute_aksi("/api/rumah/peti", lambda uid, d: permainan.peti(KON, uid, d))
 _rute_aksi("/api/kebun/tanam", lambda uid, d: permainan.tanam(KON, uid, d.get("id"), str(d.get("t") or "")))
 _rute_aksi("/api/kebun/siram", lambda uid, d: permainan.siram(KON, uid, d.get("id")))
 _rute_aksi("/api/kebun/panen", lambda uid, d: permainan.panen(KON, uid, d.get("id")))

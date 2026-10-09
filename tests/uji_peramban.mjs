@@ -246,6 +246,30 @@ const koinSebelum = await pg.evaluate(() => G.koin);
 await pg.evaluate(() => Rumah.jualHasil()); await tunggu(500);
 cek('jual hasil menambah koin', (await pg.evaluate(() => G.koin)) >= koinSebelum + 30);
 
+// --- peti: taruh di rumah, titip barang, ambil satu, peti berisi tak bisa diangkat
+await pg.evaluate(async () => {
+  await aksi('/api/toko/beli', { barang: 'gudang_peti_kayu', jumlah: 1 });
+  await aksi('/api/rumah/pasang', { barang: 'gudang_peti_kayu', x: 200, y: 120, r: 0 });
+  await aksi('/api/toko/beli', { barang: 'pakan', jumlah: 3 });
+});
+const pakan0 = await pg.evaluate(() => G.inventori.pakan);
+const idPeti = await pg.evaluate(() => G.rumah.benda.find(o => o.n === 'gudang_peti_kayu').id);
+cek('peti yang ditaruh menjadi titik "Buka peti"', await pg.evaluate(() => Rumah.interaksi().some(t => t.label === 'Buka peti')));
+await pg.evaluate((id) => Peti.buka(G.rumah.benda.find(o => o.id === id)), idPeti);
+await pg.waitForSelector('.peti-kisi[data-sisi=inv] [data-barang=pakan]');
+await pg.click('.peti-kisi[data-sisi=inv] [data-barang=pakan]');
+await pg.waitForSelector('.peti-kisi[data-sisi=peti] [data-barang=pakan]');
+cek('klik menitipkan seluruh tumpukan ke peti', await pg.evaluate(([id, n]) => G.rumah.peti[id].pakan === n && !G.inventori.pakan, [idPeti, pakan0]));
+await pg.click('.peti-kisi[data-sisi=peti] [data-barang=pakan]', { modifiers: ['Shift'] });
+await pg.waitForSelector('.peti-kisi[data-sisi=inv] [data-barang=pakan]');
+cek('Shift+klik mengambil satu dari peti', await pg.evaluate(([id, n]) => G.rumah.peti[id].pakan === n - 1 && G.inventori.pakan === 1, [idPeti, pakan0]));
+cek('peti berisi tidak bisa diangkat', await pg.evaluate(async (id) => (await fetch('/api/rumah/angkat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })).status === 400, idPeti));
+await pg.click('.peti-kisi[data-sisi=peti] [data-barang=pakan]');
+await pg.waitForFunction((id) => !G.rumah.peti[id] || !G.rumah.peti[id].pakan, idPeti);
+await pg.keyboard.press('Escape');
+await pg.evaluate(async (id) => { await aksi('/api/rumah/angkat', { id }); await aksi('/api/toko/jual', { barang: 'gudang_peti_kayu', jumlah: 1 }); }, idPeti);
+cek('peti kosong bisa diangkat lagi', await pg.evaluate(() => !G.rumah.benda.some(o => o.n === 'gudang_peti_kayu') && !G.inventori.gudang_peti_kayu));
+
 // --- kembali ke kantor: jalan terus ke ATAS dari rumah, tiba di tepi bawah kantor
 await pg.evaluate(() => { G.aku.x = 232; G.aku.y = 6; }); await tunggu(200);
 await tekan('w', 700);

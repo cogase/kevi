@@ -319,6 +319,9 @@ const Toko = {
       const dijual = Object.entries(t.makanan).filter(([, m]) => m.harga != null);
       badan = el('div', {}, el('p', { kelas: 'redup', teks: 'Makanan memulihkan stamina: pegang di hotbar lalu tekan F. Masakan sendiri (kompor di pantry atau di rumah) lebih kuat daripada jajanan.' }),
         el('div', { kelas: 'kisi' }, dijual.map(([k, m]) => this.kartuBeli('makan:' + k, '+' + m.stamina + ' stamina')), this.kartuBeli('kompor', 'untuk memasak di rumah')),
+        el('h4', { teks: 'Peti' }),
+        el('p', { kelas: 'redup kecil', teks: `Taruh di rumah (mode Bangun), lalu tekan E di dekatnya. Tiap peti memuat ${t.peti_jenis || 20} jenis barang.` }),
+        el('div', { kelas: 'kisi' }, (t.peti || []).map(n => this.kartuBeli(n, 'peti'))),
         el('h4', { teks: 'Tas' }),
         el('div', { kelas: 'baris' }, el('span', { kelas: 'tumbuh', teks: `Inventory ${G.tas.kapasitas} slot (tas ${G.tas.jumlah}). Tiap tas menambah 10 slot.` }),
           G.tas.harga ? el('button', { kelas: 'tombol kecil utama', teks: 'Beli tas · ' + G.tas.harga + ' koin', disabled: G.tas.harga > G.koin,

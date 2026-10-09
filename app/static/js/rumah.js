@@ -189,6 +189,7 @@ const Rumah = {
         const o = b.o;
         if (o.n === 'kebun_petak') daftar.push({ x: o.x + 2, y: b.y + 2, w: 12, h: 12, petak: o, get label() { return Rumah.labelPetak(o); }, aksi: (ev) => Rumah.aksiPetak(o, ev) });
         else if (/^(kompor|microwave)/.test(o.n)) daftar.push({ x: o.x, y: b.y, w: b.w, h: b.h, label: 'Masak', aksi: () => Masak.buka() });
+        else if ((G.toko.peti || []).includes(o.n)) daftar.push({ x: o.x, y: b.y, w: b.w, h: b.h, label: 'Buka peti', aksi: () => Peti.buka(o) });
         else if (TITIK_JUAL.test(o.n)) daftar.push({ x: o.x, y: b.y, w: b.w, h: b.h, label: 'Jual hasil panen', aksi: () => Rumah.jualHasil() });
         else if (G.toko.kandang[o.n]) daftar.push({ x: o.x, y: b.y, w: b.w, h: b.h, label: 'Urus ' + G.toko.kandang[o.n].nama.toLowerCase(), aksi: () => Rumah.panelKandang(o) });
       }

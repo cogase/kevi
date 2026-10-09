@@ -412,7 +412,7 @@ def butuh_level(kon: sqlite3.Connection, uid: int, kunci: str) -> None:
 
 def rumah_kosong() -> dict:
     return {"v": 1, "lebar": LEBAR_TANAH, "tinggi": TINGGI_TANAH, "lantai": {}, "tembok": {}, "benda": [], "urut": 0,
-            "petak": {}, "kandang": {}}
+            "petak": {}, "kandang": {}, "peti": {}}
 
 
 def baca_rumah(kon: sqlite3.Connection, uid: int) -> dict:
@@ -661,6 +661,9 @@ def angkat(kon: sqlite3.Connection, uid: int, p: dict) -> dict:
             raise Ditolak("Petak masih ditanami. Panen atau cabut dulu.")
         if d["kandang"].get(kunci, {}).get("hewan"):
             raise Ditolak("Kandang masih berisi hewan.")
+        if d["peti"].get(kunci):
+            raise Ditolak("Peti masih berisi. Kosongkan dulu.")
+        d["peti"].pop(kunci, None)
         d["benda"].remove(o)
         d["petak"].pop(kunci, None)
         d["kandang"].pop(kunci, None)
@@ -905,7 +908,41 @@ def potret_rumah(kon: sqlite3.Connection, uid: int, d: dict | None = None) -> di
         kandang[k] = {"hewan": [{"j": h["j"], "kenyang": (h.get("kenyang") or 0) > kini, "siap": int(h.get("siap") or 0)}
                                 for h in kd.get("hewan") or []]}
     return {"lebar": d["lebar"], "tinggi": d["tinggi"], "lantai": d["lantai"], "tembok": d["tembok"], "benda": d["benda"],
-            "petak": {k: _potret_petak(pt, kini) for k, pt in d["petak"].items()}, "kandang": kandang}
+            "petak": {k: _potret_petak(pt, kini) for k, pt in d["petak"].items()}, "kandang": kandang, "peti": d["peti"]}
+
+
+# ---------------------------------------------------------------- peti (0.8.0)
+# Perabot tertentu menjadi peti bila ditaruh di rumah sendiri: tempat menitipkan barang yang tak muat di inventory.
+PETI = ("gudang_peti_kayu", "luar_peti_kayu", "tidur_kotak_kolong", "tidur_kotak_mainan", "loker", "loker_kecil", "loker_kayu", "loker_12")
+PETI_JENIS = 20                       # jenis barang per peti (tiap jenis menumpuk tanpa batas, seperti slot inventory)
+
+
+def peti(kon: sqlite3.Connection, uid: int, p: dict) -> dict:
+    """Pindahkan barang antara inventory dan satu peti di rumah sendiri. p = {id, barang, jumlah, arah: masuk | keluar}."""
+    d = baca_rumah(kon, uid)
+    o = _benda(d, p.get("id"))
+    if o["n"] not in PETI:
+        raise Ditolak("Itu bukan peti.")
+    barang, jumlah, arah = str(p.get("barang") or ""), p.get("jumlah"), p.get("arah")
+    if not barang or isinstance(jumlah, bool) or not isinstance(jumlah, int) or not 1 <= jumlah <= 99999:
+        raise Ditolak("Barang atau jumlah tidak sah.")
+    isi = d["peti"].setdefault(str(o["id"]), {})
+    if arah == "masuk":
+        kurang_barang(kon, uid, barang, jumlah)
+        if barang not in isi and len(isi) >= PETI_JENIS:
+            raise Ditolak(f"Peti penuh ({PETI_JENIS} jenis barang).")
+        isi[barang] = int(isi.get(barang, 0)) + jumlah
+    elif arah == "keluar":
+        if int(isi.get(barang, 0)) < jumlah:
+            raise Ditolak("Barang itu tidak cukup di peti.")
+        tambah_barang(kon, uid, barang, jumlah)
+        isi[barang] -= jumlah
+        if isi[barang] <= 0:
+            del isi[barang]
+    else:
+        raise Ditolak("Arah harus masuk atau keluar.")
+    simpan_rumah(kon, uid, d)
+    return {"rumah": potret_rumah(kon, uid, d), "inventori": inventori(kon, uid)}
 
 
 # ---------------------------------------------------------------- misi harian
@@ -1076,6 +1113,6 @@ def info_toko() -> dict:
         "harga": {"pakan": HARGA_PAKAN, "lantai": HARGA_LANTAI, "tembok": HARGA_TEMBOK, "jual_kembali": JUAL_KEMBALI},
         "tak_dijual": list(KATEGORI_TAK_DIJUAL), "jam_kebun": konfig.JAM_KEBUN, "basah_jam": BASAH_JAM,
         "makanan": {k: {"nama": v[0], "harga": v[1], "stamina": v[2], "kopi": v[3], "ikon": v[4]} for k, v in MAKANAN.items()},
-        "resep": RESEP, "hotbar": HOTBAR,
+        "resep": RESEP, "hotbar": HOTBAR, "peti": list(PETI), "peti_jenis": PETI_JENIS,
         "tingkat_harga": [list(t) for t in TINGKAT_HARGA], "level_puncak": LEVEL_BARANG_PUNCAK, "level_khusus": LEVEL_KHUSUS,
     }
