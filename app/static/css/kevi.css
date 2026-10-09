@@ -109,7 +109,7 @@ body:not(.siap) #hud, body:not(.siap) #obrolan { visibility: hidden; }
 .bar.health i { background: linear-gradient(180deg, #a7f3d0, #34d399); width: 100%; }
 .bar.health.lelah i { background: linear-gradient(180deg, #fca5a5, #dc2626); }
 .bar.health.kopi { box-shadow: 0 0 6px rgba(252,211,77,.8); }
-.bar.stamina i { background: linear-gradient(180deg, #fde68a, #f59e0b); width: 100%; transition: width .4s linear; }
+.bar.stamina i { background: linear-gradient(180deg, #fde68a, #f59e0b); width: 100%; transform-origin: left center; transition: transform .4s linear; }
 .bar.stamina.lapar i { background: linear-gradient(180deg, #fdba74, #ea580c); }
 .hud-bar .bar { width: 84px; }
 .hud-kanan { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }

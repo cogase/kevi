@@ -180,7 +180,7 @@ const Hud = {
   terputus(pesan) { Panel.buka('Terputus', el('div', {}, el('p', { teks: pesan }), el('button', { kelas: 'tombol utama', teks: 'Muat ulang', on: { click: () => location.reload() } })), { sempit: true, tanpaTutup: true }); },
   lapar() {
     const s = G.stamina, b = $('#hud-stamina');
-    b.firstElementChild.style.width = Math.max(0, Math.min(100, s.nilai / s.maks * 100)).toFixed(0) + '%';
+    b.firstElementChild.style.transform = 'scaleX(' + Math.max(0, Math.min(1, s.nilai / s.maks)).toFixed(3) + ')';      // transform, bukan width: tanpa tata letak ulang
     b.classList.toggle('lapar', s.nilai < s.maks * 0.25);
     b.title = `Stamina ${Math.round(s.nilai)} / ${s.maks} — turun karena kerja dan lama daring; makan untuk mengisinya`;
   },
