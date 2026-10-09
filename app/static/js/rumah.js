@@ -71,9 +71,29 @@ const Rumah = {
     this.efLantai = ef.lantai;                 // dibaca hidup.js: ubin air dan ubin jalan
     for (const [kunci, n] of Object.entries(ef.lantai)) { const [gx, gy] = kunci.split(',').map(Number); lukis(k, n, gx * T, gy * T + oy); }
     const peta = new Map(Object.entries(ef.tembok));
+    // Ubin tembok yang tak berlantai meminjam lantai tetangganya, supaya lantai ruangan menyambung sampai ke tembok
+    // tegak yang ramping (tanpa ini ada celah tanah di kiri-kanan tembok). Separuh kiri dari tetangga kiri, separuh
+    // kanan dari tetangga kanan; bila keduanya tak berlantai (tembok mendatar), dari atas atau bawahnya.
+    for (const kunci of peta.keys()) {
+      if (ef.lantai[kunci]) continue;
+      const [gx, gy] = kunci.split(',').map(Number), di = (dx, dy) => ef.lantai[(gx + dx) + ',' + (gy + dy)];
+      const kiri = di(-1, 0), kanan = di(1, 0), tegak = !kiri && !kanan ? (di(0, -1) || di(0, 1)) : null;
+      for (const [n, x0, w] of [[kiri || tegak, 0, 8], [kanan || tegak, 8, 8]]) {
+        if (!n || !atlas[n]) continue;
+        k.save(); k.beginPath(); k.rect(gx * T + x0, gy * T + oy, w, T); k.clip(); lukis(k, n, gx * T, gy * T + oy); k.restore();
+      }
+    }
+    // Tembok digambar dua kali: di lapis tanah, dan di kanvas tersendiri yang dipakai gambar() untuk menutupi perabot
+    // yang berada di belakangnya (lihat ubin tembok di daftar gambar).
+    const kvT = this.tembokKv || (this.tembokKv = document.createElement('canvas'));
+    kvT.width = W * T; kvT.height = H * T;
+    const kt = kvT.getContext('2d');
+    this.tembokUbin = [];
     for (const [kunci, warna] of peta) {
       const [gx, gy] = kunci.split(',').map(Number);
       this.lukisTembok(k, peta, gx, gy, warna, oy);
+      this.lukisTembok(kt, peta, gx, gy, warna, oy);
+      this.tembokUbin.push([gx, gy + J]);
       gridHalang(g, gx, gy + J);
     }
     for (const kunci of Object.keys(d.halang || {})) { const [gx, gy] = kunci.split(',').map(Number); gridHalang(g, gx, gy + J); }      // penghalang tak terlihat (Edit Map)
@@ -200,6 +220,12 @@ const Rumah = {
       daftar.push({ alas: b.y + 13, lukis: () => { lukis(k, n, o.x, b.y + T - u.h); if (pt.matang && Math.floor(t * 2) % 2) lukis(k, 'kilau', o.x, b.y - 12); } });
     }
     for (const e of semua) daftar.push({ alas: this.alasEntitas(e), lukis: () => lukisEntitas(k, e, e === G.aku && this.menyunting ? 0.35 : 1) });      // selagi Edit Map karakter sendiri beku dan samar
+    // Tembok ikut diurutkan kedalamannya: perabot yang berdiri di belakang tembok (dasarnya tidak melewati dasar ubin
+    // tembok) tertutup olehnya, seperti dilihat dari depan. Hanya ubin yang tampak di layar.
+    if (!G.bangun && this.tembokKv && this.tembokUbin.length) {
+      const kam = G.kamera, x0 = Math.floor(kam.x / T) - 1, y0 = Math.floor(kam.y / T) - 1, x1 = x0 + Math.ceil(kanvas.width / kam.skala / T) + 2, y1 = y0 + Math.ceil(kanvas.height / kam.skala / T) + 2;
+      for (const [gx, gy] of this.tembokUbin) if (gx >= x0 && gx <= x1 && gy >= y0 && gy <= y1) daftar.push({ alas: (gy + 1) * T, lukis: () => k.drawImage(this.tembokKv, gx * T, gy * T, T, T, gx * T, gy * T, T, T) });
+    }
     Battle.gambar(k, daftar);                    // zombie, koin jatuh, dan ayunan ikut diurutkan kedalamannya
     daftar.sort((p, q) => p.alas - q.alas);
     for (const b of daftar) b.lukis();
@@ -325,10 +351,7 @@ const Rumah = {
     })), { sempit: true });
   },
 
-  async jualHasil() {
-    const d = await aksi('/api/toko/jual-hasil', {});
-    if (d) kabar('Hasil terjual: +' + d.dapat + ' koin.', 'hadiah');
-  },
+  jualHasil() { KotakJual.buka(); },
 
   panelKandang(o) {
     const isi = el('div');

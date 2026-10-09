@@ -84,7 +84,7 @@ const Battle = {
       case 'ayun': {
         const e = m.id === G.saya.id ? G.aku : G.entitas.get('p:' + m.id);
         if (e) { this.ayunan.push({ e, senjata: m.senjata || '', lahir: kini }); e.ayun = kini; }      // e.ayun: senjata di tangannya ikut terayun
-        if (m.id === G.saya.id) Suara.efek('ayun');
+        if (m.id === G.saya.id) { Suara.efek('ayun'); if (m.kena == null && this.z.size) apung('meleset: terlalu jauh', '#cbd5e1'); }
         return true;
       }
       case 'gelombang':

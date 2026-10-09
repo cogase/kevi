@@ -24,7 +24,9 @@ JEDA_GIGIT = 1.2
 JARAK_GIGIT = 14.0
 JARAK_KOIN = 14.0
 UMUR_KOIN = 40.0
-PULIH_PER_DETIK = 1.0        # Health pulih bila 5 detik tidak digigit; tiga kali lebih cepat di rumah
+# Health pulih pelan (kata yosi: "1 menit 5 Health" di rumah), dan baru mulai bila 5 detik tidak digigit.
+PULIH_RUMAH_PER_MENIT = 5.0
+PULIH_KANTOR_PER_MENIT = 2.0
 JEDA_PULIH = 5.0
 KEBAL_PINGSAN = 10.0
 XP_ZOMBIE_PER_HARI = 60      # jumlah zombie per hari yang masih memberi EXP (koin jatuh tidak dibatasi)
@@ -266,7 +268,8 @@ class Battle:
             if uid not in self.hp:
                 continue
             if kini - self.luka.get(uid, 0) >= JEDA_PULIH:
-                self.hp[uid] = min(maks, self.hp[uid] + PULIH_PER_DETIK * dt * (3 if str(p.get("adegan") or "").startswith("rumah:") else 1))
+                di_rumah = str(p.get("adegan") or "").startswith("rumah:")
+                self.hp[uid] = min(maks, self.hp[uid] + (PULIH_RUMAH_PER_MENIT if di_rumah else PULIH_KANTOR_PER_MENIT) / 60.0 * dt)
             if self.hp[uid] >= maks:
                 del self.hp[uid]
             if round(self.hp_kini(p)) != self.terkirim.get(uid, round(maks)):

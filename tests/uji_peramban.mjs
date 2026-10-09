@@ -277,8 +277,11 @@ cek('petunjuk E menawarkan panen', (await pg.textContent('#petunjuk')).includes(
 await pg.keyboard.press('e'); await tunggu(500);
 cek('panen masuk inventory', await pg.evaluate(() => G.inventori['panen:sawi'] === 1));
 const koinSebelum = await pg.evaluate(() => G.koin);
-await pg.evaluate(() => Rumah.jualHasil()); await tunggu(500);
-cek('jual hasil menambah koin', (await pg.evaluate(() => G.koin)) >= koinSebelum + 30);
+await pg.evaluate(() => Rumah.jualHasil());
+await pg.waitForSelector('#kotak-semua');
+await pg.click('#kotak-semua'); await pg.click('#kotak-jual'); await tunggu(500);
+await pg.evaluate(() => Panel.tutup());
+cek('jual hasil lewat kotak kiriman menambah koin', (await pg.evaluate(() => G.koin)) >= koinSebelum + 30);
 
 // --- profil: statistik sendiri dari Menu
 await pg.evaluate(() => Profil.buka());
@@ -361,6 +364,26 @@ await tunggu(200);
 await tekan('s', 250);
 cek('tombol gerak membuat berdiri lagi', await pg.evaluate(() => !G.duduk));
 await pg.evaluate(async (n) => { const d = G.rumah; serap(await api('/api/rumah/simpan', { lantai: d.lantai, tembok: d.tembok, ruang: d.ruang || [], benda: d.benda.filter(o => o.n !== n) })); await aksi('/api/toko/jual', { barang: n, jumlah: 1 }); }, kursiUji.n);
+
+// --- kotak kiriman: pilih sendiri hasil yang dijual (kata yosi)
+const kotakUji = await pg.evaluate(async () => {
+  await aksi('/api/toko/beli', { barang: 'benih:sawi', jumlah: 1 });
+  const koin0 = G.koin;
+  serap({ inventori: Object.assign({}, G.inventori, { 'panen:sawi': 4, 'panen:wortel': 2 }) });      // tampilan saja; server tetap memeriksa
+  KotakJual.buka();
+  const sel = (sisi, b) => $('#tirai [data-sisi=' + sisi + '] [data-barang="' + b + '"]');
+  const awal = { inv: document.querySelectorAll('#tirai [data-sisi=inv] .inv-sel').length, kotak: document.querySelectorAll('#tirai [data-sisi=kotak] .inv-sel').length, jual: $('#kotak-jual').disabled, benih: !!sel('inv', 'benih:sawi') };
+  sel('inv', 'panen:sawi').dispatchEvent(new MouseEvent('click', { bubbles: true, shiftKey: true }));
+  sel('inv', 'panen:sawi').dispatchEvent(new MouseEvent('click', { bubbles: true, shiftKey: true }));
+  const dua = { kotak: sel('kotak', 'panen:sawi').textContent, sisa: sel('inv', 'panen:sawi').textContent, tombol: $('#kotak-jual').textContent, wortelTetap: !!sel('inv', 'panen:wortel') && !sel('kotak', 'panen:wortel') };
+  $('#kotak-semua').click();
+  const semua = { tombol: $('#kotak-jual').textContent, invKosong: document.querySelectorAll('#tirai [data-sisi=inv] .inv-sel').length };
+  Panel.tutup();
+  return { awal, dua, semua, hargaSawi: hargaJual('panen:sawi'), hargaWortel: hargaJual('panen:wortel'), koin0 };
+});
+cek('kotak kiriman: hasil dipindah satu per satu atau semua, total mengikuti isi kotak, benih tidak ikut tampil', kotakUji.awal.inv >= 2 && kotakUji.awal.kotak === 0 && kotakUji.awal.jual && !kotakUji.awal.benih && kotakUji.dua.kotak === '2' && kotakUji.dua.sisa === '2'
+  && kotakUji.dua.tombol === 'Jual: +' + 2 * kotakUji.hargaSawi + ' koin' && kotakUji.dua.wortelTetap && kotakUji.semua.invKosong === 0 && kotakUji.semua.tombol.includes(String(4 * kotakUji.hargaSawi + 2 * kotakUji.hargaWortel)), JSON.stringify(kotakUji));
+await pg.evaluate(async () => { const d = await api('/api/saya'); serap({ inventori: d.inventori }); });
 
 // --- peti: taruh di rumah, titip barang, ambil satu, peti berisi tak bisa diangkat
 await pg.evaluate(async () => {
@@ -794,6 +817,24 @@ await pg.selectOption('#menu-waktu', 'malam');
 cek('Menu: siang dan malam bisa dipaksa per peramban, bawaannya ikut jam asli', await pg.evaluate(() => { const m = Suasana.fase().gelap === 0.74 && $('#hud-jam').dataset.fase === 'malam' && localStorage.getItem('kevi.waktu') === 'malam'; Suasana.pilih('ikut'); return m && Suasana.pilihan() === 'ikut'; }));
 await pg.evaluate(() => Panel.tutup());
 
+// --- lantai menyambung sampai tembok tegak; tembok menutupi perabot di belakangnya (laporan yosi)
+const lantaiTembok = await pg.evaluate(() => {
+  const d = Rumah.d, simpan = { lantai: d.lantai, tembok: d.tembok, benda: d.benda, ruang: d.ruang };
+  // tembok tegak di kolom 6 (baris 5–8), lantai parket di kolom 7–9; tembok mendatar di baris 9 (kolom 6–9)
+  d.ruang = []; d.lantai = {}; d.tembok = {}; d.benda = simpan.benda.concat([{ id: 99991, n: 'lampu_lantai', x: 8 * 16, y: 9 * 16 - 20, r: 0 }, { id: 99992, n: 'lampu_lantai', x: 9 * 16, y: 9 * 16 + 4, r: 0 }]);
+  for (let gy = 5; gy <= 8; gy++) { d.tembok['6,' + gy] = '#8b9bb4'; for (let gx = 7; gx <= 9; gx++) d.lantai[gx + ',' + gy] = 'lantai_parket'; }
+  for (let gx = 6; gx <= 9; gx++) d.tembok[gx + ',9'] = '#8b9bb4';
+  Rumah.segarkan();
+  const k = Rumah.latar.getContext('2d'), oy = Rumah.oy, rgb = (x, y) => [...k.getImageData(x, y + oy, 1, 1).data].slice(0, 3).join();
+  const parket = rgb(7 * 16 + 8, 6 * 16 + 8), kananTembok = rgb(6 * 16 + 13, 6 * 16 + 8), kiriTembok = rgb(6 * 16 + 2, 6 * 16 + 8), tanahLuar = rgb(5 * 16 + 8, 6 * 16 + 8);
+  const J = oy / 16, ubin = Rumah.tembokUbin.map(u => u.join()), urut = (id) => Rumah.urut.find(b => b.o.id === id).alas, dasarTembok = (9 + J + 1) * 16;
+  const hasil = { parket, kananTembok, kiriTembok, tanahLuar, ubin: ubin.length, adaUbin: ubin.includes('8,' + (9 + J)), belakang: urut(99991), depan: urut(99992), dasarTembok, kv: !!Rumah.tembokKv };
+  Object.assign(d, simpan); Rumah.segarkan();
+  return hasil;
+});
+cek('Edit Rumah: lantai menyambung sampai ke tembok tegak (tanpa celah tanah), sisi luar tembok tetap tanah', lantaiTembok.kananTembok === lantaiTembok.parket && lantaiTembok.kiriTembok !== lantaiTembok.parket && lantaiTembok.tanahLuar !== lantaiTembok.parket, JSON.stringify(lantaiTembok));
+cek('tembok ikut urutan kedalaman: perabot di belakang tembok bawah tertutup, yang di depannya tidak', lantaiTembok.kv && lantaiTembok.ubin === 8 && lantaiTembok.adaUbin && lantaiTembok.belakang <= lantaiTembok.dasarTembok && lantaiTembok.depan > lantaiTembok.dasarTembok, JSON.stringify(lantaiTembok));
+
 // --- sudut tembok menyatu (laporan yosi): balok mendatar tidak menjorok keluar dari sisi luar tembok tegak
 const sudutUji = await pg.evaluate(() => {
   const kv = document.createElement('canvas'); kv.width = 64; kv.height = 64;
@@ -917,6 +958,16 @@ const spriteUji = await pg.evaluate(() => {
 });
 cek('sprite zombie: yang terpasang di atlas dipakai bergiliran antarvarian, lengkap dengan bingkai jatuh; jenis tanpa sprite tetap memakai tokoh sementara', spriteUji.a === 'biasa_a' && spriteUji.b === 'biasa_b'
   && spriteUji.bingkai === 2 && spriteUji.besar === null && spriteUji.warnaA === '255,0,255' && spriteUji.warnaB === '0,255,255' && spriteUji.jatuh === '255,255,0', JSON.stringify(spriteUji));
+// Laporan yosi: klik mouse tidak memukul. Satu klik di peta, lalu di atas zombie, masing-masing harus mengirim satu pukulan.
+await pg.evaluate(() => { window.__pukul = 0; const asli = Jaring.kirim; Jaring.kirim = function (m) { if (m && m.t === 'pukul') window.__pukul++; return asli.call(this, m); }; });
+await tunggu(400);
+await pg.mouse.click(683, 330);
+await tunggu(450);
+const zLayar = await pg.evaluate(() => { const z = [...Battle.z.values()][0], p = Mesin.keLayar(z.x + 8, z.y + 10), r = kanvas.getBoundingClientRect(), k = kanvas.width / r.width; return { x: r.left + p.x / k, y: r.top + p.y / k, di: document.elementFromPoint(683, 330).id, skala: k }; });
+await pg.mouse.click(Math.max(5, Math.min(1360, zLayar.x)), Math.max(120, Math.min(600, zLayar.y)));
+await tunggu(200);
+const klikUji = await pg.evaluate(() => ({ terkirim: window.__pukul, sibuk: Mesin.sibuk(), duduk: !!G.duduk, adegan: G.adegan, fokus: document.activeElement.tagName }));
+cek('battle: klik mouse di peta maupun di atas zombie mengirim pukulan', klikUji.terkirim === 2 && zLayar.di === 'dunia', JSON.stringify([klikUji, zLayar]));
 let pukulan = 0, kenaTerlihat = false;
 for (let i = 0; i < 60 && await pg.evaluate(() => Battle.z.size > 0); i++) {          // datangi zombienya, lalu Spasi
   await pg.evaluate(() => { const z = [...Battle.z.values()][0]; if (!z) return; G.aku.x = z.tx + 12; G.aku.y = z.ty; Jaring.kirim({ t: 'pos', x: G.aku.x, y: G.aku.y, arah: 'kiri', jalan: false, pose: '' }); });

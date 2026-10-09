@@ -165,6 +165,10 @@ body.mode-bangun #petunjuk, body.ada-terminal #petunjuk { display: none; }
 
 /* ---------- obrolan ---------- */
 #obrolan { position: fixed; left: 10px; bottom: 10px; width: min(380px, 62vw); z-index: var(--z-hud); display: flex; flex-direction: column; gap: 4px; }
+/* Wadah obrolan menutupi pojok kiri bawah peta: ia sendiri tembus klik (supaya klik di peta, mis. memukul zombie, tetap
+   sampai ke kanvas); hanya baris isian dan kotak emoticon yang menangkap klik. */
+#obrolan { pointer-events: none; }
+#obrolan .obrolan-baris, #emoji-kotak { pointer-events: auto; }
 #obrolan-log { max-height: 150px; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; gap: 2px; pointer-events: none; }
 .obrol { padding: 2px 8px; background: rgba(11,18,32,.76); border-radius: 4px; font-size: 12.5px; width: fit-content; max-width: 100%; overflow-wrap: anywhere; }
 .obrol b { color: #93c5fd; }

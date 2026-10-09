@@ -155,10 +155,14 @@ def test_health_pulih_bila_tidak_digigit(kon, pemain):
     b.hp[pemain], b.luka[pemain] = 40.0, 100.0
     jalankan(b.langkah(102.0, 1.0))
     assert b.hp[pemain] == 40.0                                            # baru saja digigit: belum pulih
-    jalankan(b.langkah(106.0, 1.0))
-    assert b.hp[pemain] == 43.0 and _jenis(terkirim, "hp")[-1]["hp"] == 43  # di rumah pulih tiga kali lebih cepat
+    jalankan(b.langkah(106.0, 60.0))
+    assert b.hp[pemain] == 45.0 and _jenis(terkirim, "hp")[-1]["hp"] == 45  # di rumah: 5 Health per menit (kata yosi)
+    p["adegan"] = "kantor"
+    jalankan(b.langkah(200.0, 60.0))
+    assert b.hp[pemain] == 47.0                                            # di kantor lebih pelan: 2 per menit
+    p["adegan"] = f"rumah:{pemain}"
     b.hp[pemain] = b.hp_maks(p) - 1
-    jalankan(b.langkah(107.0, 1.0))
+    jalankan(b.langkah(300.0, 60.0))
     assert pemain not in b.hp and _jenis(terkirim, "hp")[-1]["hp"] == b.hp_maks(p)
 
 

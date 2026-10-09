@@ -2,6 +2,35 @@
 
 Melengkapi PRD, GDD, dan TDD untuk rilis sesudah 0.2.0. Angka dan aturan di sini adalah yang berlaku di kode.
 
+## 0.22.0 — 9 Oktober 2026
+
+Delapan butir dari yosi.
+
+- **Klik tidak memukul zombie (perbaikan).** Wadah obrolan di pojok kiri bawah (selebar 380 px) menangkap klik walau
+  tampak kosong, jadi klik pada zombie di area itu tidak sampai ke peta. Wadah itu kini tembus klik; hanya baris isian
+  obrolan yang menangkap. Bila ayunan tidak mengenai apa pun karena zombie terlalu jauh, muncul tulisan
+  "meleset: terlalu jauh".
+- **Health pulih pelan**: di rumah **5 Health per menit** (sebelumnya 3 per detik), di kantor 2 per menit, dan tetap
+  baru mulai bila 5 detik tidak digigit.
+- **Naik level**: batas Health dan Stamina naik 6 per level (sudah begitu), dan kini isi Stamina ikut naik sebanyak
+  itu saat naik level; kabar naik level menyebut batas barunya. EXP yang dibutuhkan per level memang makin besar
+  (300, 600, 900, ... per level).
+- **Peternakan**: sekali diberi pakan, hewan kenyang selama **tiga kali produksi** (ayam dan bebek 36 jam kebun,
+  kambing dan sapi 72; sebelumnya 24 jam untuk semua), dan kandang menampung tiga produk. Porsi pakan per pemberian
+  tidak berubah.
+- **Kotak kiriman**: tidak lagi menjual semuanya sekaligus. Kini terbuka panel dua kisi: klik hasil kebun atau
+  kandang di Inventory untuk memasukkannya ke kotak (Shift+klik = satu), klik isi kotak untuk mengeluarkannya, tombol
+  "Masukkan semua" dan "Kosongkan", lalu **Jual** dengan total koinnya. Yang terjual hanya isi kotak.
+- **Lantai menyambung ke tembok**: tembok tegak digambar ramping di tengah ubinnya, sehingga lantai ruangan berhenti
+  satu ubin sebelum tembok dan menyisakan celah tanah. Ubin tembok yang tak berlantai kini meminjam lantai tetangganya
+  (separuh kiri dari kiri, separuh kanan dari kanan), jadi lantai penuh sampai ke tembok; sisi luar tetap tanah.
+- **Tembok menutupi perabot di belakangnya**: tembok kini ikut urutan kedalaman. Perabot yang dasarnya tidak melewati
+  dasar ubin tembok (berdiri di belakang tembok bawah ruangan) tertutup tembok itu, seperti dilihat dari depan; yang
+  berdiri di depannya tetap terlihat utuh. Berlaku di rumah dan di peta utama buatan admin.
+- **Hapus perabot di Edit Rumah** memang tidak membuangnya: saat Simpan perabot kembali ke inventory dan bisa dijual
+  ke Bu Sari (tab Jual) seharga separuh harga beli. Petunjuk alat Hapus kini menyebutkannya, dan ada uji yang
+  menjaganya.
+
 ## 0.21.0 — 9 Oktober 2026
 
 **Sprite khusus zombie, lima varian (kata yosi; dibuat sesi Agent Design).** Zombie tidak lagi tokoh biasa berkulit

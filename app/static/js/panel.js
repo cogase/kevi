@@ -578,7 +578,7 @@ Panel.level = function () {
 
 Panel.naikLevel = function (level) {
   const baru = Object.keys(G.buka).filter(k => G.buka[k] === level);
-  kabar('Naik ke level ' + level + '! +' + (G.hadiahNaik * level) + ' koin', 'hadiah');
+  kabar('Naik ke level ' + level + '! Health dan Stamina maksimal kini ' + G.level.stamina + '.', 'hadiah');
   if (baru.length) kabar('Terbuka: ' + baru.map(k => G.namaBuka[k] || k).join(', '), 'hadiah');
   Obrolan.catat('', 'Kamu naik ke level ' + level + '.', 'sistem');
 };

@@ -336,6 +336,7 @@ _rute_aksi("/api/kandang/ambil", lambda uid, d: permainan.ambil_produk(KON, uid,
 _rute_aksi("/api/toko/beli", lambda uid, d: permainan.beli(KON, uid, str(d.get("barang") or ""), d.get("jumlah") or 1))
 _rute_aksi("/api/toko/jual", lambda uid, d: permainan.jual(KON, uid, str(d.get("barang") or ""), d.get("jumlah") or 1))
 _rute_aksi("/api/toko/jual-hasil", lambda uid, d: permainan.jual_semua_hasil(KON, uid))
+_rute_aksi("/api/kebun/jual-pilihan", lambda uid, d: permainan.jual_pilihan(KON, uid, d.get("daftar")))
 _rute_aksi("/api/toko/tas", lambda uid, d: permainan.beli_tas(KON, uid))
 _rute_aksi("/api/inventori/tata", lambda uid, d: permainan.simpan_tata(KON, uid, d))
 _rute_aksi("/api/inventori/makan", lambda uid, d: permainan.makan(KON, uid, d.get("barang")))

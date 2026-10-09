@@ -52,7 +52,15 @@ HEWAN = {
 PRODUK = {"telur": ("Telur", 18), "telur_bebek": ("Telur bebek", 25), "susu_kambing": ("Susu kambing", 70),
           "susu_sapi": ("Susu sapi", 120)}
 HARGA_PAKAN = 8
-KENYANG_JAM = 24
+# 0.22.0 (yosi: "rentang beri pakan terlalu cepat; 3 kali bertelur baru lapar"): sekali diberi pakan, hewan kenyang
+# selama tiga kali produksinya (ayam dan bebek 36 jam kebun, kambing dan sapi 72), dan kandang menampung tiga produk.
+PRODUK_PER_PAKAN = 3
+
+
+def kenyang_jam(j: str) -> int:
+    return PRODUK_PER_PAKAN * HEWAN[j][3]
+
+
 
 # 0.18.0 (yosi: "lantai dan tembok jangan dikomersilkan"): keduanya gratis di Edit Rumah, tidak lewat inventory, dan
 # motif lantai terbuka menurut level. Harga lama hanya dipakai untuk mengembalikan stok yang telanjur dibeli.
@@ -374,6 +382,21 @@ def kembalikan_ubin(kon: sqlite3.Connection) -> int:
     return penerima
 
 
+def jual_pilihan(kon: sqlite3.Connection, uid: int, daftar) -> dict:
+    """Kotak kiriman: jual hasil kebun dan kandang yang DIPILIH pemain. daftar = {barang: jumlah}. Semua diperiksa dulu;
+    satu saja yang tak sah membatalkan seluruhnya."""
+    if not isinstance(daftar, dict) or not daftar or len(daftar) > 60:
+        raise Ditolak("Belum ada yang dimasukkan ke kotak.")
+    inv = inventori(kon, uid)
+    for b, n in daftar.items():
+        if not (isinstance(b, str) and (b.startswith("panen:") or b in PRODUK)) or harga_jual(b) is None:
+            raise Ditolak("Kotak kiriman hanya menerima hasil kebun dan kandang.")
+        if not isinstance(n, int) or isinstance(n, bool) or not 1 <= n <= inv.get(b, 0):
+            raise Ditolak(f"Jumlah {nama_barang(b)} tidak sesuai isi inventory.")
+    total = sum(jual(kon, uid, b, n)["dapat"] for b, n in daftar.items())
+    return {"koin": saldo(kon, uid), "inventori": inventori(kon, uid), "dapat": total}
+
+
 def tambah_statistik(kon: sqlite3.Connection, uid: int, kunci: str, n: int = 1) -> None:
     r = kon.execute("SELECT statistik FROM karakter WHERE pemakai_id = ?", (uid,)).fetchone()
     if not r:
@@ -410,6 +433,8 @@ def tambah_xp(kon: sqlite3.Connection, uid: int, n: int) -> int:
     puncak = max(dari, int(kon.execute("SELECT level_puncak FROM karakter WHERE pemakai_id = ?", (uid,)).fetchone()["level_puncak"] or 0))
     for lv in range(puncak + 1, ke + 1):
         ubah_koin(kon, uid, HADIAH_NAIK * lv, f"naik ke level {lv}")
+    if ke > dari:                                 # batas stamina naik per level; isinya ikut naik sebanyak itu
+        ubah_stamina(kon, uid, STAMINA_PER_LEVEL * (ke - dari))
     if ke > puncak or puncak > dari:
         kon.execute("UPDATE karakter SET level_puncak = ? WHERE pemakai_id = ?", (max(puncak, ke), uid))
     return ke
@@ -963,7 +988,7 @@ def _maju_kandang(d: dict, kini: float) -> None:
             info = HEWAN.get(h.get("j"))
             if not info:
                 continue
-            maks = int(24 // info[3])
+            maks = PRODUK_PER_PAKAN
             jalan = max(0.0, min(kini, h.get("kenyang") or 0) - (h.get("cek") or kini))
             h["cek"] = kini
             if (h.get("siap") or 0) >= maks:
@@ -1006,13 +1031,13 @@ def beri_pakan(kon: sqlite3.Connection, uid: int, bid) -> dict:
     _, kd = _kandang(d, bid)
     diberi = 0
     for h in kd["hewan"]:
-        if (h.get("kenyang") or 0) > kini + (KENYANG_JAM - 1) * konfig.JAM_KEBUN:
+        if h.get("j") not in HEWAN or (h.get("kenyang") or 0) > kini + (kenyang_jam(h["j"]) - 1) * konfig.JAM_KEBUN:
             continue
         try:
             kurang_barang(kon, uid, "pakan", HEWAN[h["j"]][4])
         except Ditolak:
             break
-        h["kenyang"] = kini + KENYANG_JAM * konfig.JAM_KEBUN
+        h["kenyang"] = kini + kenyang_jam(h["j"]) * konfig.JAM_KEBUN
         h["cek"] = kini
         diberi += 1
     if not diberi:

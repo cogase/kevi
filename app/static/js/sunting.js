@@ -733,7 +733,8 @@ const Sunting = {
       isi.push(this.lantai ? ikonBarang('lantai:' + this.lantai, 30) : null, el('b', { teks: this.lantai ? namaBarang('lantai:' + this.lantai) : 'Belum ada motif dipilih' }),
         tb('▦ Pilih motif', '', () => this.bukaKatalog('lantai')));
     }
-    if (!ruang) isi.push(el('span', { kelas: 'redup kecil tumbuh', teks: PETUNJUK_SUNTING[this.alat], title: PETUNJUK_SUNTING[this.alat] }));
+    const petunjuk = PETUNJUK_SUNTING[this.alat] + (this.rumah && this.alat === 'hapus' ? ' Perabot yang dihapus kembali ke inventory saat Simpan dan bisa dijual lagi ke Bu Sari seharga separuhnya.' : '');
+    if (!ruang) isi.push(el('span', { kelas: 'redup kecil tumbuh', teks: petunjuk, title: petunjuk }));
     wadah.replaceChildren(
       el('div', { kelas: 'sunting-kepala' },
         el('b', { teks: this.rumah ? 'Edit Rumah' : 'Edit Map' }), el('span', { id: 'sunting-kabar', kelas: 'redup kecil tumbuh', role: 'status', teks: this.pesan }),

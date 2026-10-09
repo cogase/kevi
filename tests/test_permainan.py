@@ -266,3 +266,62 @@ def test_rumah_pemain_lain_terpisah(kon, pemain):
     with pytest.raises(Ditolak):
         permainan.angkat(kon, lain, {"id": bid})
     assert len(permainan.baca_rumah(kon, lain)["benda"]) == 0
+
+
+# ---- 0.22.0 (yosi 9 Okt malam)
+
+def test_hewan_kenyang_selama_tiga_kali_produksi(kon, pemain):
+    assert permainan.PRODUK_PER_PAKAN == 3 and permainan.kenyang_jam("ayam") == 36 and permainan.kenyang_jam("sapi") == 72
+    permainan.ubah_koin(kon, pemain, 2000, "uji")
+    setel_xp(kon, pemain, permainan.ambang(3))
+    permainan.beli(kon, pemain, "kandang_ayam", 1)
+    bid = permainan.pasang(kon, pemain, {"barang": "kandang_ayam", "x": 96, "y": 96})["rumah"]["benda"][-1]["id"]
+    permainan.beli_hewan(kon, pemain, bid, "ayam")
+    permainan.beli(kon, pemain, "pakan", 2)
+    permainan.beri_pakan(kon, pemain, bid)
+    with pytest.raises(Ditolak):
+        permainan.beri_pakan(kon, pemain, bid)                          # masih kenyang: pakan tidak terpakai
+    assert permainan.inventori(kon, pemain)["pakan"] == 1
+    d = permainan.baca_rumah(kon, pemain)
+    h = d["kandang"][str(bid)]["hewan"][0]
+    kenyang = h["kenyang"]
+    assert abs((kenyang - h["cek"]) - 36 * konfig.JAM_KEBUN) < 1          # 36 jam kebun = tiga telur
+    # Lompat ke sesudah masa kenyang habis: tepat tiga telur, lalu lapar dan berhenti bertelur.
+    permainan._maju_kandang(d, kenyang + 50 * konfig.JAM_KEBUN)
+    assert d["kandang"][str(bid)]["hewan"][0]["siap"] == 3
+
+
+def test_kotak_kiriman_menjual_hanya_yang_dipilih(kon, pemain):
+    permainan.tambah_barang(kon, pemain, "panen:sawi", 5)
+    permainan.tambah_barang(kon, pemain, "telur", 3)
+    koin = permainan.saldo(kon, pemain)
+    h = permainan.jual_pilihan(kon, pemain, {"panen:sawi": 2, "telur": 3})
+    assert h["dapat"] == 2 * permainan.TANAMAN["sawi"][3] + 3 * permainan.PRODUK["telur"][1]
+    assert permainan.saldo(kon, pemain) - koin >= h["dapat"]                # bisa lebih: misi harian "jual hasil" ikut terbayar
+    assert h["inventori"]["panen:sawi"] == 3 and "telur" not in h["inventori"]
+    koin = permainan.saldo(kon, pemain)
+    for buruk in ({}, None, {"panen:sawi": 99}, {"panen:sawi": 0}, {"panen:sawi": True}, {"kebun_petak": 1}, {"pakan": 1}, {"panen:sawi": 1, "senjata:sapu": 1}):
+        with pytest.raises(Ditolak):
+            permainan.jual_pilihan(kon, pemain, buruk)
+    assert permainan.saldo(kon, pemain) == koin and permainan.inventori(kon, pemain)["panen:sawi"] == 3      # yang ditolak tidak menjual apa pun
+
+
+def test_naik_level_menaikkan_batas_dan_isi_stamina(kon, pemain):
+    permainan.ubah_stamina(kon, pemain, -40)
+    sebelum, maks = permainan.stamina(kon, pemain), permainan.stamina_maks(kon, pemain)
+    assert permainan.tambah_xp(kon, pemain, permainan.ambang(3)) == 3
+    assert permainan.stamina_maks(kon, pemain) == maks + 2 * permainan.STAMINA_PER_LEVEL
+    assert permainan.stamina(kon, pemain) == sebelum + 2 * permainan.STAMINA_PER_LEVEL
+    assert permainan.ambang(4) - permainan.ambang(3) > permainan.ambang(3) - permainan.ambang(2)        # EXP per level makin besar
+
+
+def test_perabot_dicabut_kembali_ke_inventory_dan_laku_separuh_harga(kon, pemain):
+    permainan.ubah_koin(kon, pemain, 500, "uji")
+    barang = "luar_bangku_taman"
+    harga = permainan.harga_beli(barang)
+    h = permainan.rumah_simpan(kon, pemain, {"lantai": {}, "tembok": {}, "ruang": [], "benda": [{"n": barang, "x": 64, "y": 64}]})
+    punya = h["inventori"].get(barang, 0)
+    h = permainan.rumah_simpan(kon, pemain, {"lantai": {}, "tembok": {}, "ruang": [], "benda": []})          # dihapus di Edit Rumah
+    assert h["inventori"][barang] == punya + 1
+    koin = permainan.saldo(kon, pemain)
+    assert permainan.jual(kon, pemain, barang, 1)["dapat"] == max(1, int(harga * 0.5)) == permainan.saldo(kon, pemain) - koin
