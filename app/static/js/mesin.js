@@ -198,7 +198,10 @@ const Mesin = {
   majukan(dt) {
     const a = G.aku;
     if (!a) return;
-    if (G.duduk) {
+    if (Rumah.menyunting) {                 // Edit Map: karakter beku, tombol gerak menggeser kamera
+      a.jalan = false; a.langkah = 0;
+      Sunting.geserKamera(dt, this.sibuk() ? null : this.tombol);
+    } else if (G.duduk) {
       const h = G.duduk.kursi.hadap, f = Math.floor(G.kini * (Terminal.sibuk ? 3.6 : 1.5)) % 2;
       a.pose = h === 'bawah' ? (f ? 'duduk_b' : 'duduk_a') : (h === 'kiri' || h === 'kanan') ? h + '_duduk' : (f ? 'main_b' : 'main_a');
     } else {
@@ -326,6 +329,12 @@ const Mesin = {
 
   kamera() {
     const k = G.kamera, a = G.aku, vw = kanvas.width / k.skala, vh = kanvas.height / k.skala;
+    if (Rumah.menyunting) {                 // kamera bebas: pusatnya boleh sampai tepi peta, jadi sudut peta tak tertutup menu
+      const c = Sunting.kam;
+      c.x = Math.max(0, Math.min(this.dunia.w, c.x)); c.y = Math.max(0, Math.min(this.dunia.h, c.y));
+      k.x = c.x - vw / 2; k.y = c.y - vh / 2;
+      return;
+    }
     const jepit = (v, maks, lihat) => maks <= lihat ? (maks - lihat) / 2 : Math.max(0, Math.min(maks - lihat, v));
     k.x = jepit(a.x + 8 - vw / 2, this.dunia.w, vw);
     k.y = jepit(a.y + 10 - vh / 2, this.dunia.h, vh);

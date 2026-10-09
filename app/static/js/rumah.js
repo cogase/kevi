@@ -66,8 +66,9 @@ const Rumah = {
         lukis(k, atlas[n] ? n : 'lantai_luar_rumput', gx * T, gy * T);
       }
     }
-    for (const [kunci, n] of Object.entries(d.lantai)) { const [gx, gy] = kunci.split(',').map(Number); lukis(k, n, gx * T, gy * T + oy); }
-    const peta = new Map(Object.entries(d.tembok));
+    const ef = this.ubinEfektif(d);
+    for (const [kunci, n] of Object.entries(ef.lantai)) { const [gx, gy] = kunci.split(',').map(Number); lukis(k, n, gx * T, gy * T + oy); }
+    const peta = new Map(Object.entries(ef.tembok));
     for (const [kunci, warna] of peta) {
       const [gx, gy] = kunci.split(',').map(Number);
       this.lukisTembok(k, peta, gx, gy, warna, oy);
@@ -84,17 +85,44 @@ const Rumah = {
     this.urut = []; this.alas = [];
     for (const o of d.benda) {
       const u = ukuranSprite(o.n, o.r), info = this.infoBarang(o.n);
-      const b = { o, w: u.w, h: u.h, y: o.y + oy, alas: o.y + oy + u.h };
-      if (this.alasTanah(o.n)) this.alas.push(b);
-      else {
-        this.urut.push(b);
-        if (!info.tembus) gridJejak(g, o.x, b.y, u.w, u.h, !!info.datar);
-      }
+      // Lapis (o.l, hanya peta utama): "bawah" digambar bersama alas, "atas" di atas semua tokoh; tabrakannya tetap.
+      const b = { o, w: u.w, h: u.h, y: o.y + oy, alas: o.l === 'atas' ? 1e9 + o.id : o.y + oy + u.h };
+      const alasTanah = this.alasTanah(o.n);
+      if (alasTanah || o.l === 'bawah') this.alas.push(b); else this.urut.push(b);
+      if (!alasTanah && !info.tembus) gridJejak(g, o.x, b.y, u.w, u.h, !!info.datar);
     }
     this.alas.sort((p, q) => p.o.id - q.o.id);
     G.grid = g;
     Mesin.dunia = { w: W * T, h: H * T };
     this.susunTitik();
+  },
+
+  // Ubin pintu satu ruang (peta utama): dua ubin per pintu pada sisi yang dipilih, sebagai himpunan kunci "gx,gy".
+  pintuRuang(r) {
+    const s = new Set();
+    for (const q of r.pintu || []) {
+      const datar = q.sisi === 'atas' || q.sisi === 'bawah', panjang = datar ? r.w : r.h;
+      for (let i = 0; i < (panjang >= 5 ? 2 : 1); i++) {
+        const pos = Math.max(1, Math.min(panjang - 2, q.pos + i));
+        s.add(datar ? (r.gx + pos) + ',' + (q.sisi === 'atas' ? r.gy : r.gy + r.h - 1) : (q.sisi === 'kiri' ? r.gx : r.gx + r.w - 1) + ',' + (r.gy + pos));
+      }
+    }
+    return s;
+  },
+
+  // Lantai dan tembok yang benar-benar digambar: turunan dari ruang (d.ruang), ditimpa ubin yang ditaruh satu per satu.
+  ubinEfektif(d) {
+    if (!d.ruang || !d.ruang.length) return { lantai: d.lantai, tembok: d.tembok };
+    const lantai = {}, tembok = {};
+    for (const r of d.ruang) {
+      const pintu = this.pintuRuang(r);
+      for (let gy = r.gy; gy < r.gy + r.h; gy++) for (let gx = r.gx; gx < r.gx + r.w; gx++) {
+        const kunci = gx + ',' + gy, tepi = gx === r.gx || gy === r.gy || gx === r.gx + r.w - 1 || gy === r.gy + r.h - 1;
+        if (r.lantai) lantai[kunci] = r.lantai;
+        if (tepi && !pintu.has(kunci)) tembok[kunci] = r.warna; else delete tembok[kunci];
+      }
+    }
+    return { lantai: Object.assign(lantai, d.lantai), tembok: Object.assign(tembok, d.tembok) };
   },
 
   // Satu ubin tembok — rumus lukisUbinTembok Agent Pak (tataletak.js): muka dinding bila bertetangga mendatar,
@@ -147,7 +175,7 @@ const Rumah = {
       const n = 'tani_' + pt.t + '_' + pt.tahap, u = ukuranSprite(n);
       daftar.push({ alas: b.y + 13, lukis: () => { lukis(k, n, o.x, b.y + T - u.h); if (pt.matang && Math.floor(t * 2) % 2) lukis(k, 'kilau', o.x, b.y - 12); } });
     }
-    for (const e of semua) daftar.push({ alas: e.y + 19, lukis: () => lukisEntitas(k, e) });
+    for (const e of semua) daftar.push({ alas: e.y + 19, lukis: () => lukisEntitas(k, e, e === G.aku && this.menyunting ? 0.35 : 1) });      // selagi Edit Map karakter sendiri beku dan samar
     daftar.sort((p, q) => p.alas - q.alas);
     for (const b of daftar) b.lukis();
     if (bawaan) this.lapisDepan(k, semua);

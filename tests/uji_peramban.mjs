@@ -377,7 +377,8 @@ const klikPeta = async (x, y, opsi) => { const t = await titikLayar(x, y); await
 const sofa = () => pg.evaluate(() => { const o = G.peta.benda[0]; return o && { x: o.x, y: o.y, n: o.n, r: o.r }; });
 await pg.keyboard.press('b');
 await pg.waitForSelector('#bangun .slot.alat');
-cek('Edit Map terbuka dengan enam alat', await pg.evaluate(() => Sunting.aktif && document.querySelectorAll('#bangun .slot.alat').length === 6 && $('#sunting-simpan').disabled));
+await pg.evaluate(() => { Sunting.kam.y -= 55; });      // geser pandangan supaya area uji tidak tertutup menu atas
+cek('Edit Map terbuka dengan tujuh alat', await pg.evaluate(() => Sunting.aktif && document.querySelectorAll('#bangun .slot.alat').length === 7 && $('#sunting-simpan').disabled));
 await pg.click('#bangun [data-alat=perabot]');
 await pg.waitForSelector('#sunting-katalog .kartu');
 await pg.fill('#sunting-katalog input[type=search]', 'sofa krem');
@@ -407,6 +408,31 @@ await seretPeta((aku.gx + 4) * 16 + 8, (aku.gy - 3) * 16 + 8, (aku.gx + 6) * 16 
 cek('lantai digambar sebagai kotak', await pg.evaluate(() => Object.keys(G.peta.lantai).length === 6));
 await pg.click('#sunting-urung'); await pg.click('#sunting-urung');
 cek('Urungkan membatalkan lantai lalu tembok', await pg.evaluate(() => !Object.keys(G.peta.lantai).length && !Object.keys(G.peta.tembok).length && G.peta.benda.length === 1));
+// Selagi Edit Map karakter beku: tombol gerak menggeser kamera, bukan karakter.
+const beku0 = await pg.evaluate(() => ({ x: G.aku.x, y: G.aku.y, kx: Sunting.kam.x }));
+await tekan('d', 350);
+const beku1 = await pg.evaluate(() => ({ x: G.aku.x, y: G.aku.y, kx: Sunting.kam.x }));
+cek('Edit Map: karakter tidak bergerak, kamera yang bergeser', beku1.x === beku0.x && beku1.y === beku0.y && beku1.kx > beku0.kx + 20, JSON.stringify([beku0, beku1]));
+await tekan('a', 350);
+// Ruang: tarik kotak -> dinding keliling, lantai, satu pintu; bisa digeser, diubah, dan diurungkan.
+await pg.evaluate(() => { Sunting.lantai = G.katalog.lantai[0]; });
+await pg.click('#bangun [data-alat=ruang]');
+await seretPeta((aku.gx + 4) * 16 + 8, (aku.gy - 7) * 16 + 8, (aku.gx + 9) * 16 + 8, (aku.gy - 3) * 16 + 8);
+const ruang0 = await pg.evaluate(() => { const r = G.peta.ruang[0], e = Rumah.ubinEfektif(G.peta); return r && { gx: r.gx, w: r.w, h: r.h, pintu: r.pintu.length, tembok: Object.keys(e.tembok).length, lantai: Object.keys(e.lantai).length, pilih: Sunting.pilihRuang === r.id, alat: Sunting.alat }; });
+cek('alat Ruang membuat ruang berdinding, berlantai, berpintu', ruang0 && ruang0.w === 6 && ruang0.h === 5 && ruang0.pintu === 1 && ruang0.tembok === 16 && ruang0.lantai === 30 && ruang0.pilih && ruang0.alat === 'pilih', JSON.stringify(ruang0));
+await pg.keyboard.press('ArrowRight');
+cek('panah menggeser ruang terpilih satu ubin', await pg.evaluate((gx) => G.peta.ruang[0].gx === gx + 1, ruang0.gx));
+await pg.fill('#sunting-nama-ruang', 'Ruang Rapat'); await pg.keyboard.press('Tab');
+await pg.click('#sunting-tambah-pintu');
+cek('properti ruang: nama dan pintu tambahan', await pg.evaluate(() => G.peta.ruang[0].nama === 'Ruang Rapat' && G.peta.ruang[0].pintu.length === 2));
+await pg.keyboard.press('Delete');
+cek('Delete menghapus ruang terpilih', await pg.evaluate(() => G.peta.ruang.length === 0 && !Object.keys(Rumah.ubinEfektif(G.peta).tembok).length));
+// Layer: benda bisa dipaksa ke lapis atas (di atas semua tokoh).
+s1 = await sofa();      // sofa ikut bergeser bersama ruang tadi (pindah bersama isinya)
+await pg.click('#bangun [data-alat=pilih]');
+await klikPeta(s1.x + 6, s1.y + 6);
+await pg.click('#bangun [data-lapis=atas]');
+cek('layer benda bisa diubah ke Atas', await pg.evaluate(() => G.peta.benda[0].l === 'atas' && Rumah.urut.some(b => b.alas > 1e8)));
 await pg.click('#bangun [data-alat=area]');
 await seretPeta(s1.x - 10, s1.y - 10, s1.x + 60, s1.y + 50);
 cek('Pilih area menangkap benda di dalam kotak', await pg.evaluate(() => Sunting.grup && Sunting.grup.ids.size === 1));
@@ -416,7 +442,7 @@ await pg.keyboard.press('Control+z');
 cek('hapus grup bisa diurungkan', await pg.evaluate(() => G.peta.benda.length === 1));
 await pg.click('#sunting-simpan');
 await pg.waitForFunction(() => !Sunting.kotor && !Sunting.sibuk);
-cek('Simpan menulis draf ke server', await pg.evaluate(() => G.peta.benda.length === 1 && G.peta.rev >= 1 && $('#sunting-kabar').textContent.includes('Tersimpan')));
+cek('Simpan menulis draf ke server', await pg.evaluate(() => G.peta.benda.length === 1 && G.peta.benda[0].l === 'atas' && G.peta.rev >= 1 && $('#sunting-kabar').textContent.includes('Tersimpan')));
 await tunggu(400);
 cek('perubahan peta utama tersiar ke pemain lain setelah Simpan', await pg2.evaluate(() => G.peta.benda.length === 1 && G.peta.benda[0].n === 'sofa_krem'));
 await pg.click('#bangun [data-alat=hapus]');
@@ -507,6 +533,30 @@ cek('akun ber-TOTP: password saja belum cukup, kode diminta', pg3.url().endsWith
 await pg3.fill('#k', totp(rahasiaTotp, 1)); await pg3.click('button.utama');
 await pg3.waitForURL(`http://127.0.0.1:${port}/`);
 cek('masuk dengan kode sekali pakai berhasil', true);
+
+// --- ponsel: joystick sentuh menggerakkan karakter (konteks layar sentuh, pemain kedua)
+const hp = await (await b.newContext({ viewport: { width: 390, height: 780 }, hasTouch: true, isMobile: true })).newPage();
+const galatHp = [];
+hp.on('pageerror', e => galatHp.push(e.message));
+await hp.goto(`http://127.0.0.1:${port}/masuk`);
+await hp.fill('#u', 'penguji2'); await hp.fill('#p', password); await hp.click('button.utama');
+await hp.waitForFunction(() => document.body.classList.contains('siap') && G.aku && Jaring.tersambung, null, { timeout: 20000 });
+if (await hp.$('#tirai')) await hp.evaluate(() => Panel.tutup());
+cek('ponsel: joystick dan tombol aksi tampil', await hp.evaluate(() => getComputedStyle($('#sentuh')).display !== 'none' && !!$('#sentuh-e') && !!$('#sentuh-lari')));
+const tongkat = await hp.evaluate(() => { const r = $('#sentuh-tongkat').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+const dorong = async (dx, dy) => {
+  await hp.dispatchEvent('#sentuh-tongkat', 'pointerdown', { clientX: tongkat.x + dx, clientY: tongkat.y + dy, pointerId: 7, bubbles: true });
+  await hp.waitForTimeout(450);
+  const d = await hp.evaluate(() => ({ tombol: [...Mesin.tombol].sort().join(''), x: G.aku.x, y: G.aku.y }));
+  await hp.dispatchEvent('#sentuh-tongkat', 'pointerup', { pointerId: 7, bubbles: true });
+  return d;
+};
+const hp0 = await hp.evaluate(() => ({ x: G.aku.x, y: G.aku.y }));
+const kanan = await dorong(40, 0), kiriAtas = await dorong(-30, -30);
+cek('ponsel: joystick mengisi arah gerak (kanan, lalu kiri atas)', kanan.tombol === 'd' && kiriAtas.tombol === 'aw', JSON.stringify([kanan, kiriAtas]));
+cek('ponsel: karakter berpindah oleh joystick', kanan.x !== hp0.x || kiriAtas.x !== kanan.x || kiriAtas.y !== kanan.y, JSON.stringify([hp0, kanan, kiriAtas]));
+cek('ponsel: lepas joystick menghentikan gerak', await hp.evaluate(() => Mesin.tombol.size === 0));
+cek('ponsel: tanpa galat JavaScript', galatHp.length === 0, galatHp.slice(0, 3).join(' | '));
 
 await b.close();
 console.log(gagal ? `\n${gagal} uji GAGAL` : '\nSEMUA LULUS');

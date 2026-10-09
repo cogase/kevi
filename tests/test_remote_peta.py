@@ -136,6 +136,24 @@ def test_peta_simpan_draf(kon):
     assert permainan.peta_pasang(kon, {"barang": "sofa_krem", "x": 100, "y": 100})["rev"] == 3
 
 
+def test_peta_simpan_ruang_dan_lapis(kon):
+    ruang = {"gx": 2, "gy": 3, "w": 6, "h": 5, "warna": "#8b9bb4", "lantai": "lantai_parket", "nama": "  Ruang   Rapat  ",
+             "pintu": [{"sisi": "bawah", "pos": 99}, {"sisi": "kiri", "pos": 0}]}
+    d = permainan.peta_simpan(kon, {"rev": 0, "lantai": {}, "tembok": {}, "ruang": [ruang, dict(ruang, id=5, gx=20)],
+                                    "benda": [{"n": "sofa_krem", "x": 96, "y": 96, "l": "atas"}, {"n": "sofa_krem", "x": 120, "y": 96, "l": "ngawur"}]})
+    r = d["ruang"][0]
+    assert r["nama"] == "Ruang Rapat" and r["pintu"] == [{"sisi": "bawah", "pos": 4}, {"sisi": "kiri", "pos": 1}]      # pintu dijepit ke sisi
+    assert len({r["id"], d["ruang"][1]["id"], *(o["id"] for o in d["benda"])}) == 4 and d["ruang"][1]["id"] == 5
+    assert d["benda"][0]["l"] == "atas" and "l" not in d["benda"][1]
+    dasar = {"rev": 1, "lantai": {}, "tembok": {}, "benda": []}
+    for buruk in (dict(ruang, w=2), dict(ruang, gx=44), dict(ruang, warna="merah"), dict(ruang, lantai="ngawur"),
+                  dict(ruang, pintu=[{"sisi": "serong", "pos": 1}]), dict(ruang, gx="2"), "bukan-ruang"):
+        with pytest.raises(Ditolak):
+            permainan.peta_simpan(kon, dict(dasar, ruang=[buruk]))
+    assert permainan.peta_simpan(kon, dasar)["ruang"] == []                     # draf tanpa ruang mengosongkannya
+    assert permainan.peta_dasar(kon, {"dasar": "default", "kosongkan": True})["ruang"] == []
+
+
 def test_level_barang():
     assert permainan.level_barang("kebun_petak") == 1 and permainan.level_barang("benih:sawi") == 1 and permainan.level_barang("lantai:lantai_parket") == 1
     assert permainan.level_barang("benih:mangga") == 7 and permainan.level_barang("kandang_ternak") == 5

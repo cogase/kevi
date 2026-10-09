@@ -254,6 +254,25 @@ body.hud-ciut #hud::before, body.hud-ciut #hud::after, body.hud-ciut .hud-kiri, 
 body.hud-ciut #petunjuk { top: 14px; }
 body.hud-ciut #kabar { top: 56px; }
 
+/* ---------- kontrol sentuh (ponsel, tablet) ---------- */
+#sentuh { display: none; }
+body.sentuh.siap #sentuh { display: block; }
+@media (pointer: coarse) { body.siap #sentuh { display: block; } }
+body.ada-panel #sentuh, body.ada-terminal #sentuh { display: none !important; }
+#sentuh-tongkat { position: fixed; left: 14px; bottom: 118px; z-index: var(--z-hud); width: 116px; height: 116px; border-radius: 50%; background: rgba(7,11,20,.42); border: 2px solid rgba(255,255,255,.28); touch-action: none; user-select: none; -webkit-user-select: none; }
+#sentuh-tongkat i { position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%; background: rgba(253,230,138,.78); border: 2px solid #3a2104; box-shadow: 0 2px 0 rgba(0,0,0,.5); pointer-events: none; }
+#sentuh-aksi { position: fixed; right: 12px; bottom: 118px; z-index: var(--z-hud); display: grid; grid-template-columns: 56px 56px; gap: 8px; justify-items: end; }
+.sentuh-tombol { width: 56px; height: 56px; border-radius: 50%; border: 2px solid rgba(255,255,255,.3); background: rgba(7,11,20,.5); color: var(--krem); font: 700 14px Inter, sans-serif; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+.sentuh-tombol.ditekan { background: rgba(222,75,139,.8); border-color: #f79ac3; }
+#sentuh-e { grid-column: 2; width: 64px; height: 64px; font-size: 18px; }
+#sentuh-lari { grid-column: 1 / span 2; width: auto; padding: 0 14px; height: 40px; border-radius: 20px; }
+body.menyunting #sentuh-aksi { display: none; }
+body.menyunting #sentuh-tongkat { bottom: 190px; }
+
+.sunting-pintu { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.cip.pintu { display: inline-flex; align-items: center; gap: 3px; padding: 2px 4px; }
+.cip.pintu select { width: auto; padding: 2px 4px; font-size: 12px; }
+#sunting-nama-ruang { width: 150px; padding: 3px 8px; }
 .peti h4 { margin: 10px 0 6px; }
 .peti-kisi { min-height: 44px; padding: 4px; border: 1px dashed var(--garis); border-radius: 6px; }
 .peti-kisi > p { grid-column: 1 / -1; margin: 8px 0; text-align: center; }

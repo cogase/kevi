@@ -514,7 +514,7 @@ PETA_UKURAN = (20, 80)
 
 def peta_kosong() -> dict:
     return {"v": 1, "dasar": "default", "lebar": 45, "tinggi": 46, "lantai_dasar": "lantai_luar_rumput", "lantai": {}, "tembok": {},
-            "benda": [], "urut": 0, "rev": 0}
+            "benda": [], "ruang": [], "urut": 0, "rev": 0}
 
 
 def baca_peta(kon: sqlite3.Connection) -> dict:
@@ -549,7 +549,7 @@ def peta_dasar(kon: sqlite3.Connection, p: dict) -> dict:
             raise Ditolak("Lantai dasar tidak dikenal.")
         d.update(dasar="kosong", lebar=w, tinggi=h, lantai_dasar=lantai)
     if p.get("kosongkan"):
-        d.update(lantai={}, tembok={}, benda=[])
+        d.update(lantai={}, tembok={}, benda=[], ruang=[])
     _simpan_peta(kon, d)
     return d
 
@@ -593,6 +593,39 @@ def _kunci_ubin(d: dict, kunci) -> str:
     return f"{gx},{gy}"
 
 
+PETA_RUANG_MAKS = 200
+SISI_PINTU = ("atas", "bawah", "kiri", "kanan")
+
+
+def _ruang_sah(d: dict, r, kat: dict) -> dict:
+    """Satu ruang di peta utama: kotak ubin berdinding (warna), berlantai (motif, boleh kosong), dengan sampai 4 pintu.
+    Dinding dan lantainya tidak disimpan per ubin; peramban menurunkannya dari kotak ini tiap kali menggambar."""
+    bulat = lambda v: isinstance(v, int) and not isinstance(v, bool)          # noqa: E731
+    if not isinstance(r, dict) or not all(bulat(r.get(k)) for k in ("gx", "gy", "w", "h")):
+        raise Ditolak("Ruang tidak sah.")
+    gx, gy, w, h = r["gx"], r["gy"], r["w"], r["h"]
+    if w < 3 or h < 3:
+        raise Ditolak("Ruang minimal 3×3 ubin.")
+    if gx < 0 or gy < 0 or gx + w > d["lebar"] or gy + h > d["tinggi"]:
+        raise Ditolak("Ada ruang di luar batas peta.")
+    if not POLA_WARNA.match(str(r.get("warna") or "")):
+        raise Ditolak("Warna dinding ruang tidak sah.")
+    lantai = str(r.get("lantai") or "")
+    if lantai and lantai not in kat["lantai"]:
+        raise Ditolak("Lantai ruang tidak dikenal.")
+    pintu = []
+    for q in (r.get("pintu") or [])[:4]:
+        if not isinstance(q, dict) or q.get("sisi") not in SISI_PINTU or not bulat(q.get("pos")):
+            raise Ditolak("Pintu ruang tidak sah.")
+        panjang = w if q["sisi"] in ("atas", "bawah") else h
+        pintu.append({"sisi": q["sisi"], "pos": max(1, min(panjang - 2, q["pos"]))})
+    baru = {"id": r["id"] if bulat(r.get("id")) else 0, "gx": gx, "gy": gy, "w": w, "h": h, "warna": r["warna"], "lantai": lantai,
+            "nama": " ".join(str(r.get("nama") or "").split())[:24], "pintu": pintu}
+    if r.get("kunci"):
+        baru["kunci"] = True
+    return baru
+
+
 def peta_simpan(kon: sqlite3.Connection, p: dict) -> dict:
     """Penyunting peta (Edit Map) menyimpan seluruh drafnya sekaligus: p = {rev, lantai, tembok, benda}.
     `rev` harus revisi yang dibaca saat penyunting dibuka; kalau peta sudah berubah di tempat lain, simpan ditolak
@@ -633,8 +666,21 @@ def peta_simpan(kon: sqlite3.Connection, p: dict) -> dict:
         baru = {"id": bid, "n": o["n"], "x": x, "y": y, "r": r % 4 if r in (k.get("putar") or []) else 0}
         if o.get("kunci"):
             baru["kunci"] = True
+        if o.get("l") in ("bawah", "atas"):          # lapis gambar: di bawah semua benda / di atas semua tokoh
+            baru["l"] = o["l"]
         benda_baru.append(baru)
-    d.update(lantai=lantai_baru, tembok=tembok_baru, benda=benda_baru, urut=urut)
+    ruang_baru = []
+    for r in p.get("ruang") or []:
+        ruang_baru.append(_ruang_sah(d, r, kat))
+        bid = ruang_baru[-1]["id"]
+        if bid <= 0 or bid in dipakai:
+            urut += 1
+            ruang_baru[-1]["id"] = bid = urut
+        dipakai.add(bid)
+        urut = max(urut, bid)
+    if len(ruang_baru) > PETA_RUANG_MAKS:
+        raise Ditolak(f"Terlalu banyak ruang (paling banyak {PETA_RUANG_MAKS}).")
+    d.update(lantai=lantai_baru, tembok=tembok_baru, benda=benda_baru, ruang=ruang_baru, urut=urut)
     _simpan_peta(kon, d)
     return d
 

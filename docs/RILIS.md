@@ -2,6 +2,28 @@
 
 Melengkapi PRD, GDD, dan TDD untuk rilis sesudah 0.2.0. Angka dan aturan di sini adalah yang berlaku di kode.
 
+## 0.9.0 — 9 Oktober 2026
+
+**Edit Map lebih dekat ke Edit Layout Agent Pak (kata yosi: "ada layer, ruangan"; "karakter tidak bisa dimainkan")**
+- **Karakter beku selagi menyunting.** W A S D dan panah menggeser kamera (Shift lebih cepat), bukan karakter.
+  Seret tempat kosong dengan alat Pilih, atau seret dengan tombol tengah tetikus di alat apa pun, juga menggeser
+  peta. Kamera boleh melewati tepi peta, jadi sudut peta tidak tertutup menu. Karakter tampil samar di tempatnya
+  dan kembali dimainkan begitu Edit Map ditutup.
+- **Alat Ruang.** Tarik kotak (minimal 3×3 ubin): dinding keliling, lantai, dan satu pintu dibuat otomatis. Ruang
+  adalah satu objek: pilih dengan alat Pilih, seret untuk memindah (centang "Pindah bersama isinya" membawa benda
+  dan ubin di dalamnya), seret pojok kanan bawah untuk mengubah ukuran, panah menggeser satu ubin. Properti: nama,
+  warna dinding, motif lantai (atau tanpa lantai), sampai 4 pintu (sisi, geser − / +, hapus), kunci posisi, hapus.
+  Alat Hapus pada ruang membuang seluruh ruang. Ubin tembok dan lantai yang ditaruh satu per satu menimpa milik ruang.
+- **Layer per benda:** ▼ Bawah (digambar di bawah semua benda), ◆ Otomatis (menurut kedalaman, bawaan), ▲ Atas
+  (di atas semua tokoh). Berlaku juga untuk grup. Tabrakan tidak berubah oleh layer.
+- Belum ada dibanding Agent Pak: wallpaper dan tinggi dinding ruang, daun pintu, Label, Titik santai, Tempat kerja,
+  lantai bertingkat.
+
+**Kontrol sentuh untuk ponsel dan tablet (kata yosi: "mode mobile gak bisa kontrol karakternya")**
+- Joystick di kiri bawah (delapan arah), tombol **E** (interaksi, atau berdiri dari kursi), **F** (pakai atau makan
+  barang yang dipegang), dan **Lari** (tahan). Muncul otomatis di layar sentuh; tersembunyi saat panel atau
+  Komputer terbuka. Di Edit Map joystick menggeser kamera.
+
 ## 0.8.0 — 9 Oktober 2026
 
 **Peti (permintaan yosi: barang berlebih disimpan di peti, peti dibeli di NPC)**
