@@ -252,6 +252,38 @@ $('#peta-terapkan').addEventListener('click', async () => {
   if (h) { $('#peta-kosongkan').checked = false; Peta.peta = h.peta; Peta.gambar(); }
 });
 
+/* ---------- koleksi peta: banyak peta tersimpan, satu aktif ---------- */
+
+const Koleksi = {
+  lukis(d) {
+    if (!d || !d.peta) return;
+    const aktif = d.peta.find(p => p.aktif);
+    $('#peta-aktif-nama').textContent = $('#peta-aktif-nama2').textContent = aktif ? aktif.nama : '-';
+    const tb = (teks, kelas, fn) => el('button', { kelas: 'tombol kecil ' + (kelas || ''), teks, type: 'button', on: { click: fn } });
+    tabel('#t-koleksi', ['Nama', 'Status', 'Dasar', '#Ukuran', '#Perabot', '#Ruang', '#NPC', 'Diubah', 'Aksi'], d.peta.map(p => [p.nama,
+      el('span', { kelas: 'cip ' + (p.aktif ? 'hijau' : ''), teks: p.aktif ? 'Aktif' : 'Tersimpan' }), p.dasar === 'kosong' ? 'Kosong' : 'Default', p.lebar + ' × ' + p.tinggi, p.benda, p.ruang, p.npc, jam(p.diubah),
+      el('div', { kelas: 'aksi-sel' },
+        p.aktif ? null : tb('Aktifkan', 'utama', () => this.aktifkan(p)),
+        tb('Ganti nama', '', () => { const v = prompt('Nama baru untuk peta "' + p.nama + '":', p.nama); if (v !== null) this.kirim('nama', { id: p.id, nama: v }, 'Nama peta diganti.'); }),
+        p.aktif ? null : tb('Hapus', 'bahaya', () => { if (confirm('Hapus peta "' + p.nama + '" beserta NPC dan titiknya? Tidak bisa dikembalikan.')) this.kirim('hapus', { id: p.id }, 'Peta "' + p.nama + '" dihapus.'); }))]));
+    $('#koleksi-baru').disabled = d.peta.length >= d.maks;
+  },
+  async muat() { this.lukis(await coba(() => ambil('/api/admin/peta/daftar'))); },
+  async kirim(aksi, badan, sukses) { const h = await coba(() => ambil('/api/admin/peta/' + aksi, badan), sukses); if (h) this.lukis(h); return h; },
+  async aktifkan(p) {
+    if (!confirm('Aktifkan peta "' + p.nama + '"? Semua pemain di kantor langsung pindah ke peta itu, dan NPC + titik yang belum disimpan di halaman ini dibuang.')) return;
+    if (!await this.kirim('aktifkan', { id: p.id }, 'Peta "' + p.nama + '" kini aktif; layar semua pemain sudah ikut berganti.')) return;
+    await muatAtur();                                    // NPC dan titik ikut berganti bersama petanya
+    await Peta.muatPeta();
+  },
+};
+$('#koleksi-dari').addEventListener('change', () => { const kunci = $('#koleksi-dari').value !== 'kosong'; $('#koleksi-lebar').disabled = $('#koleksi-tinggi').disabled = kunci; });
+$('#koleksi-baru').addEventListener('click', async () => {
+  const dari = $('#koleksi-dari').value, badan = { nama: $('#koleksi-nama').value, dari };
+  if (dari === 'kosong') Object.assign(badan, { lebar: Number($('#koleksi-lebar').value), tinggi: Number($('#koleksi-tinggi').value) });
+  if (await Koleksi.kirim('baru', badan, 'Peta baru tersimpan. Belum aktif: tekan Aktifkan untuk memakainya.')) $('#koleksi-nama').value = '';
+});
+
 /* ---------- tab & mulai ---------- */
 
 $('#tab').addEventListener('click', (ev) => {
@@ -259,10 +291,10 @@ $('#tab').addEventListener('click', (ev) => {
   if (!tb) return;
   for (const b of $('#tab').children) b.classList.toggle('aktif', b === tb);
   for (const s of document.querySelectorAll('.bagian')) s.hidden = s.id !== 'b-' + tb.dataset.bagian;
-  if (tb.dataset.bagian === 'peta') Peta.muatPeta();
+  if (tb.dataset.bagian === 'peta') { Koleksi.muat(); muatAtur(); Peta.muatPeta(); }
   if (tb.dataset.bagian === 'umpan') muatUmpan();
 });
-$('#segarkan').addEventListener('click', () => { muatDasbor(); muatAtur(); muatUmpan(); });
+$('#segarkan').addEventListener('click', () => { muatDasbor(); muatAtur(); muatUmpan(); Koleksi.muat(); });
 
 /* ---------- feedback pemain ---------- */
 
@@ -293,5 +325,6 @@ const gambar = (src) => new Promise((res, rej) => { const i = new Image(); i.onl
   await muatDasbor();
   await Peta.muatPeta();
   await muatAtur();
+  await Koleksi.muat();
   setInterval(() => { if (!document.hidden && !$('#b-ringkasan').hidden) muatDasbor(); }, 15000);
 })();

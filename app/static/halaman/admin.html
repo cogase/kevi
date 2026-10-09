@@ -56,9 +56,19 @@
   </section>
 
   <section class="bagian" id="b-peta" hidden>
+    <h2 style="margin-top:0">Koleksi peta</h2>
+    <p class="redup kecil">Semua peta yang tersimpan, termasuk yang disimpan dari dalam game lewat tombol ▤ Peta di Edit Map. Hanya satu yang <b>aktif</b>: itulah yang dilihat semua pemain. Mengaktifkan peta lain langsung memindahkan semua pemain ke peta itu.</p>
+    <div class="tabel-gulung"><table id="t-koleksi"></table></div>
+    <div class="atur-kisi" style="align-items:end;margin:10px 0 18px">
+      <label>Nama peta baru<input id="koleksi-nama" type="text" maxlength="40" placeholder="Contoh: Wisma Presisi"></label>
+      <label>Asal<select id="koleksi-dari"><option value="salin">Tiruan peta aktif</option><option value="default">Kantor Agent Pak dengan NPC bawaan</option><option value="kosong">Tanah kosong tanpa NPC</option></select></label>
+      <label>Lebar (ubin, 20–80)<input id="koleksi-lebar" type="number" min="20" max="80" value="45" disabled></label>
+      <label>Tinggi (ubin, 20–80)<input id="koleksi-tinggi" type="number" min="20" max="80" value="46" disabled></label>
+      <div><button id="koleksi-baru" class="tombol kecil hijau" type="button">+ Peta baru</button></div>
+    </div>
     <div class="sunting-peta" style="margin-bottom:12px">
-      <b>Peta utama</b>
-      <p class="redup kecil" style="margin:0">Isi peta (perabot, lantai, tembok dari katalog Agent Pak) disunting dari dalam game: masuk sebagai admin, berdiri di kantor, tekan <kbd>B</kbd>. Di sini hanya dasarnya.</p>
+      <b>Dasar peta aktif: <span id="peta-aktif-nama">-</span></b>
+      <p class="redup kecil" style="margin:0">Bagian ini BUKAN untuk memilih peta (pilih peta di tabel Koleksi peta di atas). Ini mengubah dasar peta yang sedang aktif: latar kantor Agent Pak atau tanah kosong, serta ukurannya. Isi peta (perabot, lantai, tembok) disunting dari dalam game: masuk sebagai admin, berdiri di kantor, tekan <kbd>B</kbd>.</p>
       <div class="atur-kisi" style="align-items:end">
         <label>Dasar<select id="peta-dasar"><option value="default">Default (kantor Agent Pak) + tambahan admin</option><option value="kosong">Kosong, bangun dari nol</option></select></label>
         <label>Lebar (ubin, 20–80)<input id="peta-lebar" type="number" min="20" max="80" value="45"></label>
@@ -68,7 +78,7 @@
         <div><button id="peta-terapkan" class="tombol kecil utama" type="button">Terapkan dasar</button></div>
       </div>
     </div>
-    <p class="redup">Pilih NPC atau titik di daftar, lalu klik peta untuk memindahkannya. Perubahan baru berlaku setelah <b>Simpan peta</b>; semua layar pemain ikut berubah saat itu juga.</p>
+    <p class="redup">NPC dan titik interaksi di bawah ini milik peta aktif (<b id="peta-aktif-nama2">-</b>); tiap peta punya NPC dan titiknya sendiri. Pilih NPC atau titik di daftar, lalu klik peta untuk memindahkannya. Perubahan baru berlaku setelah <b>Simpan peta</b>; semua layar pemain ikut berubah saat itu juga.</p>
     <div class="peta-wadah">
       <canvas id="peta" width="720" height="736"></canvas>
       <div class="peta-sisi">

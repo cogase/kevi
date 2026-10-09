@@ -2,6 +2,17 @@
 
 Melengkapi PRD, GDD, dan TDD untuk rilis sesudah 0.2.0. Angka dan aturan di sini adalah yang berlaku di kode.
 
+## 0.15.2 — 9 Oktober 2026
+
+**Perbaikan: peta tersimpan tidak muncul di dashboard (laporan yosi).** Peta yang disimpan dari dalam game lewat
+▤ Peta di Edit Map (mis. "Wisma Presisi") tidak terlihat di `/admin` tab Peta & NPC, karena tab itu belum mengenal
+koleksi peta. Kini tab itu dibuka dengan tabel **Koleksi peta**: nama, status Aktif / Tersimpan, dasar, ukuran,
+jumlah perabot, ruang, dan NPC, waktu diubah, serta tombol Aktifkan, Ganti nama, dan Hapus (peta aktif tidak bisa
+dihapus). Di bawahnya ada isian **Peta baru** (tiruan peta aktif, kantor Agent Pak, atau tanah kosong berukuran).
+Mengaktifkan peta dari dashboard langsung memindahkan semua pemain, dan daftar NPC + titik di halaman itu ikut
+berganti. Bagian lama diberi judul "Dasar peta aktif: <nama>" dengan keterangan bahwa itu bukan pemilih peta, dan
+penyunting NPC + titik menyebut nama peta aktif yang memilikinya.
+
 ## 0.15.1 — 9 Oktober 2026
 
 **Perabot bisa diduduki (kata yosi).** Kursi, sofa, bangku, bean bag, dan puff yang ditaruh di peta utama atau di

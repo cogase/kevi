@@ -650,6 +650,21 @@ cek('dashboard: log terminal dan obrolan terisi', (await adm.$$('#t-terminal tbo
 await adm.screenshot({ path: foto ? `${foto}/8-admin-log.png` : undefined }).catch(() => {});
 await adm.click('#tab button[data-bagian=peta]'); await tunggu(300);
 if (foto) await adm.screenshot({ path: `${foto}/9-admin-peta.png` });
+// koleksi peta di dashboard: peta yang tersimpan tampil, bisa ditambah dan dihapus, peta aktif tidak bisa dihapus
+const barisKoleksi = () => adm.evaluate(() => [...document.querySelectorAll('#t-koleksi tbody tr')].map(r => ({ teks: r.textContent, tombol: [...r.querySelectorAll('button')].map(t => t.textContent) })));
+await adm.waitForFunction(() => document.querySelector('#t-koleksi tbody tr .cip'));
+const kol0 = await barisKoleksi();
+cek('dashboard: koleksi peta tampil dengan peta aktif tanpa tombol Hapus', kol0.length >= 1 && kol0.filter(r => r.teks.includes('Aktif')).length === 1 && !kol0.find(r => r.teks.includes('Aktif')).tombol.includes('Hapus')
+  && (await adm.textContent('#peta-aktif-nama')) !== '-', JSON.stringify(kol0));
+await adm.fill('#koleksi-nama', 'Wisma Uji'); await adm.selectOption('#koleksi-dari', 'kosong'); await adm.fill('#koleksi-lebar', '30'); await adm.fill('#koleksi-tinggi', '24');
+await adm.click('#koleksi-baru');
+await adm.waitForFunction(() => document.querySelector('#t-koleksi tbody').textContent.includes('Wisma Uji'));
+const kol1 = (await barisKoleksi()).find(r => r.teks.includes('Wisma Uji'));
+cek('dashboard: peta baru masuk koleksi sebagai Tersimpan, bisa diaktifkan dan dihapus', kol1.teks.includes('Tersimpan') && kol1.teks.includes('30 × 24') && kol1.tombol.join() === 'Aktifkan,Ganti nama,Hapus', JSON.stringify(kol1));
+adm.once('dialog', d => d.accept());
+await adm.click('#t-koleksi tbody tr:has-text("Wisma Uji") button.bahaya');
+await adm.waitForFunction(() => !document.querySelector('#t-koleksi tbody').textContent.includes('Wisma Uji'));
+cek('dashboard: peta tersimpan bisa dihapus dari koleksi', (await barisKoleksi()).length === kol0.length);
 await adm.close();
 await pg2.goto(`http://127.0.0.1:${port}/admin`);
 cek('pemain biasa ditolak dari dashboard', (await pg2.textContent('body')).includes('Khusus admin'));
