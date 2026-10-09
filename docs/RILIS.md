@@ -2,6 +2,13 @@
 
 Melengkapi PRD, GDD, dan TDD untuk rilis sesudah 0.2.0. Angka dan aturan di sini adalah yang berlaku di kode.
 
+## 0.22.1 — 9 Oktober 2026
+
+**Edit Rumah punya alat Penghalang (kata yosi).** Alat "Halang" di kelompok Bangun kini juga ada di Edit Rumah, sama
+seperti di Edit Map: seret untuk menandai ubin yang tidak boleh dilewati (merah selagi menyunting, tidak terlihat saat
+bermain), hapus dengan alat Hapus, dan tombol "▦ Penghalang" menampilkan semua ubin yang terhalang. Penghalang
+disimpan bersama denah rumah, gratis, dan berlaku juga untuk tamu.
+
 ## 0.22.0 — 9 Oktober 2026
 
 Delapan butir dari yosi.

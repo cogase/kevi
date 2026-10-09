@@ -190,7 +190,7 @@ await tunggu(300);
 await pg.keyboard.press('b');
 await pg.waitForSelector('#bangun .slot.alat');
 cek('Edit Rumah: dok yang sama dengan Edit Map, tanpa Penghalang dan koleksi peta', await pg.evaluate(() => Sunting.aktif && Sunting.rumah && $('#bangun').textContent.includes('Edit Rumah')
-  && !!$('#bangun [data-alat=ruang]') && !$('#bangun [data-alat=halang]') && !$('#sunting-peta') && !!$('#sunting-belanja')));
+  && !!$('#bangun [data-alat=ruang]') && !!$('#bangun [data-alat=halang]') && !$('#sunting-peta') && !!$('#sunting-belanja')));
 await pg.evaluate(() => { Sunting.kam.y += 40; });
 const taruh = async (barang, x, y) => {
   await pg.evaluate((b) => Sunting.pakaiSprite(b), barang);
@@ -226,6 +226,16 @@ await pg.evaluate(() => Sunting.ubah((d) => { d.lantai = {}; d.tembok = {}; }));
 await pg.click('#sunting-simpan');
 await pg.waitForFunction(() => !Sunting.kotor && !Sunting.sibuk);
 cek('mencabut lantai dan tembok tidak mengisi inventory', await pg.evaluate((k) => G.koin === k && !Object.keys(G.inventori).some(b => b === 'tembok' || b.startsWith('lantai:')), koinUbin));
+// Penghalang buatan sendiri di Edit Rumah (kata yosi): disimpan server, menghalangi langkah, bisa dihapus lagi.
+await pg.evaluate(() => { Sunting.pakaiAlat('halang'); Sunting.ubah((d) => { d.halang['12,12'] = 1; d.halang['13,12'] = 1; }); });
+await pg.click('#sunting-simpan');
+await pg.waitForFunction(() => !Sunting.kotor && !Sunting.sibuk);
+const halangRumah = await pg.evaluate(() => { const J = Rumah.oy / 16; return { tersimpan: Object.keys(G.rumah.halang || {}).sort().join(' '), padat: gridPadat(G.grid, 12, 12 + J) && gridPadat(G.grid, 13, 12 + J), sebelah: gridPadat(G.grid, 14, 12 + J), alat: Sunting.alat }; });
+cek('Edit Rumah: alat Penghalang tersedia; ubin penghalang tersimpan dan tidak bisa dilewati', halangRumah.tersimpan === '12,12 13,12' && halangRumah.padat && !halangRumah.sebelah && halangRumah.alat === 'halang', JSON.stringify(halangRumah));
+await pg.evaluate(() => { Sunting.ubah((d) => { d.halang = {}; }); Sunting.pakaiAlat('pilih'); });
+await pg.click('#sunting-simpan');
+await pg.waitForFunction(() => !Sunting.kotor && !Sunting.sibuk);
+cek('Edit Rumah: penghalang bisa dihapus lagi', await pg.evaluate(() => Object.keys(G.rumah.halang || {}).length === 0));
 await potret('5-bangun');
 await pg.keyboard.press('b');
 await pg.waitForFunction(() => !G.bangun);

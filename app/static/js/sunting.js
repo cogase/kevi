@@ -24,7 +24,7 @@ const PETUNJUK_SUNTING = {
   hapus: 'Klik benda untuk menghapusnya. Seret untuk menghapus tembok dan lantai ubin demi ubin.',
   tembok: 'Seret di peta untuk menarik garis tembok lurus.',
   lantai: 'Seret di peta untuk menggambar kotak lantai.',
-  halang: 'Seret untuk menandai ubin yang tak boleh dilewati (merah, tidak terlihat oleh pemain). Hapus dengan alat Hapus.',
+  halang: 'Seret untuk menandai ubin yang tak boleh dilewati (merah di sini, tidak terlihat saat bermain). Hapus dengan alat Hapus.',
   perabot: 'Klik di peta untuk menaruh. R memutar. Alat tetap aktif untuk menaruh lagi.',
 };
 const jepret = (v, kisi = JEPRET) => Math.round(v / kisi) * kisi;
@@ -72,7 +72,6 @@ const Sunting = {
     this.rev = Rumah.d.rev || 0;
     this.setD(JSON.parse(this.akar));
     this.belanja = '';
-    if (this.rumah && this.alat === 'halang') this.alat = 'pilih';
     Object.assign(this, { aktif: true, alat: 'pilih', kotor: false, urung: [], pilih: null, pilihRuang: null, grup: null, seret: null, luar: null, tanya: 0, sibuk: false, pesan: '' });
     this.kam = { x: G.aku ? G.aku.x + 8 : 0, y: G.aku ? G.aku.y + 10 : 0 };
     Mesin.tombol.clear();
@@ -90,7 +89,7 @@ const Sunting = {
     try {
       const d = this.d;
       if (this.rumah) {                                  // rumah: server menghitung belanja dan kembalian inventory
-        const j = await api('/api/rumah/simpan', { lantai: d.lantai, tembok: d.tembok, benda: d.benda, ruang: d.ruang || [] });
+        const j = await api('/api/rumah/simpan', { lantai: d.lantai, tembok: d.tembok, benda: d.benda, ruang: d.ruang || [], halang: d.halang || {} });
         serap(j);
         this.setD(j.rumah);
         this.pesan = 'Tersimpan.' + (j.belanja ? ' Belanja ' + j.belanja + ' koin.' : '');
@@ -746,7 +745,7 @@ const Sunting = {
         tb('▦ Penghalang', this.lihatHalang ? 'aktif' : '', () => { this.lihatHalang = !this.lihatHalang; this.lukisDok(); }, { title: 'Lihat ubin yang tak bisa dilewati', 'aria-pressed': String(this.lihatHalang) }),
         tb('✕ Keluar', '', () => Rumah.keluarBangun(), { id: 'sunting-keluar', title: 'Keluar dari Edit Map (B)' })),
       el('div', { kelas: 'sunting-alat' }, ALAT_SUNTING.map(([judul, daftar]) => el('div', { kelas: 'sunting-kelompok' }, el('small', { teks: judul }),
-        el('div', {}, daftar.filter(([kunci]) => !(this.rumah && kunci === 'halang')).map(([kunci, tanda, pendek, panjang]) => el('button', { kelas: 'slot alat' + (this.alat === kunci ? ' aktif' : ''), title: panjang, 'data-alat': kunci, 'aria-pressed': String(this.alat === kunci),
+        el('div', {}, daftar.map(([kunci, tanda, pendek, panjang]) => el('button', { kelas: 'slot alat' + (this.alat === kunci ? ' aktif' : ''), title: panjang, 'data-alat': kunci, 'aria-pressed': String(this.alat === kunci),
           on: { click: (ev) => { ev.currentTarget.blur(); this.pakaiAlat(kunci); } } }, el('span', { kelas: 'tangan', teks: tanda }), el('small', { teks: pendek }))))))),
       el('div', { kelas: 'sunting-pilihan' }, isi));
   },

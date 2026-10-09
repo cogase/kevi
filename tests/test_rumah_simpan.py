@@ -66,3 +66,16 @@ def test_penolakan(kon, pemain):
         with pytest.raises(Ditolak):
             permainan.rumah_simpan(kon, pemain, _draf(kon, pemain, **buruk))
     assert permainan.baca_rumah(kon, pemain)["benda"] == [] and permainan.inventori(kon, pemain)["kebun_petak"] == 6
+
+
+def test_penghalang_buatan_pemilik_rumah(kon, pemain):
+    """0.22.1 (yosi): Edit Rumah punya alat Penghalang seperti Edit Map."""
+    h = permainan.rumah_simpan(kon, pemain, _draf(kon, pemain, halang={"3,4": 1, " 5,4": 1}))
+    assert h["rumah"]["halang"] == {"3,4": 1, "5,4": 1} and h["belanja"] == 0
+    h = permainan.rumah_simpan(kon, pemain, _draf(kon, pemain))                 # draf tanpa medan halang: penghalang tetap
+    assert h["rumah"]["halang"] == {"3,4": 1, "5,4": 1}
+    for buruk in ({"99,1": 1}, {"x": 1}, [], "semua"):
+        with pytest.raises(Ditolak):
+            permainan.rumah_simpan(kon, pemain, _draf(kon, pemain, halang=buruk))
+    assert permainan.rumah_simpan(kon, pemain, _draf(kon, pemain, halang={}))["rumah"]["halang"] == {}
+    assert permainan.rumah_kosong()["halang"] == {}

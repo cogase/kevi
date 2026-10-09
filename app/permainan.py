@@ -523,7 +523,7 @@ def butuh_level(kon: sqlite3.Connection, uid: int, kunci: str) -> None:
 
 def rumah_kosong() -> dict:
     return {"v": 1, "lebar": LEBAR_TANAH, "tinggi": TINGGI_TANAH, "lantai": {}, "tembok": {}, "benda": [], "urut": 0,
-            "petak": {}, "kandang": {}, "peti": {}, "ruang": []}
+            "petak": {}, "kandang": {}, "peti": {}, "ruang": [], "halang": {}}
 
 
 def baca_rumah(kon: sqlite3.Connection, uid: int) -> dict:
@@ -1079,7 +1079,8 @@ def potret_rumah(kon: sqlite3.Connection, uid: int, d: dict | None = None) -> di
         kandang[k] = {"hewan": [{"j": h["j"], "kenyang": (h.get("kenyang") or 0) > kini, "siap": int(h.get("siap") or 0)}
                                 for h in kd.get("hewan") or []]}
     return {"lebar": d["lebar"], "tinggi": d["tinggi"], "lantai": d["lantai"], "tembok": d["tembok"], "benda": d["benda"],
-            "petak": {k: _potret_petak(pt, kini) for k, pt in d["petak"].items()}, "kandang": kandang, "peti": d["peti"], "ruang": d.get("ruang") or []}
+            "petak": {k: _potret_petak(pt, kini) for k, pt in d["petak"].items()}, "kandang": kandang, "peti": d["peti"], "ruang": d.get("ruang") or [],
+            "halang": d.get("halang") or {}}
 
 
 # ---------------------------------------------------------------- Edit Rumah: simpan draf sekaligus (0.15.0)
@@ -1131,6 +1132,12 @@ def _rencana_rumah(kon: sqlite3.Connection, uid: int, p: dict) -> dict:
         raise Ditolak(f"Tanah sudah penuh ({BENDA_MAKS} benda).")
     kat = katalog()
     baru = dict(d, lantai={}, tembok={}, benda=[], ruang=[])
+    # Penghalang buatan pemilik rumah (0.22.1): ubin tak terlihat yang tak bisa dilewati. Draf dari peramban lama yang
+    # tidak mengirimnya membiarkan penghalang yang ada.
+    if "halang" in p:
+        if not isinstance(p["halang"], dict) or len(p["halang"]) > d["lebar"] * d["tinggi"]:
+            raise Ditolak("Daftar penghalang tidak sah.")
+        baru["halang"] = {_kunci_ubin(d, kunci): 1 for kunci in p["halang"]}
     for kunci, n in lantai.items():
         if n not in kat["lantai"]:
             raise Ditolak("Lantai tidak dikenal.")
