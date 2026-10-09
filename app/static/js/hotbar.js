@@ -43,6 +43,7 @@ const Hotbar = {
   petunjuk(b) {
     if (b.startsWith('makan:')) return ' — F untuk makan';
     if (b.startsWith('benih:')) return ' — E di petak kosong untuk menanam';
+    if (b.startsWith('senjata:')) return ' — Spasi untuk memukul zombie';
     if (Rumah.bisaDipasang(b)) return G.adegan !== 'kantor' && G.rumahSaya ? ' — klik untuk menaruh, R putar' : ' — ditaruh di rumahmu';
     return '';
   },

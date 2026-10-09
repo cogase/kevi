@@ -15,6 +15,7 @@ import time
 from fastapi import WebSocket
 
 from . import atur, basis, konfig, permainan, terminal
+from .battle import Battle
 
 POLA_ADEGAN = re.compile(r"^(kantor|rumah:\d{1,9})$")
 ARAH = {"atas", "bawah", "kiri", "kanan"}
@@ -33,6 +34,7 @@ class Dunia:
         self.pemain: dict[int, dict] = {}
         self.suit: dict[str, dict] = {}
         self.aset = ""                              # sidik berkas statis; diisi main.py
+        self.battle = Battle(self)
 
     # ------------------------------------------------------------ siaran
     def _publik(self, p: dict) -> dict:
@@ -214,6 +216,8 @@ class Dunia:
         elif t == "term_batal":
             if p["tugas"]:
                 p["tugas"].cancel()
+        elif t == "pukul":
+            await self.battle.pukul(p, m)
 
     async def _pindah_adegan(self, p: dict, m: dict) -> None:
         baru = str(m.get("adegan") or "")

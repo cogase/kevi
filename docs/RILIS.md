@@ -2,6 +2,39 @@
 
 Melengkapi PRD, GDD, dan TDD untuk rilis sesudah 0.2.0. Angka dan aturan di sini adalah yang berlaku di kode.
 
+## 0.19.0 — 9 Oktober 2026
+
+**Battle: serangan zombie (kata yosi; konsep dan keputusannya di `docs/KONSEP-battle.md`).** Bawaannya **mati**:
+nyalakan di dashboard, tab Pengaturan, bagian "Battle: serangan zombie".
+- **Zombie** datang bergelombang ke peta bersama (kantor), hanya bila ada pemain di sana; rumah selalu aman. Jumlahnya
+  2 + jumlah pemain (paling banyak 12). Tiga jenis: biasa (HP 6), gesit (HP 4, cepat, mulai gelombang ketiga), besar
+  (HP 20, satu per gelombang besar). Zombie mengejar pemain terdekat dan memutari tembok serta penghalang.
+- **Memukul**: dekati lalu tekan **Spasi** (di ponsel tombol "Pukul"). Server yang memutuskan kena atau tidak, jeda
+  antarpukulan, dan damage-nya. Zombie yang kena berkedip putih dan menampilkan bilah HP; yang kalah rebah lalu
+  memudar.
+- **Hadiah**: EXP untuk semua yang ikut memukul (biasa 5, gesit 6, besar 20; paling banyak 60 zombie per hari yang
+  memberi EXP) dan koin jatuh (3 sampai 25) yang dipungut dengan menginjaknya.
+- **Health** kini juga dihitung server: gigitan mengurangi Health (8, 6, atau 15), pulih sendiri bila 5 detik tidak
+  digigit, tiga kali lebih cepat di rumah. Bilah Health di menu atas mengikutinya. **Health habis = pingsan**: layar
+  gelap, bangun di rumah, dan **EXP berkurang** (bawaan 150; level bisa turun). Hadiah koin naik level hanya dibayar
+  sekali per level, jadi turun lalu naik lagi tidak dibayar ulang.
+- Pemain yang sedang duduk bekerja di Komputer tidak diincar zombie.
+- **Senjata** dijual **Bang Jago** (NPC baru berperan battle, ditambahkan sekali ke peta aktif di dekat pintu depan;
+  bisa dipindah di tab Peta & NPC): sapu (damage 2, 150 koin), kunci inggris (3, 400, level 3), tongkat bisbol
+  (5, 900, level 5), kabel LAN (4, jangkauan jauh, 1.400, level 7), pemadam api (8, 2.500, level 10). Tangan kosong
+  damage 1. Senjata tidak habis dipakai, cukup satu, tidak bisa dijual lagi: taruh di hotbar dan pegang.
+- **Pengaturan admin**: sakelar utama, jarak antargelombang (tetap atau acak), jumlah zombie, pengali HP, pengali
+  hadiah, EXP yang hilang saat pingsan, dan tombol **Panggil gelombang sekarang** untuk mencoba.
+- Belum ada: sprite zombie dan ikon senjata khusus (sementara zombie = tokoh berkulit hijau, ikon senjata = glif).
+
+**Musik dan suara.** Kevi kini bersuara, semuanya dibangkitkan di peramban tanpa berkas audio. Musik tenang ("Pagi di
+Desa", "Kafe Senja") disalin dari Agent Pak; saat zombie datang musik berganti ke lagu tegang, dan ada efek geraman
+zombie, pukulan, gigitan, koin, dan pingsan. Sakelar "Musik & suara" dan volume ada di Menu, diingat per peramban.
+Musik baru mulai setelah klik atau tombol pertama (aturan peramban).
+
+**Perbaikan: peta di dashboard (laporan yosi).** Di tab Peta & NPC, lantai dan dinding ruang tidak tergambar sehingga
+perabot tampak melayang. Peta itu kini menggambar ubin ruang (lantai, dinding keliling, celah pintu) seperti di game.
+
 ## 0.18.2 — 9 Oktober 2026
 
 **Perbaikan duduk di kursi dan sofa (laporan yosi)**

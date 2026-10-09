@@ -51,7 +51,7 @@ if (await pg.$('#tirai')) await pg.keyboard.press('Escape');
 await tunggu(500);
 let s = await pg.evaluate(() => ({ koin: G.koin, adegan: G.adegan, inv: G.inventori, npc: [...G.entitas.values()].filter(e => e.jenis === 'npc').length, x: G.aku.x, y: G.aku.y }));
 cek('modal awal diterima', s.koin >= 300 && s.inv.kebun_petak === 6, JSON.stringify({ koin: s.koin, petak: s.inv.kebun_petak }));
-cek('mulai di kantor dengan NPC', s.adegan === 'kantor' && s.npc === 6, `npc ${s.npc}`);
+cek('mulai di kantor dengan NPC', s.adegan === 'kantor' && s.npc === 7, `npc ${s.npc}`);
 const npcAwal = await pg.evaluate(() => [...G.entitas.values()].filter(e => e.jenis === 'npc').map(e => [e.x, e.y, e.pose].join()));
 await potret('2-kantor');
 
@@ -346,8 +346,10 @@ const arahDuduk = await pg.evaluate(async (n) => {
   const b = Rumah.urut.find(b => b.o.n === n), hasil = { depan: { pose: G.aku.pose, dx: G.aku.x - b.o.x, dy: G.aku.y - b.y }, bisaPutar: (Rumah.infoBarang(n).putar || []).length };
   for (const [r, nama] of [[2, 'belakang'], [1, 'kiri'], [3, 'kanan']]) {
     b.o.r = r; Mesin.berdiri(); Mesin.dudukSantai(b);
+    const pose = { belakang: 'atas_diam', kiri: 'kiri_duduk', kanan: 'kanan_duduk' }[nama];      // urutan gambar dihitung serentak: data rumah bisa diganti kiriman server selagi menunggu
+    hasil[nama] = { dy: G.aku.y - b.y, depanKursi: Rumah.alasEntitas({ x: G.aku.x, y: G.aku.y, pose }) > b.alas };
     await new Promise(res => setTimeout(res, 120));
-    hasil[nama] = { pose: G.aku.pose, dy: G.aku.y - b.y, depanKursi: Rumah.alasEntitas(G.aku) > b.alas };
+    hasil[nama].pose = G.aku.pose;
   }
   b.o.r = 0; Mesin.berdiri(); Mesin.dudukSantai(b);
   return hasil;
@@ -669,7 +671,7 @@ await pg.waitForSelector('.koleksi [data-peta]:nth-child(1) [data-aksi=aktifkan]
 await pg.click('.koleksi [data-peta]:nth-child(1) [data-aksi=aktifkan]');
 await pg.waitForFunction(() => G.peta.dasar === 'default' && Sunting.aktif && !document.querySelector('#tirai'));
 await tunggu(500);
-cek('kembali ke peta kantor: perabot dan NPC-nya utuh', await pg.evaluate(() => G.peta.benda.length === 1 && G.peta.benda[0].n === 'sofa_krem') && (await npcDiLayar(pg)) === 6 && (await npcDiLayar(pg2)) === 6);
+cek('kembali ke peta kantor: perabot dan NPC-nya utuh', await pg.evaluate(() => G.peta.benda.length === 1 && G.peta.benda[0].n === 'sofa_krem') && (await npcDiLayar(pg)) === 7 && (await npcDiLayar(pg2)) === 7);
 await pg.click('#sunting-peta');
 await pg.waitForSelector('.koleksi [data-peta]:nth-child(2) [data-aksi=hapus]');
 await pg.click('.koleksi [data-peta]:nth-child(2) [data-aksi=hapus]');
@@ -815,7 +817,7 @@ await adm.waitForFunction(() => document.querySelector('#t-umpan tbody tr').text
 cek('dashboard: feedback bisa ditandai selesai', await adm.evaluate(() => document.querySelector('#tab-umpan').textContent === 'Feedback'));
 await adm.click('#tab [data-bagian=ringkasan]');
 await adm.click('#tab button[data-bagian=peta]');
-await adm.waitForFunction(() => document.querySelectorAll('#peta-daftar .butir-peta').length === 6);
+await adm.waitForFunction(() => document.querySelectorAll('#peta-daftar .butir-peta').length === 7);
 await adm.click('#titik-baru'); await adm.click('#peta', { position: { x: 200, y: 300 } });
 await adm.click('#npc-baru'); await adm.fill('#peta-sunting input >> nth=0', 'Pak Uji');
 await adm.click('#peta-simpan'); await tunggu(900);
@@ -824,6 +826,47 @@ cek('atur peta: titik dan NPC baru langsung muncul di game', dunia.titik === 1 &
 await adm.click('#tab button[data-bagian=atur]');
 await adm.fill('#at-laju_jalan', '120'); await adm.click('#f-atur button.utama'); await tunggu(700);
 cek('pengaturan kecepatan jalan langsung berlaku', await pg.evaluate(() => G.atur.laju_jalan === 120));
+// --- battle: admin memanggil gelombang, zombie datang, dipukul dengan Spasi sampai tumbang, koin jatuh dipungut
+cek('dashboard: pengaturan battle tampil dengan sakelar mati sebagai bawaan', await adm.evaluate(() => !$('#at-zombie_aktif').checked && $('#at-zombie_menit').value === '15' && !!$('#zombie-panggil')));
+await adm.evaluate(() => ambil('/api/admin/pengaturan', { zombie_jumlah: 1, zombie_hp: 50 }));
+await pg.evaluate(async () => { if (Panel.terbuka()) Panel.tutup(); if (G.adegan !== 'kantor') await Mesin.pindah('kantor'); });
+await tunggu(500);
+const battle0 = await pg.evaluate(() => ({ xp: G.level.xp, koin: G.koin, suasana: Suara.suasanaKini, zombie: Battle.z.size, jago: [...G.entitas.values()].some(e => e.jenis === 'npc' && e.nama === 'Bang Jago') }));
+await adm.click('#zombie-panggil');
+await pg.waitForFunction(() => Battle.z.size === 1, null, { timeout: 8000 });
+const zombie0 = await pg.evaluate(() => { const z = [...Battle.z.values()][0]; return { jenis: z.jenis, hp: z.hp, maks: z.maks, suasana: Suara.suasanaKini, kelas: document.body.classList.contains('ada-zombie'), lagu: Suara.lagu, rupa: !!bingkaiTokoh(z.look, 'bawah_diam') }; });
+cek('battle: gelombang yang dipanggil admin memunculkan zombie dan musik berganti tegang', battle0.zombie === 0 && battle0.suasana === 'tenang' && battle0.jago && zombie0.maks === 3 && zombie0.suasana === 'tegang' && zombie0.lagu === 'tegang' && zombie0.kelas && zombie0.rupa, JSON.stringify([battle0, zombie0]));
+let pukulan = 0, kenaTerlihat = false;
+for (let i = 0; i < 60 && await pg.evaluate(() => Battle.z.size > 0); i++) {          // datangi zombienya, lalu Spasi
+  await pg.evaluate(() => { const z = [...Battle.z.values()][0]; if (!z) return; G.aku.x = z.tx + 12; G.aku.y = z.ty; Jaring.kirim({ t: 'pos', x: G.aku.x, y: G.aku.y, arah: 'kiri', jalan: false, pose: '' }); });
+  await tunggu(120);
+  await pg.keyboard.press('Space'); pukulan++;
+  await tunggu(430);
+  kenaTerlihat = kenaTerlihat || await pg.evaluate(() => [...Battle.z.values()].some(z => z.hp < z.maks) || Battle.bangkai.length > 0);
+}
+const battle1 = await pg.evaluate(() => ({ zombie: Battle.z.size, bangkai: Battle.bangkai.length, koin: Battle.koin.size, xp: G.level.xp, suasana: Suara.suasanaKini }));
+cek('battle: Spasi memukul zombie terdekat sampai tumbang; EXP bertambah dan koin jatuh', battle1.zombie === 0 && kenaTerlihat && pukulan >= 3 && battle1.xp > battle0.xp && battle1.suasana === 'tenang', JSON.stringify([battle1, pukulan]));
+await pg.evaluate(() => { const c = [...Battle.koin.values()][0]; if (c) { G.aku.x = c.x - 8; G.aku.y = c.y - 14; Jaring.kirim({ t: 'pos', x: G.aku.x, y: G.aku.y, arah: 'bawah', jalan: false, pose: '' }); } });
+await pg.waitForFunction((k) => Battle.koin.size === 0 && G.koin > k, battle0.koin, { timeout: 6000 }).catch(() => {});
+cek('battle: koin jatuh dipungut dengan menginjaknya', await pg.evaluate((k) => Battle.koin.size === 0 && G.koin > k, battle0.koin), JSON.stringify(await pg.evaluate(() => ({ koin: G.koin, sisa: Battle.koin.size }))));
+// senjata: dibeli di Bang Jago (terkunci level), dipegang dari hotbar
+const senjataUji = await pg.evaluate(async () => {
+  Battle.toko();
+  const kartu = (k) => $('#tirai [data-senjata="' + k + '"]'), sebelum = G.koin, pemadam = kartu('pemadam_api').className, level = G.level.level;
+  kartu('sapu').click();
+  await new Promise(r => setTimeout(r, 500));
+  const punya = G.inventori['senjata:sapu'] || 0, bayar = sebelum - G.koin, kartuSesudah = kartu('sapu').disabled;
+  Panel.tutup();
+  G.tata.hotbar[9] = 'senjata:sapu'; Hotbar.pilih = 9;
+  const dipegang = Battle.senjata(), petunjuk = Hotbar.petunjuk('senjata:sapu');
+  Hotbar.pilih = -1;
+  return { pemadam, level, punya, bayar, kartuSesudah, dipegang, petunjuk, jual: hargaJual('senjata:sapu') };
+});
+cek('battle: senjata dibeli di Bang Jago (satu saja), yang berlevel tinggi bergembok, dipegang dari hotbar', senjataUji.punya === 1 && senjataUji.bayar === 150 && senjataUji.kartuSesudah && senjataUji.pemadam.includes('gembok')
+  && senjataUji.dipegang === 'sapu' && senjataUji.petunjuk.includes('Spasi') && senjataUji.jual === null, JSON.stringify(senjataUji));
+cek('suara: sakelar dan volume di Menu tersimpan di peramban', await pg.evaluate(() => { Suara.setVolume(0.5); Suara.hidupkan(false); const s = JSON.parse(localStorage.getItem('kevi.suara')); Suara.hidupkan(true); Suara.setVolume(0.3);
+  return s.hidup === false && s.volume === 0.5 && Suara.atur.hidup === true && Object.keys(Suara.LAGU).join() === 'desa,kafe,tegang'; }));
+await adm.evaluate(() => ambil('/api/admin/pengaturan', { zombie_jumlah: 0, zombie_hp: 100 }));
 await adm.click('#tab button[data-bagian=ringkasan]');
 await adm.fill('#umum', 'Rapat jam sembilan'); await adm.click('#f-umum button.utama'); await tunggu(600);
 cek('pengumuman admin tersiar ke pemain', (await pg2.textContent('#obrolan-log')).includes('Rapat jam sembilan'));
@@ -832,6 +875,10 @@ cek('dashboard: log terminal dan obrolan terisi', (await adm.$$('#t-terminal tbo
 await adm.screenshot({ path: foto ? `${foto}/8-admin-log.png` : undefined }).catch(() => {});
 await adm.click('#tab button[data-bagian=peta]'); await tunggu(300);
 if (foto) await adm.screenshot({ path: `${foto}/9-admin-peta.png` });
+cek('dashboard: peta menampilkan lantai dan dinding ruang, dengan celah pintunya (laporan yosi: perabot tampak melayang)', await adm.evaluate(() => {
+  const e = Peta.ubinEfektif({ lantai: { '9,9': 'lantai_parket' }, tembok: { '8,8': '#445566' }, ruang: [{ gx: 1, gy: 1, w: 4, h: 4, warna: '#112233', lantai: 'lantai_parket', pintu: [{ sisi: 'bawah', pos: 1 }] }] });
+  return Object.keys(e.lantai).length === 17 && Object.keys(e.tembok).length === 12 && !('2,4' in e.tembok) && e.tembok['1,1'] === '#112233' && e.tembok['8,8'] === '#445566';
+}));
 // koleksi peta di dashboard: peta yang tersimpan tampil, bisa ditambah dan dihapus, peta aktif tidak bisa dihapus
 const barisKoleksi = () => adm.evaluate(() => [...document.querySelectorAll('#t-koleksi tbody tr')].map(r => ({ teks: r.textContent, tombol: [...r.querySelectorAll('button')].map(t => t.textContent) })));
 await adm.waitForFunction(() => document.querySelector('#t-koleksi tbody tr .cip'));

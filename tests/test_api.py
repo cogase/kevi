@@ -103,7 +103,7 @@ def test_ws_halo_dan_terminal(klien):
     _masuk(klien, "staf", "sandi-staf-12")
     with klien.websocket_connect("/ws") as ws:
         halo = ws.receive_json()
-        assert halo["t"] == "halo" and halo["saya"]["nama"] == "Staf Uji" and len(halo["npc"]) == 6
+        assert halo["t"] == "halo" and halo["saya"]["nama"] == "Staf Uji" and len(halo["npc"]) == 7
         ws.send_json({"t": "term", "baris": "rm -rf /"})
         assert "tidak dikenal" in ws.receive_json()["baris"]
         assert ws.receive_json()["t"] == "term_selesai"

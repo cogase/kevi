@@ -21,6 +21,7 @@ const Sentuh = {
     document.body.append(el('section', { id: 'sentuh', 'aria-label': 'Kontrol sentuh' }, tongkat,
       el('div', { id: 'sentuh-aksi' },
         tombol('sentuh-lari', 'Lari', 'Tahan untuk lari', () => Mesin.tombol.add('shift'), () => Mesin.tombol.delete('shift')),
+        tombol('sentuh-pukul', 'Pukul', 'Pukul zombie di dekatmu', () => { if (!Mesin.sibuk()) Battle.pukul(); }),
         tombol('sentuh-makan', 'F', 'Pakai atau makan barang yang dipegang', () => { if (!Mesin.sibuk()) Hotbar.pakai(); }),
         tombol('sentuh-e', 'E', 'Interaksi dengan yang terdekat, atau berdiri dari kursi', () => {
           if (Mesin.sibuk()) return;

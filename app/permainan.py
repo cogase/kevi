@@ -157,6 +157,15 @@ def inventori(kon: sqlite3.Connection, uid: int) -> dict[str, int]:
 SLOT_AWAL, SLOT_PER_TAS, TAS_MAKS = 20, 10, 6
 HARGA_TAS = 2000                     # tas ke-n berharga HARGA_TAS x n (2000, 4000, 6000, ...) — angka dari yosi
 HOTBAR = 10
+# senjata: (nama, damage, jeda antarpukulan dtk, jangkauan px, harga, level). Tangan kosong selalu ada.
+SENJATA = {
+    "": ("Tangan kosong", 1, 0.5, 18, 0, 1),
+    "sapu": ("Sapu", 2, 0.5, 26, 150, 1),
+    "kunci_inggris": ("Kunci inggris", 3, 0.6, 20, 400, 3),
+    "tongkat_bisbol": ("Tongkat bisbol", 5, 0.7, 26, 900, 5),
+    "kabel_lan": ("Kabel LAN", 4, 0.4, 34, 1400, 7),
+    "pemadam_api": ("Pemadam api", 8, 1.0, 24, 2500, 10),
+}
 # kode: (nama, harga beli | None = hanya dimasak, stamina, detik pulih-cepat, ikon)
 MAKANAN = {
     "roti": ("Roti", 6, 25, 0, "ikon_panen_pakan"),
@@ -217,6 +226,8 @@ def nama_barang(b: str) -> str:
         return "Pakan"
     if b in PRODUK:
         return PRODUK[b][0]
+    if b.startswith("senjata:"):
+        return SENJATA.get(b[8:], (b[8:],))[0]
     return b.removeprefix("em_").replace("_", " ").capitalize()
 
 
@@ -234,6 +245,8 @@ def harga_beli(b: str) -> int | None:
         return HARGA_PAKAN
     if ubin_bebas(b):                            # lantai dan tembok gratis: tidak dijual, tidak disimpan di inventory
         return None
+    if b.startswith("senjata:"):                 # item battle: dijual NPC battle, tidak habis dipakai, tidak bisa dijual lagi
+        return SENJATA[b[8:]][4] if b[8:] in SENJATA and b[8:] else None
     k = katalog()["barang"].get(b)
     if not k or k["k"].startswith(KATEGORI_TAK_DIJUAL):
         return None
@@ -241,6 +254,8 @@ def harga_beli(b: str) -> int | None:
 
 
 def harga_jual(b: str) -> int | None:
+    if b.startswith("senjata:"):               # item battle tidak bisa dijual lagi
+        return None
     if b.startswith("panen:"):
         return TANAMAN[b[6:]][3] if b[6:] in TANAMAN else None
     if b in PRODUK:
@@ -273,6 +288,8 @@ def level_barang(b: str) -> int:
         return LEVEL_LANTAI.get(b[7:].removeprefix("lantai_").split("_")[0], 1)
     if b.startswith("makan:"):
         return 1
+    if b.startswith("senjata:"):
+        return SENJATA.get(b[8:], ("", 0, 0, 0, 0, 1))[5]
     h = harga_beli(b) or 0
     return next((lv for batas, lv in TINGKAT_HARGA if h <= batas), LEVEL_BARANG_PUNCAK)
 
@@ -290,6 +307,9 @@ def beli(kon: sqlite3.Connection, uid: int, barang: str, jumlah: int) -> dict:
     if h is None:
         raise Ditolak("Barang itu tidak dijual.")
     _cek_level_barang(kon, uid, barang)
+    if str(barang).startswith("senjata:"):       # senjata tidak habis dipakai: cukup satu
+        if jumlah != 1 or inventori(kon, uid).get(barang, 0) > 0:
+            raise Ditolak("Senjata itu sudah kamu punya; satu saja cukup.")
     ubah_koin(kon, uid, -h * jumlah, f"beli {jumlah} {nama_barang(barang)}")
     tambah_barang(kon, uid, barang, jumlah)
     return {"koin": saldo(kon, uid), "inventori": inventori(kon, uid)}
@@ -386,8 +406,12 @@ def tambah_xp(kon: sqlite3.Connection, uid: int, n: int) -> int:
     lama = xp_kini(kon, uid)
     kon.execute("UPDATE karakter SET xp = xp + ? WHERE pemakai_id = ?", (n, uid))
     dari, ke = level_dari(lama), level_dari(lama + n)
-    for lv in range(dari + 1, ke + 1):
+    # Level bisa turun karena pingsan (battle), jadi hadiah hanya untuk level yang belum pernah dicapai.
+    puncak = max(dari, int(kon.execute("SELECT level_puncak FROM karakter WHERE pemakai_id = ?", (uid,)).fetchone()["level_puncak"] or 0))
+    for lv in range(puncak + 1, ke + 1):
         ubah_koin(kon, uid, HADIAH_NAIK * lv, f"naik ke level {lv}")
+    if ke > puncak or puncak > dari:
+        kon.execute("UPDATE karakter SET level_puncak = ? WHERE pemakai_id = ?", (max(puncak, ke), uid))
     return ke
 
 
@@ -1466,5 +1490,6 @@ def info_toko() -> dict:
         "tak_dijual": list(KATEGORI_TAK_DIJUAL), "jam_kebun": konfig.JAM_KEBUN, "basah_jam": BASAH_JAM,
         "makanan": {k: {"nama": v[0], "harga": v[1], "stamina": v[2], "kopi": v[3], "ikon": v[4]} for k, v in MAKANAN.items()},
         "resep": RESEP, "hotbar": HOTBAR, "peti": list(PETI), "peti_jenis": PETI_JENIS,
+        "senjata": {k: {"nama": v[0], "damage": v[1], "jeda": v[2], "jangkau": v[3], "harga": v[4], "level": v[5]} for k, v in SENJATA.items()},
         "tingkat_harga": [list(t) for t in TINGKAT_HARGA], "level_puncak": LEVEL_BARANG_PUNCAK, "level_khusus": LEVEL_KHUSUS,
     }

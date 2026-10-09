@@ -200,6 +200,7 @@ const Rumah = {
       daftar.push({ alas: b.y + 13, lukis: () => { lukis(k, n, o.x, b.y + T - u.h); if (pt.matang && Math.floor(t * 2) % 2) lukis(k, 'kilau', o.x, b.y - 12); } });
     }
     for (const e of semua) daftar.push({ alas: this.alasEntitas(e), lukis: () => lukisEntitas(k, e, e === G.aku && this.menyunting ? 0.35 : 1) });      // selagi Edit Map karakter sendiri beku dan samar
+    Battle.gambar(k, daftar);                    // zombie, koin jatuh, dan ayunan ikut diurutkan kedalamannya
     daftar.sort((p, q) => p.alas - q.alas);
     for (const b of daftar) b.lukis();
     if (bawaan) this.lapisDepan(k, semua);

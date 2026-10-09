@@ -512,6 +512,7 @@ const Jaring = {
       case 'term_bersih': Terminal.bersih(); break;
       case 'term_selesai': Terminal.selesai(); break;
       case 'ganti_tab': this.diganti = true; Hud.terputus('Kevi dibuka di tab lain. Tab ini berhenti.'); break;
+      default: Battle.terima(m);                      // zombie, hp, pingsan, koin jatuh (battle.js)
     }
   },
 
@@ -580,6 +581,7 @@ const Npc = {
     Jaring.kirim({ t: 'sapa', siapa: 'npc:' + d.id });
     if (d.peran === 'toko') Toko.buka();
     else if (d.peran === 'pakaian') Pakaian.buka(true);
+    else if (d.peran === 'battle') Battle.toko();
     else if (d.peran === 'misi') Panel.misi();
     else if (d.peran === 'kuis') Kuis.tawarkan(e);
     else if (d.peran === 'kopi') Sosial.kopi(e);

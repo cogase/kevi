@@ -17,6 +17,7 @@ from .dunia import Dunia
 KON = basis.buka(konfig.BASIS_DATA)
 atur.baca(KON)
 atur.pastikan_penjual_pakaian(KON)
+atur.pastikan_penjual_battle(KON)
 with basis.KUNCI:
     permainan.kembalikan_ubin(KON)
 DUNIA = Dunia(KON)
@@ -40,6 +41,7 @@ DUNIA.aset = ASET
 async def _mulai() -> None:
     asyncio.get_running_loop().create_task(DUNIA.putar_pesan())
     asyncio.get_running_loop().create_task(DUNIA.putar_lapar())
+    asyncio.get_running_loop().create_task(DUNIA.battle.putar())
 
 
 def _alamat(request: Request) -> str:
@@ -625,6 +627,17 @@ async def admin_atur_simpan(request: Request):
     if d.get("pengumuman"):
         await DUNIA.siar(None, {"t": "umum", "teks": baru["pengumuman"]})
     return {"atur": baru}
+
+
+@app.post("/api/admin/zombie/panggil")
+async def admin_zombie_panggil(request: Request):
+    """Gelombang zombie datang sekarang juga (untuk mencoba), walau sakelar utamanya mati."""
+    if not _admin(request):
+        return galat("Khusus admin.", 403)
+    if not any(p["adegan"] == "kantor" for p in DUNIA.pemain.values()):
+        return galat("Tidak ada pemain di kantor; zombie hanya datang bila ada orang.")
+    DUNIA.battle.panggil()
+    return {"ok": True}
 
 
 async def _rute_peta(request: Request, fn):

@@ -1,6 +1,23 @@
 # Konsep — Battle: serangan zombie
 
-Status: **RANCANGAN, menunggu kata yosi.** Belum ada yang dibangun. Sumber: permintaan yosi 9 Oktober 2026.
+Status: **DIBANGUN di 0.19.0** (tahap B1 sampai B4; B5 sprite final belum). Sumber: permintaan yosi 9 Oktober 2026.
+
+## Keputusan yosi (9 Oktober 2026) — mengalahkan isi rancangan di bawah bila berbeda
+
+1. **Health habis**: pemain bangun lagi **di rumah** (bukan di lobi) dan **EXP berkurang**; level bisa turun, sampai
+   kembali ke awal. Besarnya diatur admin (`zombie_denda_xp`, bawaan 150 EXP per pingsan). Hadiah koin naik level
+   hanya dibayar sekali per level (`karakter.level_puncak`), jadi turun lalu naik lagi tidak bisa diperah.
+2. **Audio**: tidak ada berkas dari yosi; semua dibangkitkan di peramban. Musik tenang disalin dari Agent Pak
+   (`musik.js`: "Pagi di Desa", "Kafe Senja"); lagu tegang dan efek suara dibuat untuk Kevi (`suara.js`).
+3. **Senjata**: ikut tabel di bawah.
+4. **Kapan zombie datang**: hanya di peta bersama dan hanya bila ada pemain di sana; pemain di rumah tidak diserang.
+   Tidak ada pembatasan jam (`zombie_jam` tidak dibangun).
+5. **Kebal saat membuka Komputer**: yosi tidak menjawab; yang dibangun mengikuti usul di bawah (yang sedang duduk
+   bekerja tidak diincar). Mudah dibalik bila ia memutuskan lain.
+
+Yang dibangun berbeda dari rancangan: Health pemain disimpan di ingatan server (bukan kolom basis data; restart
+memulihkannya), zombie memakai sprite tokoh berkulit hijau dan senjata memakai glif sebagai ikon sampai sprite dari
+Agent Design ada, zombie memutari tembok dan penghalang tetapi boleh menerobos perabot.
 
 ## Yang diminta
 

@@ -146,6 +146,8 @@ def _migrasi(kon: sqlite3.Connection) -> None:
         kon.execute("ALTER TABLE karakter ADD COLUMN tata TEXT NOT NULL DEFAULT '{}'")
     if "stamina" not in kolom:                              # 0.7.0 — stamina = lapar, disimpan di server (NULL = kenyang)
         kon.execute("ALTER TABLE karakter ADD COLUMN stamina REAL")
+    if "level_puncak" not in kolom:                         # 0.19.0 — level bisa turun (pingsan): hadiah naik level hanya sekali per level
+        kon.execute("ALTER TABLE karakter ADD COLUMN level_puncak INTEGER NOT NULL DEFAULT 0")
     if "remote" not in {r["name"] for r in kon.execute("PRAGMA table_info(pemakai)")}:      # 0.3.0 — izin remote SSH/telnet
         kon.execute("ALTER TABLE pemakai ADD COLUMN remote INTEGER NOT NULL DEFAULT 0")
     if "totp" not in {r["name"] for r in kon.execute("PRAGMA table_info(pemakai)")}:        # 0.5.0 — kode sekali pakai

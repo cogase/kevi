@@ -20,7 +20,7 @@ const Profil = {
     const kelompok = [
       ['Permainan', [['Level', lv.level], ['Total XP', rb(lv.xp)], ['Koin', rb(d.koin)], ['Lama bermain', this.lama(s.menit)], ['Slot inventory', d.slot]]],
       ['Kerja', [['Perintah terminal', rb(s.terminal)], ['Tanam', rb(s.tanam)], ['Panen', rb(s.panen)], ['Hasil ternak', rb(s.produk)], ['Nilai jualan', rb(s.jual) + ' koin']]],
-      ['Santai', [['Masak', rb(s.masak)], ['Makan', rb(s.makan)], ['Arcade', rb(s.arcade)], ['Kopi', rb(s.kopi)]]],
+      ['Santai', [['Masak', rb(s.masak)], ['Makan', rb(s.makan)], ['Arcade', rb(s.arcade)], ['Kopi', rb(s.kopi)], ['Zombie dikalahkan', rb(s.zombie)]]],
       ['Rumah', [['Perabot terpasang', rb(d.rumah.benda)], ['Ubin lantai & tembok', rb(d.rumah.ubin)], ['Petak kebun', rb(d.rumah.petak)], ['Hewan', rb(d.rumah.hewan)]]],
     ];
     Panel.buka('Profil ' + d.nama, el('div', { kelas: 'profil' },

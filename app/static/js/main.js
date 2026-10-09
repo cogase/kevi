@@ -23,6 +23,7 @@ function pasangTombol() {
     }
     if (ev.repeat) return;
     if (k === 'e') { if (G.terdekat) G.terdekat.aksi(ev); }
+    else if (k === ' ') { ev.preventDefault(); Battle.pukul(); }
     else if (k === 'enter') { ev.preventDefault(); $('#obrolan-isi').focus(); }
     else if (k === 'i') Inventori.buka();
     else if (k === 'n') Catatan.buka();

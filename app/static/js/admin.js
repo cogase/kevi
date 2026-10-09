@@ -101,6 +101,13 @@ const KETERANGAN = {
   kirim_koin_maks: ['Batas kirim koin per hari', 'Total koin yang boleh dikirim seorang pemain.'],
   pesan_jeda: ['Jeda pesan sistem (menit)', 'Selang antar pesan sistem berulang.'],
 };
+const KET_ZOMBIE = {
+  zombie_menit: ['Jarak antargelombang (menit)', 'Bila "Jarak acak" dicentang: acak antara separuh dan dua kali angka ini.'],
+  zombie_jumlah: ['Zombie per gelombang', '0 = otomatis: 2 + jumlah pemain di kantor (paling banyak 12).'],
+  zombie_hp: ['HP zombie (%)', '100 = bawaan: biasa 6, gesit 4, besar 20.'],
+  zombie_hadiah: ['Hadiah (%)', 'Pengali EXP dan koin jatuh. 0 = tanpa hadiah.'],
+  zombie_denda_xp: ['EXP hilang saat pingsan', 'Dipotong dari total EXP; level bisa turun. 0 = tanpa denda.'],
+};
 async function muatAtur() {
   A = await coba(() => ambil('/api/admin/pengaturan'));
   if (!A) return;
@@ -109,6 +116,10 @@ async function muatAtur() {
   $('#atur-angka').replaceChildren(...Object.keys(KETERANGAN).map(k => el('label', {}, KETERANGAN[k][0],
     el('input', { type: 'number', id: 'at-' + k, value: a[k], min: A.batas[k][0], max: A.batas[k][1], step: k === 'laju' ? 'any' : 1 }), el('small', { teks: KETERANGAN[k][1] }))),
     el('label', { kelas: 'centang-baris' }, el('input', { type: 'checkbox', id: 'at-terminal', checked: !!a.terminal }), 'Terminal dalam game menyala'));
+  $('#atur-zombie').replaceChildren(
+    el('label', { kelas: 'centang-baris' }, el('input', { type: 'checkbox', id: 'at-zombie_aktif', checked: !!a.zombie_aktif }), 'Serangan zombie menyala'),
+    el('label', { kelas: 'centang-baris' }, el('input', { type: 'checkbox', id: 'at-zombie_acak', checked: !!a.zombie_acak }), 'Jarak acak'),
+    ...Object.keys(KET_ZOMBIE).map(k => el('label', {}, KET_ZOMBIE[k][0], el('input', { type: 'number', id: 'at-' + k, value: a[k], min: A.batas[k][0], max: A.batas[k][1], step: 1 }), el('small', { teks: KET_ZOMBIE[k][1] }))));
   $('#bookmark').value = a.bookmark.map(b => b.nama + ' | ' + b.url).join('\n');
   $('#pesan-sistem').value = a.pesan_sistem.join('\n');
   $('#remote-aktif').checked = !!a.remote_aktif;
@@ -119,7 +130,8 @@ async function muatAtur() {
 $('#f-atur').addEventListener('submit', async (ev) => {
   ev.preventDefault();
   const badan = { terminal: $('#at-terminal').checked, bookmark: $('#bookmark').value.split('\n').map(b => b.trim()).filter(Boolean).map(b => { const i = b.lastIndexOf('|'); return i < 0 ? { nama: '', url: b } : { nama: b.slice(0, i).trim(), url: b.slice(i + 1).trim() }; }) };
-  for (const k of Object.keys(KETERANGAN)) badan[k] = Number($('#at-' + k).value);
+  for (const k of [...Object.keys(KETERANGAN), ...Object.keys(KET_ZOMBIE)]) badan[k] = Number($('#at-' + k).value);
+  badan.zombie_aktif = $('#at-zombie_aktif').checked; badan.zombie_acak = $('#at-zombie_acak').checked;
   badan.pesan_sistem = $('#pesan-sistem').value.split('\n').map(b => b.trim()).filter(Boolean);
   badan.remote_aktif = $('#remote-aktif').checked;
   badan.remote_port = $('#remote-port').value.split(/[,\s]+/).filter(Boolean).map(Number);
@@ -127,16 +139,40 @@ $('#f-atur').addEventListener('submit', async (ev) => {
   if (await coba(() => ambil('/api/admin/pengaturan', badan), 'Pengaturan disimpan dan langsung berlaku.')) muatAtur();
 });
 
+$('#zombie-panggil').addEventListener('click', () => coba(() => ambil('/api/admin/zombie/panggil', {}), 'Gelombang zombie dipanggil ke kantor.'));
+
 /* ---------- peta: NPC + titik interaksi ---------- */
 
 const Peta = {
   npc: [], titik: [], pilih: null, latar: null, depan: null,
-  NAMA_PERAN: { obrol: 'Mengobrol saja', toko: 'Membuka Koperasi', misi: 'Membuka misi harian', kuis: 'Kuis jaringan', kopi: 'Menjual kopi (stamina)', pulang: 'Mengantar pulang' },
+  NAMA_PERAN: { obrol: 'Mengobrol saja', toko: 'Membuka Koperasi', misi: 'Membuka misi harian', kuis: 'Kuis jaringan', kopi: 'Menjual kopi (stamina)', pulang: 'Mengantar pulang', pakaian: 'Toko pakaian', battle: 'Menjual item battle (senjata)' },
   NAMA_TITIK: { arcade: 'Arcade (Cocokkan Kartu)', kuis: 'Kuis jaringan', toko: 'Koperasi', terminal: 'Terminal', misi: 'Misi harian' },
 
   muat(a) { this.npc = JSON.parse(JSON.stringify(a.npc)); this.titik = JSON.parse(JSON.stringify(a.titik)); this.pilih = null; this.lukisDaftar(); this.sunting(); this.gambar(); },
   butir() { return [...this.npc.map(n => ({ jenis: 'npc', d: n })), ...this.titik.map(t => ({ jenis: 'titik', d: t }))]; },
   terpilih() { return this.butir().find(b => b.jenis + ':' + b.d.id === this.pilih) || null; },
+
+  // Lantai dan tembok yang benar-benar tampil: ubin lepas ditambah lantai, dinding keliling, dan celah pintu tiap ruang
+  // (hitungan yang sama dengan Rumah.ubinEfektif di dalam game; halaman ini tidak memuat rumah.js).
+  ubinEfektif(d) {
+    const lantai = {}, tembok = {};
+    for (const r of d.ruang || []) {
+      const pintu = new Set();
+      for (const q of r.pintu || []) {
+        const datar = q.sisi === 'atas' || q.sisi === 'bawah', panjang = datar ? r.w : r.h;
+        for (let i = 0; i < (panjang >= 5 ? 2 : 1); i++) {
+          const pos = Math.max(1, Math.min(panjang - 2, q.pos + i));
+          pintu.add(datar ? (r.gx + pos) + ',' + (q.sisi === 'atas' ? r.gy : r.gy + r.h - 1) : (q.sisi === 'kiri' ? r.gx : r.gx + r.w - 1) + ',' + (r.gy + pos));
+        }
+      }
+      for (let gy = r.gy; gy < r.gy + r.h; gy++) for (let gx = r.gx; gx < r.gx + r.w; gx++) {
+        const kunci = gx + ',' + gy, tepi = gx === r.gx || gy === r.gy || gx === r.gx + r.w - 1 || gy === r.gy + r.h - 1;
+        if (r.lantai) lantai[kunci] = r.lantai;
+        if (tepi && !pintu.has(kunci)) tembok[kunci] = r.warna; else delete tembok[kunci];
+      }
+    }
+    return { lantai: Object.assign(lantai, d.lantai), tembok: Object.assign(tembok, d.tembok) };
+  },
 
   gambar() {
     const kv = $('#peta'), k = kv.getContext('2d');
@@ -146,8 +182,9 @@ const Peta = {
     k.imageSmoothingEnabled = false;
     if (pt.dasar === 'default') k.drawImage(this.latar, 0, 0);
     else for (let y = 0; y < pt.tinggi; y++) for (let x = 0; x < pt.lebar; x++) lukisS(pt.lantai_dasar, x * 16, y * 16);
-    for (const [kunci, n] of Object.entries(pt.lantai)) { const [x, y] = kunci.split(',').map(Number); lukisS(n, x * 16, y * 16); }
-    for (const [kunci, w] of Object.entries(pt.tembok)) { const [x, y] = kunci.split(',').map(Number); k.fillStyle = w; k.fillRect(x * 16, y * 16, 16, 16); }
+    const ef = this.ubinEfektif(pt);
+    for (const [kunci, n] of Object.entries(ef.lantai)) { const [x, y] = kunci.split(',').map(Number); lukisS(n, x * 16, y * 16); }
+    for (const [kunci, w] of Object.entries(ef.tembok)) { const [x, y] = kunci.split(',').map(Number); k.fillStyle = w; k.fillRect(x * 16, y * 16, 16, 16); }
     for (const o of pt.benda.slice().sort((a, b) => a.y - b.y)) lukisS(o.r && atlas[o.n + '__r' + o.r] ? o.n + '__r' + o.r : o.n, o.x, o.y);
     for (const n of this.npc) {
       const b = bingkaiTokoh(penampilan({ session_id: 'kevi-npc-' + n.id, nama: n.nama, tampilan: n.tampilan || {} }), (n.arah || 'bawah') + '_diam');

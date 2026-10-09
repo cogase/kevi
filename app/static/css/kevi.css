@@ -112,6 +112,14 @@ body:not(.siap) #hud, body:not(.siap) #obrolan { visibility: hidden; }
 #versi-baru { position: fixed; top: 0; left: 0; right: 0; z-index: calc(var(--z-kabar) + 10); display: flex; align-items: center; justify-content: center; gap: 6px 12px; flex-wrap: wrap; padding: 8px 12px;
   background: linear-gradient(180deg, #fde68a, #f59e0b); color: #1c1203; font-size: 14px; border-bottom: 3px solid #78350f; box-shadow: 0 6px 18px rgba(0,0,0,.55); animation: versi-denyut 1.6s ease-in-out infinite; }
 #versi-baru b { font-size: 15px; }
+/* Battle: kedip merah saat digigit, tirai gelap saat pingsan. */
+body.digigit::after { content: ""; position: fixed; inset: 0; z-index: var(--z-kabar); pointer-events: none; box-shadow: inset 0 0 90px 30px rgba(220,38,38,.55); animation: digigit .32s ease-out forwards; }
+@keyframes digigit { to { opacity: 0; } }
+#pingsan { position: fixed; inset: 0; z-index: calc(var(--z-kabar) + 5); pointer-events: none; background: #05070d; animation: pingsan 1.9s ease-in-out forwards; }
+@keyframes pingsan { 0% { opacity: 0; } 25%, 65% { opacity: 1; } 100% { opacity: 0; } }
+.menu-suara { display: flex; align-items: center; gap: 10px; padding: 2px 4px; }
+.menu-suara input[type=range] { flex: 1; min-width: 0; }
+@media (prefers-reduced-motion: reduce) { body.digigit::after { animation-duration: .01s; } }
 body.ada-versi-baru #hud { top: calc(var(--versi-tinggi, 44px) + 10px); }
 body.ada-versi-baru #petunjuk, body.ada-versi-baru #kabar { margin-top: var(--versi-tinggi, 44px); }
 @keyframes versi-denyut { 50% { background: linear-gradient(180deg, #fff3c4, #fbbf24); } }
@@ -200,6 +208,7 @@ textarea { resize: vertical; font-family: var(--mono); font-size: 13px; }
 .punya { position: absolute; top: 3px; right: 6px; font: 700 11px var(--mono); color: #93c5fd; }
 .ikon { position: relative; display: inline-block; flex: none; overflow: visible; }
 .ikon > span { position: absolute; left: 50%; top: 50%; display: block; image-rendering: pixelated; }
+.ikon-senjata { display: inline-grid; place-items: center; line-height: 1; }
 .ikon-tembok { background: linear-gradient(#4a5568 0 55%, #8b9bb4 55% 100%); border: 2px solid #0b1220; }
 .tab { display: flex; align-items: center; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
 .tab button, .tab-admin button { padding: 6px 13px; font-weight: 700; }

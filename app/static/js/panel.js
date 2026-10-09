@@ -97,6 +97,9 @@ const Panel = {
         el('button', { kelas: 'tombol', id: 'menu-profil', teks: 'Profil saya (statistik, ubah karakter)', on: { click: () => Profil.buka() } }),
         el('button', { kelas: 'tombol', teks: 'Riwayat koin', on: { click: () => Panel.kas() } }),
         el('button', { kelas: 'tombol', id: 'menu-umpan', teks: 'Kirim saran / lapor bug', on: { click: () => Umpan.buka() } }),
+        el('div', { kelas: 'baris menu-suara' },
+          el('label', { kelas: 'centang-baris' }, el('input', { type: 'checkbox', id: 'menu-suara', checked: Suara.atur.hidup, on: { change: (ev) => Suara.hidupkan(ev.target.checked) } }), 'Musik & suara'),
+          el('input', { type: 'range', id: 'menu-volume', min: 0, max: 100, value: Math.round(Suara.atur.volume * 100), 'aria-label': 'Volume', on: { input: (ev) => Suara.setVolume(ev.target.value / 100) } })),
         el('button', { kelas: 'tombol', teks: 'Ganti password', on: { click: () => Panel.sandi() } }),
         el('button', { kelas: 'tombol', teks: 'Kode sekali pakai (TOTP): ' + (G.totp ? 'terpasang' : 'belum'), on: { click: () => Panel.totp() } }),
         G.adegan === 'kantor' ? el('button', { kelas: 'tombol', teks: 'Pulang ke rumah', on: { click: () => { Panel.tutup(); Mesin.pindah('rumah:' + G.saya.id); } } })
@@ -193,7 +196,9 @@ const Hud = {
     $('#hud-stamina-angka').textContent = Math.round(s.nilai) + '/' + s.maks;
   },
   health() {
-    const st = G.health, maks = G.level.stamina, nilai = Math.max(0, Math.round(st.nilai)), tanda = nilai + '/' + maks;
+    const st = G.health, maks = G.level.stamina;
+    if (Battle.hp != null && st.nilai > Battle.hp) st.nilai = Math.max(0, Battle.hp);      // luka gigitan (dihitung server) membatasi Health
+    const nilai = Math.max(0, Math.round(st.nilai)), tanda = nilai + '/' + maks;
     if (tanda === this.staminaTerakhir && st.lelah === this.lelahTerakhir) return;
     this.staminaTerakhir = tanda; this.lelahTerakhir = st.lelah;
     const b = $('#hud-health');

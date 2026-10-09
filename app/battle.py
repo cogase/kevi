@@ -35,15 +35,7 @@ JENIS = {
     "gesit": (4, 46.0, 6, 6, 4, 8),
     "besar": (20, 18.0, 15, 20, 15, 25),
 }
-# senjata: (nama, damage, jeda antarpukulan dtk, jangkauan px, harga, level). Tangan kosong selalu ada.
-SENJATA = {
-    "": ("Tangan kosong", 1, 0.5, 18, 0, 1),
-    "sapu": ("Sapu", 2, 0.5, 26, 150, 1),
-    "kunci_inggris": ("Kunci inggris", 3, 0.6, 20, 400, 3),
-    "tongkat_bisbol": ("Tongkat bisbol", 5, 0.7, 26, 900, 5),
-    "kabel_lan": ("Kabel LAN", 4, 0.4, 34, 1400, 7),
-    "pemadam_api": ("Pemadam api", 8, 1.0, 24, 2500, 10),
-}
+SENJATA = permainan.SENJATA
 
 
 class Battle:
@@ -63,6 +55,7 @@ class Battle:
         self.gelombang = 0                        # nomor gelombang sejak server mulai
         self.paksa = False
         self._grid: tuple | None = None
+        self._medan_cache: dict = {}
         self.acak = random.Random()
 
     # ------------------------------------------------------------ bantu
@@ -114,6 +107,21 @@ class Battle:
         gx, gy = self._ubin(x, y)
         return 0 <= gx < w and 0 <= gy < h and (gx, gy) not in padat
 
+    def _medan(self, tuju: tuple[int, int]) -> dict:
+        """Jarak langkah (4 arah) dari tiap ubin bebas ke ubin `tuju`. Dihitung sekali per langkah per ubin sasaran dan
+        dipakai semua zombie yang mengincar pemain itu, supaya zombie memutari tembok alih-alih tersangkut."""
+        if tuju in self._medan_cache:
+            return self._medan_cache[tuju]
+        w, h, padat = self.grid()
+        jarak, antre = {tuju: 0}, [tuju]
+        for gx, gy in antre:
+            for nx, ny in ((gx + 1, gy), (gx - 1, gy), (gx, gy + 1), (gx, gy - 1)):
+                if 0 <= nx < w and 0 <= ny < h and (nx, ny) not in padat and (nx, ny) not in jarak:
+                    jarak[(nx, ny)] = jarak[(gx, gy)] + 1
+                    antre.append((nx, ny))
+        self._medan_cache[tuju] = jarak
+        return jarak
+
     def potret(self) -> dict:
         return {"t": "zombie", "z": [[z["id"], z["jenis"], round(z["x"]), round(z["y"]), z["hp"], z["maks"]] for z in self.zombie.values()],
                 "k": [[k["id"], round(k["x"]), round(k["y"]), k["n"]] for k in self.koin.values()]}
@@ -163,8 +171,9 @@ class Battle:
         kini = time.time() if kini is None else kini
         a = self._atur()
         pemain = self._di_kantor()
+        self._medan_cache.clear()
         await self._pulih(kini, dt)
-        if not pemain or not (a["zombie_aktif"] or self.paksa or self.zombie):
+        if not pemain or not (a["zombie_aktif"] or self.paksa or self.zombie or self.koin):      # koin yang jatuh tetap menunggu dipungut
             if self.zombie or self.koin:
                 await self.bersihkan()
             self.berikut = None
@@ -202,6 +211,18 @@ class Battle:
                 await self._gigit(p, JENIS[z["jenis"]][2], kini)
             return
         langkah = min(jarak, JENIS[z["jenis"]][1] * dt)
+        # Jauh dari sasaran: ikuti medan jarak, ubin demi ubin. Sudah dekat (atau tak ada jalan): langsung mendekat.
+        gz, gp = self._ubin(z["x"], z["y"]), self._ubin(p["x"] or 0, p["y"] or 0)
+        if gz != gp and jarak > 24:
+            medan = self._medan(gp)
+            tetangga = [n for n in ((gz[0] + 1, gz[1]), (gz[0] - 1, gz[1]), (gz[0], gz[1] + 1), (gz[0], gz[1] - 1)) if n in medan]
+            if tetangga and (gz not in medan or min(medan[n] for n in tetangga) < medan[gz]):
+                tuju = min(tetangga, key=lambda n: medan[n])
+                tx, ty = tuju[0] * T, tuju[1] * T - 8
+                jx, jy = tx - z["x"], ty - z["y"]
+                j = math.hypot(jx, jy) or 1.0
+                z["x"], z["y"] = z["x"] + jx / j * min(j, langkah), z["y"] + jy / j * min(j, langkah)
+                return
         vx, vy = dx / jarak * langkah, dy / jarak * langkah
         for nx, ny in ((z["x"] + vx, z["y"] + vy), (z["x"] + math.copysign(langkah, dx), z["y"]), (z["x"], z["y"] + math.copysign(langkah, dy))):
             if self._bebas(nx, ny):

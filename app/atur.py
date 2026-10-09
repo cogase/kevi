@@ -9,7 +9,7 @@ import sqlite3
 
 from . import basis, konfig
 
-PERAN_NPC = ("obrol", "toko", "misi", "kuis", "kopi", "pulang", "pakaian")
+PERAN_NPC = ("obrol", "toko", "misi", "kuis", "kopi", "pulang", "pakaian", "battle")
 JENIS_TITIK = ("arcade", "kuis", "toko", "terminal", "misi")
 ARAH = ("bawah", "atas", "kiri", "kanan")
 POLA_ID = re.compile(r"^[a-z0-9_]{1,24}$")
@@ -63,9 +63,18 @@ BAWAAN = {
     "remote_aktif": True,             # remote SSH/telnet dari Komputer
     "remote_jaringan": ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"],
     "remote_port": [22, 23],
+    # Battle (docs/KONSEP-battle.md). Sakelar utama bawaannya mati sampai admin menyalakannya.
+    "zombie_aktif": False,
+    "zombie_acak": False,             # False = tiap `zombie_menit`; True = acak antara separuh dan dua kalinya
+    "zombie_menit": 15,
+    "zombie_jumlah": 0,               # 0 = otomatis: 2 + jumlah pemain di kantor
+    "zombie_hp": 100,                 # persen pengali HP zombie
+    "zombie_hadiah": 100,             # persen pengali EXP dan koin jatuh
+    "zombie_denda_xp": 150,           # EXP yang hilang tiap pingsan (level bisa turun)
 }
 ANGKA = {"laju": (1, 3600), "koin_awal": (0, 100000), "laju_jalan": (40, 200), "arcade_per_hari": (0, 50),
-         "kuis_per_hari": (0, 50), "kirim_koin_maks": (0, 100000), "pesan_jeda": (1, 1440)}
+         "kuis_per_hari": (0, 50), "kirim_koin_maks": (0, 100000), "pesan_jeda": (1, 1440),
+         "zombie_menit": (1, 240), "zombie_jumlah": (0, 12), "zombie_hp": (50, 400), "zombie_hadiah": (0, 300), "zombie_denda_xp": (0, 5000)}
 
 
 class AturDitolak(ValueError):
@@ -139,7 +148,7 @@ def saring(kunci: str, nilai):
         if not bawah <= nilai <= atas:
             raise AturDitolak(f"{kunci} harus antara {bawah} dan {atas}.")
         return float(nilai) if kunci == "laju" else int(nilai)
-    if kunci in ("terminal", "remote_aktif"):
+    if kunci in ("terminal", "remote_aktif", "zombie_aktif", "zombie_acak"):
         return bool(nilai)
     if kunci == "pesan_sistem":
         if not isinstance(nilai, list) or len(nilai) > 20:
@@ -204,6 +213,27 @@ def terapkan(d: dict) -> None:
     konfig.TERMINAL_AKTIF = bool(d["terminal"])
 
 
+NPC_BATTLE = {"id": "jago", "nama": "Bang Jago", "jabatan": "Keamanan", "x": 350, "y": 684, "arah": "bawah", "peran": "battle",
+              "tampilan": {"kulit": "#b77a4e", "rambut_warna": "#15151c", "baju": "#39404f", "celana": "#26324a", "sepatu": "#282a36",
+                           "gaya_rambut": "rambut_cepak", "kepala": "helm_proyek", "mata": "kacamata_hitam", "telinga": True},
+              "ucap": ["Zombie suka datang tiba-tiba. Jangan cuma mengandalkan tangan kosong.",
+                       "Dekati zombienya, pegang senjata di hotbar, lalu tekan Spasi.",
+                       "Kalau Health habis kamu pingsan, bangun di rumah, dan EXP-mu berkurang. Hati-hati."]}
+
+
+def pastikan_penjual_battle(kon: sqlite3.Connection) -> bool:
+    """Sekali saja (0.19.0): Bang Jago, penjual item battle, ditambahkan ke peta aktif bila belum ada NPC berperan battle.
+    Tanda `penjual_battle_dipasang` mencegahnya muncul lagi kalau admin sengaja menghapusnya. True = baru ditambahkan."""
+    if kon.execute("SELECT 1 FROM pengaturan WHERE kunci = 'penjual_battle_dipasang'").fetchone():
+        return False
+    kon.execute("INSERT INTO pengaturan (kunci, nilai) VALUES ('penjual_battle_dipasang', '1')")
+    npc = baca(kon)["npc"]
+    if any(n.get("peran") == "battle" for n in npc) or any(n.get("id") == NPC_BATTLE["id"] for n in npc):
+        return False
+    simpan(kon, {"npc": list(npc) + [NPC_BATTLE]})
+    return True
+
+
 def pastikan_penjual_pakaian(kon: sqlite3.Connection) -> bool:
     """Sekali saja (0.11.0): bila daftar NPC sudah disunting admin dan belum ada penjual pakaian, Kak Mira ditambahkan.
     Tanda `penjual_pakaian_dipasang` mencegahnya muncul lagi kalau admin sengaja menghapusnya. True = baru ditambahkan."""
@@ -225,4 +255,5 @@ def lupa() -> None:
 
 def publik(d: dict) -> dict:
     """Bagian pengaturan yang dibutuhkan peramban pemain."""
-    return {"laju_jalan": d["laju_jalan"], "bookmark": d["bookmark"], "pengumuman": d["pengumuman"], "remote_port": d["remote_port"]}
+    return {"laju_jalan": d["laju_jalan"], "bookmark": d["bookmark"], "pengumuman": d["pengumuman"], "remote_port": d["remote_port"],
+            "zombie_aktif": d["zombie_aktif"], "zombie_denda_xp": d["zombie_denda_xp"]}
