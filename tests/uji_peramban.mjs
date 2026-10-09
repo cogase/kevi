@@ -876,17 +876,47 @@ const zombie0 = await pg.evaluate(() => { const z = [...Battle.z.values()][0]; r
 cek('battle: gelombang yang dipanggil admin memunculkan zombie dan musik berganti tegang', battle0.zombie === 0 && battle0.suasana === 'tenang' && battle0.jago && zombie0.maks === 3 && zombie0.suasana === 'tegang' && zombie0.lagu === 'tegang' && zombie0.kelas && zombie0.rupa, JSON.stringify([battle0, zombie0]));
 const rupaZombie = await pg.evaluate(() => {
   const kv = document.createElement('canvas'); kv.width = 96; kv.height = 48;
-  const k = kv.getContext('2d'), hijau = (x, y) => { const p = k.getImageData(x, y, 1, 1).data; return p[3] > 200 && p[1] > p[0] && p[1] > p[2]; };
-  const buat = (arah, x) => ({ id: 0, jenis: 'biasa', x, y: 16, tx: x, ty: 16, hp: 6, maks: 6, arah, jalan: false, langkah: 0, kena: 0, look: Battle.look('biasa'), pose: '' });
-  const lebar = (x0) => { const d = k.getImageData(x0 - 4, 14, 24, 24).data; let kiri = 99, kanan = -1; for (let y = 0; y < 24; y++) for (let x = 0; x < 24; x++) if (d[(y * 24 + x) * 4 + 3] > 120) { kiri = Math.min(kiri, x); kanan = Math.max(kanan, x); } return kanan - kiri + 1; };
+  const k = kv.getContext('2d'), buat = (id, jenis, arah, x) => ({ id, jenis, x, y: 18, tx: x, ty: 18, hp: 6, maks: 6, arah, jalan: false, langkah: 0, kena: 0, look: Battle.look(jenis), pose: '' });
+  // kolom paling kanan yang berisi piksel pada rentang baris tertentu, relatif pojok kiri tokoh
+  const tepiKanan = (x0, y0, y1) => { const d = k.getImageData(x0 - 4, y0, 30, y1 - y0).data; let kanan = -99; for (let y = 0; y < y1 - y0; y++) for (let x = 0; x < 30; x++) if (d[(y * 30 + x) * 4 + 3] > 120) kanan = Math.max(kanan, x - 4); return kanan; };
+  const isi = (x0) => { const d = k.getImageData(x0 - 4, 10, 30, 34).data; let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i] > 120) n++; return n; };
   k.imageSmoothingEnabled = false;
-  Battle.lukisZombie(k, buat('kanan', 8), performance.now()); Battle.lukisZombie(k, buat('bawah', 40), performance.now());
-  const zLebar = lebar(40);
-  lukisEntitas(k, Object.assign(buat('bawah', 70), { look: G.aku.look }));
-  return { tanganKanan: hijau(22, 26) || hijau(21, 26) || hijau(22, 25), tanganDepan: hijau(45, 28) || hijau(45, 27) || hijau(46, 28), zLebar, tokohLebar: lebar(70), petunjuk: ($('#battle-petunjuk') || {}).textContent || '' };
+  const z = buat(0, 'biasa', 'kanan', 8);
+  Battle.lukisZombie(k, z, performance.now());
+  const lengan = tepiKanan(8, 18 + 5, 18 + 13), kaki = tepiKanan(8, 18 + 15, 18 + 21), v = Battle.varian(z), besar = Battle.varian(buat(1, 'besar', 'bawah', 0)), gesit = Battle.varian(buat(1, 'gesit', 'bawah', 0));
+  Battle.lukisZombie(k, buat(5, 'besar', 'bawah', 60), performance.now());
+  const varianBiasa = new Set([0, 1, 2, 3, 4, 5].map(id => (Battle.varian(buat(id, 'biasa', 'bawah', 0)) || {}).nama));
+  return { lengan, kaki, nama: v && v.nama, bingkai: v && v.bingkai, jatuh: v && v.jatuh, besar: besar && besar.nama, gesit: gesit && gesit.nama, isiBesar: isi(60), varianBiasa: [...varianBiasa].sort().join(),
+    senjata: ['sapu', 'kunci_inggris', 'tongkat_bisbol', 'kabel_lan', 'pemadam_api'].every(s => atlas['senjata_' + s] && atlas['senjata_' + s + '_pegang']), petunjuk: ($('#battle-petunjuk') || {}).textContent || '' };
 });
-cek('zombie kurus dengan kedua tangan lurus ke depan searah hadapnya; petunjuk cara memukul tampil selama serangan', rupaZombie.tanganKanan && rupaZombie.tanganDepan && rupaZombie.zLebar < rupaZombie.tokohLebar
+cek('zombie memakai sprite khususnya: tiga rupa zombie biasa bergiliran, gesit dan besar punya sprite sendiri, empat bingkai jalan per arah, tiga bingkai jatuh', rupaZombie.varianBiasa === 'biasa_a,biasa_b,biasa_c' && rupaZombie.besar === 'besar'
+  && rupaZombie.gesit === 'gesit' && ['bawah', 'atas', 'kiri', 'kanan'].every(a => rupaZombie.bingkai[a] === 4) && rupaZombie.jatuh === 3 && rupaZombie.isiBesar > 150 && rupaZombie.senjata, JSON.stringify(rupaZombie));
+cek('zombie bertangan lurus ke depan (lengan menjulur melewati kaki saat menghadap samping); petunjuk cara memukul tampil selama serangan', rupaZombie.lengan >= rupaZombie.kaki + 2
   && rupaZombie.petunjuk.includes('Spasi atau klik') && rupaZombie.petunjuk.includes('Tangan kosong bisa'), JSON.stringify(rupaZombie));
+// jalur sprite Kevi: begitu sprite zombie terpasang di atlas, zombie memakainya (bergiliran antarvarian); tanpa itu tokoh hijau
+const spriteUji = await pg.evaluate(() => {
+  const buatGambar = (warna, w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d'); x.fillStyle = warna; x.fillRect(0, 0, w, h); return c; };
+  const pasang = [];
+  const asli = {};
+  for (const [v, warna] of [['biasa_a', '#ff00ff'], ['biasa_b', '#00ffff']]) {
+    for (const arah of ['bawah', 'atas', 'kiri', 'kanan']) for (let n = 0; n < 4; n++) { const nama = `zombie_${v}_${arah}_${n}`; asli[nama] = atlas[nama]; if (n >= 2) { delete atlas[nama]; continue; } atlas[nama] = { x: 0, y: 0, w: 16, h: 20, g: buatGambar(warna, 16, 20) }; pasang.push(nama); }
+    for (let n = 0; n < 3; n++) { const nama = `zombie_${v}_jatuh_${n}`; asli[nama] = atlas[nama]; delete atlas[nama]; }
+    atlas[`zombie_${v}_jatuh_0`] = { x: 0, y: 0, w: 20, h: 12, g: buatGambar('#ffff00', 20, 12) };
+  }
+  const kv = document.createElement('canvas'); kv.width = 64; kv.height = 48;
+  const k = kv.getContext('2d'), titik = (x, y) => [...k.getImageData(x, y, 1, 1).data].slice(0, 3).join();
+  const z = (id, jenis) => ({ id, jenis, x: 8, y: 16, tx: 8, ty: 16, hp: 6, maks: 6, arah: 'bawah', jalan: false, langkah: 0, kena: 0, look: Battle.look(jenis), pose: '' });
+  for (const arah of ['bawah', 'atas', 'kiri', 'kanan']) for (let n = 0; n < 4; n++) { const nama = `zombie_biasa_c_${arah}_${n}`; asli[nama] = atlas[nama]; delete atlas[nama]; asli[`zombie_besar_${arah}_${n}`] = atlas[`zombie_besar_${arah}_${n}`]; delete atlas[`zombie_besar_${arah}_${n}`]; }
+  const a = z(2, 'biasa'), b = z(3, 'biasa'), besar = z(4, 'besar');
+  Battle.lukisZombie(k, a, performance.now()); const warnaA = titik(16, 26);
+  k.clearRect(0, 0, 64, 48); Battle.lukisZombie(k, b, performance.now()); const warnaB = titik(16, 26);
+  k.clearRect(0, 0, 64, 48); Battle.lukisBangkai(k, { x: 8, y: 16, jenis: 'biasa', lahir: performance.now(), varian: Battle.varian(a) }, performance.now()); const jatuh = titik(16, 30);
+  const hasil = { a: Battle.varian(a).nama, b: Battle.varian(b).nama, bingkai: Battle.varian(a).bingkai.kiri, besar: Battle.varian(besar), warnaA, warnaB, jatuh };
+  for (const [n, v] of Object.entries(asli)) { if (v) atlas[n] = v; else delete atlas[n]; }
+  return hasil;
+});
+cek('sprite zombie: yang terpasang di atlas dipakai bergiliran antarvarian, lengkap dengan bingkai jatuh; jenis tanpa sprite tetap memakai tokoh sementara', spriteUji.a === 'biasa_a' && spriteUji.b === 'biasa_b'
+  && spriteUji.bingkai === 2 && spriteUji.besar === null && spriteUji.warnaA === '255,0,255' && spriteUji.warnaB === '0,255,255' && spriteUji.jatuh === '255,255,0', JSON.stringify(spriteUji));
 let pukulan = 0, kenaTerlihat = false;
 for (let i = 0; i < 60 && await pg.evaluate(() => Battle.z.size > 0); i++) {          // datangi zombienya, lalu Spasi
   await pg.evaluate(() => { const z = [...Battle.z.values()][0]; if (!z) return; G.aku.x = z.tx + 12; G.aku.y = z.ty; Jaring.kirim({ t: 'pos', x: G.aku.x, y: G.aku.y, arah: 'kiri', jalan: false, pose: '' }); });
@@ -916,6 +946,34 @@ const senjataUji = await pg.evaluate(async () => {
 });
 cek('battle: senjata dibeli di Bang Jago (satu saja), yang berlevel tinggi bergembok, dipegang dari hotbar', senjataUji.punya === 1 && senjataUji.bayar === 150 && senjataUji.kartuSesudah && senjataUji.pemadam.includes('gembok')
   && senjataUji.dipegang === 'sapu' && senjataUji.petunjuk.includes('Spasi') && senjataUji.jual === null, JSON.stringify(senjataUji));
+// barang hotbar terlihat dipegang (juga oleh rekan), senjata terlihat dibawa dan terayun saat memukul
+const pegangUji = await pg.evaluate(async () => {
+  G.tata.hotbar[9] = 'senjata:sapu'; G.tata.hotbar[8] = 'pakan'; Hotbar.pegang(9);
+  await new Promise(r => setTimeout(r, 500));
+  const kv = document.createElement('canvas'); kv.width = 80; kv.height = 40;
+  const k = kv.getContext('2d'), warna = (x0, w, uji) => { const d = k.getImageData(x0, 0, w, 40).data; let n = 0; for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 200 && uji(d[i], d[i + 1], d[i + 2])) n++; return n; };
+  const kuning = () => true, semu = (arah, x, pegang, ayun) => ({ x, y: 14, arah, jalan: false, langkah: 0, pose: '', look: G.aku.look, pegang, ayun });
+  k.imageSmoothingEnabled = false;
+  lukisEntitas(k, semu('kanan', 4, '', 0)); const tanpa = warna(0, 30, kuning);
+  k.clearRect(0, 0, 80, 40);
+  lukisEntitas(k, semu('kanan', 4, 'senjata:sapu', 0)); const bawa = warna(0, 30, kuning), gambarBawa = kv.toDataURL();
+  k.clearRect(0, 0, 80, 40);
+  lukisEntitas(k, semu('kanan', 4, 'senjata:sapu', performance.now() - 60)); const ayun = warna(0, 30, kuning), gambarAyun = kv.toDataURL();
+  k.clearRect(0, 0, 80, 40);
+  lukisEntitas(k, semu('bawah', 4, '', 0)); const polos = kv.toDataURL();
+  k.clearRect(0, 0, 80, 40);
+  lukisEntitas(k, semu('bawah', 4, 'pakan', 0)); const pakan = kv.toDataURL();
+  k.clearRect(0, 0, 80, 40);
+  lukisEntitas(k, Object.assign(semu('bawah', 4, 'pakan', 0), { pose: 'santai' })); const duduk = kv.toDataURL();
+  k.clearRect(0, 0, 80, 40);
+  lukisEntitas(k, Object.assign(semu('bawah', 4, '', 0), { pose: 'santai' })); const dudukPolos = kv.toDataURL();
+  return { aku: G.aku.pegang, tanpa, bawa, ayun, ayunBeda: gambarAyun !== gambarBawa, pakanTampak: pakan !== polos, dudukSama: duduk === dudukPolos, sprite: Pegang.sprite('benih:sawi') };
+});
+const rekanLihat = await pg2.evaluate(() => { const e = [...G.entitas.values()].find(e => e.nama === 'Penguji Satu'); return e ? e.pegang : 'tidak-seadegan'; });
+cek('barang hotbar terlihat dipegang karakter (dikecilkan), senjata terlihat dibawa dan posisinya berubah saat diayun, tidak digambar saat duduk', pegangUji.aku === 'senjata:sapu' && pegangUji.bawa >= pegangUji.tanpa + 6
+  && pegangUji.ayun >= pegangUji.tanpa + 4 && pegangUji.ayunBeda && pegangUji.pakanTampak && pegangUji.dudukSama && pegangUji.sprite === 'tani_sawi_1', JSON.stringify(pegangUji));
+cek('rekan seadegan ikut melihat barang yang dipegang', rekanLihat === 'senjata:sapu' || rekanLihat === 'tidak-seadegan', String(rekanLihat));
+await pg.evaluate(() => { Hotbar.pegang(9); });
 cek('suara: sakelar dan volume di Menu tersimpan di peramban', await pg.evaluate(() => { Suara.setVolume(0.5); Suara.hidupkan(false); const s = JSON.parse(localStorage.getItem('kevi.suara')); Suara.hidupkan(true); Suara.setVolume(0.3);
   return s.hidup === false && s.volume === 0.5 && Suara.atur.hidup === true && Object.keys(Suara.LAGU).join() === 'desa,kafe,tegang'; }));
 await adm.evaluate(() => ambil('/api/admin/pengaturan', { zombie_jumlah: 0, zombie_hp: 100 }));

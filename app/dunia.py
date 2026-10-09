@@ -20,6 +20,7 @@ from .battle import Battle
 POLA_ADEGAN = re.compile(r"^(kantor|rumah:\d{1,9})$")
 ARAH = {"atas", "bawah", "kiri", "kanan"}
 POLA_POSE = re.compile(r"^[a-z0-9_]{0,32}$")
+POLA_PEGANG = re.compile(r"^[a-z0-9_:]{0,64}$")
 EMOTE = ("seru", "tanya", "hati", "tawa", "nada", "zzz", "ide", "kilau")
 SUIT = ("batu", "gunting", "kertas")
 TARUHAN = (0, 10, 25)
@@ -38,7 +39,7 @@ class Dunia:
 
     # ------------------------------------------------------------ siaran
     def _publik(self, p: dict) -> dict:
-        return {k: p[k] for k in ("id", "nama", "tampilan", "adegan", "x", "y", "arah", "jalan", "pose", "level")}
+        return dict({k: p[k] for k in ("id", "nama", "tampilan", "adegan", "x", "y", "arah", "jalan", "pose", "level")}, pegang=p.get("pegang") or "")
 
     async def _kirim(self, p: dict, pesan: dict) -> None:
         try:
@@ -218,6 +219,12 @@ class Dunia:
                 p["tugas"].cancel()
         elif t == "pukul":
             await self.battle.pukul(p, m)
+        elif t == "pegang":                        # barang hotbar yang sedang dipegang: hanya untuk digambar rekan
+            barang = m.get("barang")
+            barang = barang if isinstance(barang, str) and POLA_PEGANG.match(barang) else ""
+            if barang != (p.get("pegang") or ""):
+                p["pegang"] = barang
+                await self.siar(p["adegan"], {"t": "pegang", "id": p["id"], "barang": barang}, kecuali=p["id"])
 
     async def _pindah_adegan(self, p: dict, m: dict) -> None:
         baru = str(m.get("adegan") or "")

@@ -38,6 +38,7 @@ const Hotbar = {
     }));
     const b = this.dipegang();
     $('#hotbar-nama').textContent = b ? namaBarang(b) + this.petunjuk(b) : '';
+    Pegang.kabarkan();                             // barang habis atau slot berganti: tangan karakter ikut berubah
   },
 
   petunjuk(b) {
@@ -64,6 +65,7 @@ const Hotbar = {
   // Barang yang dipegang menentukan mode: perabot/lantai/tembok di rumah sendiri = siap ditaruh.
   terapkan() {
     const b = this.dipegang(), diRumah = G.adegan !== 'kantor' && G.rumahSaya;
+    Pegang.kabarkan();
     if (b && diRumah && Rumah.bisaDipasang(b)) { if (!G.bangun || G.bangun.barang !== b) { Rumah.masukBangun(b); G.bangun.dariHotbar = true; } }
     else if (G.bangun && G.bangun.dariHotbar) Rumah.keluarBangun();
   },

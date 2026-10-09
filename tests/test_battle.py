@@ -216,3 +216,18 @@ def test_bang_jago_ditambahkan_sekali(kon):
     assert [n["nama"] for n in npc if n["peran"] == "battle"] == ["Bang Jago"]
     atur.simpan(kon, {"npc": [n for n in npc if n["peran"] != "battle"]})      # admin menghapusnya: tidak muncul lagi
     assert atur.pastikan_penjual_battle(kon) is False and not [n for n in atur.baca(kon)["npc"] if n["peran"] == "battle"]
+
+
+def test_barang_yang_dipegang_disiarkan_ke_rekan(kon, pemain):
+    dunia, b, p, terkirim = _dunia(kon, pemain)
+    dunia.pemain[99] = {"id": 99, "nama": "Rekan", "adegan": "kantor", "x": 0.0, "y": 0.0, "level": 1, "pose": ""}
+    p.update(tampilan={}, arah="bawah", jalan=False)
+    jalankan(dunia.terima(p, {"t": "pegang", "barang": "senjata:sapu"}))
+    assert p["pegang"] == "senjata:sapu" and dunia._publik(p)["pegang"] == "senjata:sapu"
+    assert [(uid, m) for uid, m in terkirim if m["t"] == "pegang"] == [(99, {"t": "pegang", "id": pemain, "barang": "senjata:sapu"})]
+    jalankan(dunia.terima(p, {"t": "pegang", "barang": "senjata:sapu"}))                    # tidak berubah: tidak disiarkan lagi
+    assert len(_jenis(terkirim, "pegang")) == 1
+    for buruk in ("<script>", "A" * 80, 12, None):
+        jalankan(dunia.terima(p, {"t": "pegang", "barang": buruk}))
+        assert p["pegang"] == ""
+    assert _jenis(terkirim, "pegang")[-1]["barang"] == ""

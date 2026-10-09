@@ -30,3 +30,18 @@ Sebelum memperbarui, periksa nama yang hilang dengan membandingkan `katalog.json
 
 Mesin kantor Agent Pak (aktor agen, kurir, agenda, cuaca, editor denah, pantau modul), data produksi apa pun,
 dan sambungan ke hub Pak Apps.
+
+## Sprite milik Kevi sendiri (0.21.0)
+
+Zombie (lima varian), senjata (ikon dan yang dipegang), efek kena, dan koin dibuat sesi Agent Design untuk Kevi:
+digambar lewat kode (Python + PIL), tanpa aset pihak ketiga. Skrip pembuatnya ada di folder serah Agent Design, bukan
+di repo ini. Tiap PNG disajikan sendiri dari `app/static/gambar/kevi/` dan didaftarkan di `daftar.json`; peramban
+memasukkannya ke atlas dengan nama berkasnya (`inti.js muatAset`). Memasang ulang dari folder serah:
+
+```bash
+tools/pasang_sprite.py <folder-serah>
+tests/uji.sh
+```
+
+Yang dipakai: zombie dan senjata yang dipegang dari set bergaris tepi 1 px (senada tokoh Agent Pak), ikon senjata dan
+efek dari set mentah. Nama berkas yang dikenali ada di kepala `tools/pasang_sprite.py`.

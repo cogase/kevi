@@ -2,6 +2,25 @@
 
 Melengkapi PRD, GDD, dan TDD untuk rilis sesudah 0.2.0. Angka dan aturan di sini adalah yang berlaku di kode.
 
+## 0.21.0 — 9 Oktober 2026
+
+**Sprite khusus zombie, lima varian (kata yosi; dibuat sesi Agent Design).** Zombie tidak lagi tokoh biasa berkulit
+hijau. Zombie biasa punya tiga rupa yang muncul bergiliran dalam satu gelombang (karyawan berkemeja dan berdasi
+sobek, teknisi berhelm kuning dan rompi jingga, satpam bertopi pet), zombie gesit kurus tanpa baju dan condong ke
+depan, zombie besar tinggi berbahu lebar. Semuanya bertangan lurus ke depan, berjalan empat bingkai per arah, dan
+punya tiga bingkai jatuh (terhuyung, rebah, tergeletak) sebelum memudar. Koin jatuh dan efek kena juga memakai sprite.
+
+**Barang yang dipegang terlihat di tangan karakter (kata yosi).**
+- Barang di slot hotbar yang sedang aktif digambar di tangan karakter, dikecilkan (paling besar 8 px) supaya tidak
+  menutupi tokoh: makanan, benih, hasil panen, perabot. Di belakang badan bila karakter membelakangi layar; tidak
+  digambar selagi duduk. **Pemain lain ikut melihatnya.**
+- **Senjata** yang dipegang terlihat dibawa miring di tangan, dan saat memukul **diayunkan** dari belakang bahu ke
+  depan (200 ms) bersama busur ayunannya. Sprite senjata yang dipegang dan ikon senjata di inventory, hotbar, dan toko
+  Bang Jago kini gambar pixel (sebelumnya glif).
+
+Sprite Kevi disajikan dari `app/static/gambar/kevi/` (satu PNG per bingkai, dipasang `tools/pasang_sprite.py`);
+asal-usulnya di `docs/ASET.md`.
+
 ## 0.20.1 — 9 Oktober 2026
 
 **Battle: rupa zombie dan cara memukul (kata yosi)**

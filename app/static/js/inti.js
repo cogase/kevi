@@ -192,6 +192,13 @@ async function muatAset() {
     j('/static/peta/kantor.json'), j('/static/peta/katalog.json'),
     muatGambar('/static/peta/kantor_latar.png' + V), muatGambar('/static/peta/kantor_depan.png' + V),
   ]);
+  // Sprite milik Kevi sendiri (zombie, senjata; dipasang tools/pasang_sprite.py): tiap PNG satu berkas, masuk atlas
+  // dengan nama berkasnya dan gambarnya sendiri (medan `g`). Gagal memuatnya tidak menghentikan permainan.
+  // Zombie dan senjata yang dipegang bergaris tepi 1 px (medan `pad`), seperti tokoh Agent Pak.
+  try {
+    const nama = await j('/static/gambar/kevi/daftar.json');
+    await Promise.all(nama.map(async (n) => { try { const g = await muatGambar('/static/gambar/kevi/' + n + '.png' + V); atlas[n] = { x: 0, y: 0, w: g.naturalWidth, h: g.naturalHeight, g, pad: /^zombie_|_pegang$/.test(n) ? 1 : 0 }; } catch (e) { /* satu berkas hilang: lewati */ } }));
+  } catch (e) { /* belum ada sprite Kevi */ }
 }
 
 /* ---------- sprite ---------- */
@@ -201,7 +208,7 @@ function lukis(k, nama, x, y) {
   const p = atlas[nama];
   if (!p) return false;
   const pad = p.pad || 0;
-  k.drawImage(lembar, p.x, p.y, p.w, p.h, Math.round(x) - pad, Math.round(y) - pad, p.w, p.h);
+  k.drawImage(p.g || lembar, p.x, p.y, p.w, p.h, Math.round(x) - pad, Math.round(y) - pad, p.w, p.h);
   return true;
 }
 
@@ -231,7 +238,7 @@ function ikon(nama, maks = 40) {
   // sampai pas. Selalu ditambatkan di tengah kotak (lihat .ikon > span), berapa pun ukuran aslinya.
   const pas = maks / Math.max(p.w, p.h), s = pas >= 1 ? Math.min(3, Math.floor(pas * 2) / 2) : pas;
   kotak.append(el('span', { gaya: {
-    width: p.w + 'px', height: p.h + 'px', backgroundImage: `url(/static/gambar/sprite.png${V})`,
+    width: p.w + 'px', height: p.h + 'px', backgroundImage: p.g ? `url(${p.g.src})` : `url(/static/gambar/sprite.png${V})`,
     backgroundPosition: `-${p.x}px -${p.y}px`, transform: `translate(-50%, -50%) scale(${+s.toFixed(4)})`,
   } }));
   return kotak;
@@ -247,6 +254,7 @@ function ikonBarang(b, maks) {
   if (b.startsWith('lantai:')) return ikon(b.slice(7), maks);
   if (b === 'tembok') return el('span', { kelas: 'ikon ikon-tembok', gaya: { width: (maks || 40) + 'px', height: (maks || 40) + 'px' } });
   if (b === 'pakan') return ikon('ikon_panen_pakan', maks);
+  if (b.startsWith('senjata:') && atlas['senjata_' + b.slice(8)]) return ikon('senjata_' + b.slice(8), maks);
   if (b.startsWith('senjata:')) return el('span', { kelas: 'ikon ikon-senjata', teks: IKON_SENJATA[b.slice(8)] || '✊', gaya: { width: (maks || 40) + 'px', height: (maks || 40) + 'px', fontSize: Math.round((maks || 40) * 0.62) + 'px' } });
   if (atlas['ikon_panen_' + b]) return ikon('ikon_panen_' + b, maks);
   return ikon(b, maks);

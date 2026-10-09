@@ -83,7 +83,11 @@ function lukisEntitas(k, e, alfa = 1) {
     k.fillStyle = 'rgba(0,0,0,.18)';
     k.beginPath(); k.ellipse(e.x + 8, e.y + 19, 6, 2.5, 0, 0, Math.PI * 2); k.fill();
   }
+  // Barang yang dipegang (hotbar): di balik badan bila tokoh membelakangi layar, selain itu di depannya.
+  const pegang = !e.pose && e.pegang ? e.pegang : '';
+  if (pegang && e.arah === 'atas') Pegang.lukis(k, e, pegang);
   k.drawImage(b.kanvas, Math.round(e.x) - b.pad, Math.round(e.y) - b.pad + pantul);
+  if (pegang && e.arah !== 'atas') Pegang.lukis(k, e, pegang);
   k.globalAlpha = 1;
   if (e === G.aku && G.tata.bilah && !e.pose) {      // bilah mini: health (hijau / merah saat lelah), stamina (kuning), XP (ungu)
     const lv = G.level, st = G.health, lp = G.stamina, bx = Math.round(e.x) - 1, by = Math.round(e.y) - 9;
@@ -461,6 +465,7 @@ const Jaring = {
       case 'halo':
         this.tersambung = true; Hud.sambungan(true);
         this.versiServer = m.versi || ''; Versi.periksa(m.versi, m.aset);
+        Pegang.terkirim = null; Pegang.kabarkan();      // sambungan baru: kabarkan lagi barang yang dipegang
         for (const [id, e] of G.entitas) if (e.jenis === 'pemain') G.entitas.delete(id);
         Npc.pasang(m.npc || []);
         G.titik = m.titik || []; if (m.atur) G.atur = m.atur;
@@ -521,7 +526,7 @@ const Jaring = {
     if (p.id === G.saya.id || p.adegan !== G.adegan) return;
     const e = buatEntitas('p' + p.id, 'pemain', p);
     e.id = p.id; e.look = penampilan({ session_id: 'kevi-' + p.id, nama: p.nama, tampilan: p.tampilan || {} });
-    e.jalan = !!p.jalan; e.level = p.level || 0;
+    e.jalan = !!p.jalan; e.level = p.level || 0; e.pegang = p.pegang || '';
     G.entitas.set('p:' + p.id, e);
   },
 };
