@@ -31,7 +31,8 @@ const G = {
   buka: {}, namaBuka: {}, hadiahNaik: 40,
   atur: { laju_jalan: 84, bookmark: [], pengumuman: '' },
   titik: [],             // titik interaksi tambahan dari admin
-  stamina: { nilai: 100, lelah: false, kopi: 0 },
+  health: { nilai: 100, lelah: false, kopi: 0 },   // lelah karena lari; dihitung di sini, pulih saat diam
+  stamina: { nilai: 100, maks: 100 },              // lapar; dihitung server, turun karena kerja dan lama daring
   peta: null,            // peta utama (kantor): dasar + tambahan admin
   zoom: 0,               // 0 = otomatis
   remote: false,         // boleh memakai remote SSH/telnet
@@ -57,7 +58,7 @@ function aturLevel(lv, naik) {
   }
   if (xpNaik > 0 && G.aku && !naik) apung('+' + xpNaik + ' XP', '#c4b5fd', G.aku.x + 8, G.aku.y - 12);
   if (naik) {
-    G.stamina.nilai = lv.stamina;
+    G.health.nilai = lv.stamina;
     if (G.aku) G.aku.emot = { n: 'kilau', sampai: performance.now() + 3000 };
     if (typeof Panel !== 'undefined') Panel.naikLevel(lv.level);
   }
@@ -112,9 +113,24 @@ function serap(d) {
   if (d.tata) G.tata = d.tata;
   if (d.misi) G.misi = d.misi;
   if (d.level) aturLevel(d.level, d.naik);
+  if (d.stamina && typeof d.stamina === 'object') aturStamina(d.stamina);
   if (d.rumah && G.rumahSaya) { G.rumah = d.rumah; if (typeof Rumah !== 'undefined') Rumah.segarkan(); }
   document.dispatchEvent(new CustomEvent('kevi:segar'));
 }
+
+// Stamina (lapar) dari server. Memberi tahu sekali saat mulai lapar dan sekali saat habis.
+function aturStamina(s) {
+  const lama = G.stamina, bagian = (v) => (v.nilai <= 0 ? 0 : v.nilai < v.maks * 0.25 ? 1 : 2);
+  G.stamina = { nilai: s.nilai, maks: s.maks };
+  if (lama.dimuat && bagian(G.stamina) < bagian(lama)) {
+    kabar(G.stamina.nilai <= 0 ? 'Kelaparan: tidak bisa lari, lelah lambat pulih, XP kerja tinggal separuh. Makan dulu (pegang makanan, tekan F).'
+      : 'Mulai lapar. Makan sesuatu: pegang makanan di hotbar lalu tekan F.', 'galat');
+  }
+  G.stamina.dimuat = true;
+  if (typeof Hud !== 'undefined' && $('#hud-stamina')) Hud.lapar();
+}
+// Seberapa cepat lelah pulih, menurut rasa lapar.
+function faktorLapar() { const s = G.stamina; return s.nilai <= 0 ? 0.25 : s.nilai < s.maks * 0.25 ? 0.6 : 1; }
 
 function aturKoin(n) {
   const beda = n - G.koin;

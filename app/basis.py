@@ -117,6 +117,8 @@ def _migrasi(kon: sqlite3.Connection) -> None:
     if "tas" not in kolom:                                  # 0.4.0 — inventory berslot: tas tambahan + tata letak & hotbar
         kon.execute("ALTER TABLE karakter ADD COLUMN tas INTEGER NOT NULL DEFAULT 0")
         kon.execute("ALTER TABLE karakter ADD COLUMN tata TEXT NOT NULL DEFAULT '{}'")
+    if "stamina" not in kolom:                              # 0.7.0 — stamina = lapar, disimpan di server (NULL = kenyang)
+        kon.execute("ALTER TABLE karakter ADD COLUMN stamina REAL")
     if "remote" not in {r["name"] for r in kon.execute("PRAGMA table_info(pemakai)")}:      # 0.3.0 — izin remote SSH/telnet
         kon.execute("ALTER TABLE pemakai ADD COLUMN remote INTEGER NOT NULL DEFAULT 0")
     if "totp" not in {r["name"] for r in kon.execute("PRAGMA table_info(pemakai)")}:        # 0.5.0 — kode sekali pakai

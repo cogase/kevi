@@ -7,7 +7,7 @@
 'use strict';
 
 const KALI_LARI = 1.75;         // lari = jalan x ini, memakai stamina
-const STAMINA = { kuras: 26, pulihJalan: 9, pulihDiam: 22, bangkit: 0.3 };   // per detik; bangkit = bagian stamina sebelum boleh lari lagi
+const LELAH = { kuras: 26, pulihJalan: 9, pulihDiam: 22, bangkit: 0.3 };   // per detik; bangkit = bagian stamina sebelum boleh lari lagi
 const JANGKAU = 13;             // px dari kaki ke benda supaya tombol E berlaku
 const ZOOM = [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8];
 const kanvas = document.getElementById('dunia');
@@ -84,12 +84,14 @@ function lukisEntitas(k, e, alfa = 1) {
   }
   k.drawImage(b.kanvas, Math.round(e.x) - b.pad, Math.round(e.y) - b.pad + pantul);
   k.globalAlpha = 1;
-  if (e === G.aku && G.tata.bilah && !e.pose) {      // bilah mini: stamina (hijau / merah saat lelah) dan XP (ungu)
-    const lv = G.level, st = G.stamina, bx = Math.round(e.x) - 1, by = Math.round(e.y) - 7;
+  if (e === G.aku && G.tata.bilah && !e.pose) {      // bilah mini: health (hijau / merah saat lelah), stamina (kuning), XP (ungu)
+    const lv = G.level, st = G.health, lp = G.stamina, bx = Math.round(e.x) - 1, by = Math.round(e.y) - 9;
     const xp = lv.lanjut ? (lv.xp - lv.dasar) / (lv.lanjut - lv.dasar) : 1;
-    k.fillStyle = 'rgba(7,11,20,.85)'; k.fillRect(bx, by, 18, 5);
-    k.fillStyle = st.lelah ? '#ef4444' : '#34d399'; k.fillRect(bx + 1, by + 1, Math.round(16 * Math.max(0, Math.min(1, st.nilai / lv.stamina))), 1);
-    k.fillStyle = '#a78bfa'; k.fillRect(bx + 1, by + 3, Math.round(16 * Math.max(0, Math.min(1, xp))), 1);
+    const isi = (baris, bagian, warna) => { k.fillStyle = warna; k.fillRect(bx + 1, by + 1 + baris * 2, Math.round(16 * Math.max(0, Math.min(1, bagian))), 1); };
+    k.fillStyle = 'rgba(7,11,20,.85)'; k.fillRect(bx, by, 18, 7);
+    isi(0, st.nilai / lv.stamina, st.lelah ? '#ef4444' : '#34d399');
+    isi(1, lp.nilai / lp.maks, lp.nilai < lp.maks * 0.25 ? '#f97316' : '#fbbf24');
+    isi(2, xp, '#a78bfa');
   }
   if (e.emot) {                       // gelembung emote: muncul memantul, hilang sendiri
     const sisa = e.emot.sampai - performance.now();
@@ -213,11 +215,11 @@ const Mesin = {
       if (a.jalan) {
         if (dx && dy) { dx *= 0.7071; dy *= 0.7071; }
         a.arah = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'kiri' : 'kanan') : (dy < 0 ? 'atas' : 'bawah');
-        const st = G.stamina, maks = G.level.stamina;
-        const mauLari = this.tombol.has('shift') && !st.lelah && st.nilai > 0;
+        const st = G.health, maks = G.level.stamina;
+        const mauLari = this.tombol.has('shift') && !st.lelah && st.nilai > 0 && G.stamina.nilai > 0;      // kelaparan = tak bisa lari
         const lari = mauLari ? KALI_LARI : 1, LAJU_JALAN = G.atur.laju_jalan;
-        if (mauLari) { st.nilai = Math.max(0, st.nilai - STAMINA.kuras * dt); if (st.nilai <= 0) st.lelah = true; }
-        else st.nilai = Math.min(maks, st.nilai + STAMINA.pulihJalan * (st.kopi > G.kini ? 2 : 1) * dt);
+        if (mauLari) { st.nilai = Math.max(0, st.nilai - LELAH.kuras * dt); if (st.nilai <= 0) st.lelah = true; }
+        else st.nilai = Math.min(maks, st.nilai + LELAH.pulihJalan * (st.kopi > G.kini ? 2 : 1) * faktorLapar() * dt);
         const terjebak = !kakiBebas(a.x, a.y);        // perabot ditaruh di atas pemain: boleh jalan keluar
         const nx = a.x + dx * LAJU_JALAN * lari * dt, ny = a.y + dy * LAJU_JALAN * lari * dt;
         if (terjebak || kakiBebas(nx, a.y)) a.x = nx;
@@ -227,13 +229,13 @@ const Mesin = {
       } else {
         a.langkah = 0;
         if (!this.pindahBerjalan) this.tungguLepas = false;
-        const st = G.stamina;
-        st.nilai = Math.min(G.level.stamina, st.nilai + STAMINA.pulihDiam * (st.kopi > G.kini ? 2 : 1) * dt);
+        const st = G.health;
+        st.nilai = Math.min(G.level.stamina, st.nilai + LELAH.pulihDiam * (st.kopi > G.kini ? 2 : 1) * faktorLapar() * dt);
       }
     }
-    const st = G.stamina;
-    if (st.lelah && st.nilai >= G.level.stamina * STAMINA.bangkit) st.lelah = false;
-    Hud.stamina();
+    const st = G.health;
+    if (st.lelah && st.nilai >= G.level.stamina * LELAH.bangkit) st.lelah = false;
+    Hud.health();
     // Pemain lain: kejar posisi yang dikabarkan server.
     for (const e of G.entitas.values()) {
       if (e.jenis !== 'pemain') continue;
@@ -459,6 +461,7 @@ const Jaring = {
       case 'dunia': Npc.pasang(m.npc || []); G.titik = m.titik || []; G.atur = m.atur || G.atur; Mesin.segarkanTitik(); break;
       case 'level': aturKoin(m.saldo); aturLevel(m.level, m.naik); break;
       case 'naik': { const e = G.entitas.get('p:' + m.id); if (e) { e.level = m.level; e.emot = { n: 'kilau', sampai: performance.now() + 3000 }; } Obrolan.catat('', m.nama + ' naik ke level ' + m.level + '!', 'sistem'); break; }
+      case 'stamina': aturStamina(m.stamina); break;
       case 'kiriman': aturKoin(m.saldo); kabar(m.dari + ' mengirim ' + m.koin + ' koin untukmu.', 'hadiah'); break;
       case 'umum': kabar('Pengumuman: ' + m.teks, 'hadiah'); Obrolan.catat('Admin', m.teks, 'npc', 'semua'); break;
       case 'info': kabar(m.teks, 'galat'); break;

@@ -73,7 +73,7 @@ const Panel = {
   },
 
   panduan() {
-    const baris = [['W A S D / panah', 'Jalan'], ['Shift', 'Lari (memakai stamina; kopi Mbak Tia memulihkannya)'], ['E', 'Interaksi dengan yang terdekat (NPC, rekan, meja, mesin)'],
+    const baris = [['W A S D / panah', 'Jalan'], ['Shift', 'Lari (membuat lelah: Health turun, pulih saat diam; kopi Mbak Tia mempercepatnya)'], ['E', 'Interaksi dengan yang terdekat (NPC, rekan, meja, mesin)'],
       ['Enter', 'Obrolan (Tab di kotak obrolan: Sekitar / Semua)'], ['1 – 0', 'Pegang barang di slot hotbar (tekan lagi untuk melepas)'], ['F', 'Pakai barang yang dipegang (makan)'], ['Shift + 1 – 8', 'Emote'], ['I', 'Inventory'], ['N', 'Note'], ['M', 'Misi harian'], ['L', 'Level & yang terbuka'],
       ['B', 'Mode Bangun (di rumah)'], ['Roda tetikus / + −', 'Zoom (0 = otomatis)'], ['/w nama pesan', 'Bisik ke rekan; /r membalas'], ['R', 'Putar perabot (mode Bangun)'], ['Esc', 'Tutup panel / berdiri dari kursi']];
     Panel.buka('Panduan', el('div', {},
@@ -95,7 +95,7 @@ const Panel = {
         el('button', { kelas: 'tombol', teks: 'Panduan', on: { click: () => Panel.panduan() } }),
         el('button', { kelas: 'tombol', teks: 'Level & yang terbuka', on: { click: () => Panel.level() } }),
         el('button', { kelas: 'tombol', teks: 'Ubah karakter', on: { click: () => Buat.buka(false) } }),
-        el('button', { kelas: 'tombol', teks: 'Bilah stamina & XP di atas karakter: ' + (G.tata.bilah ? 'nyala' : 'mati'), on: { click: () => { G.tata.bilah = !G.tata.bilah; Hotbar.simpan(); Panel.menu(); } } }),
+        el('button', { kelas: 'tombol', teks: 'Bilah Health, Stamina, XP di atas karakter: ' + (G.tata.bilah ? 'nyala' : 'mati'), on: { click: () => { G.tata.bilah = !G.tata.bilah; Hotbar.simpan(); Panel.menu(); } } }),
         el('button', { kelas: 'tombol', teks: 'Riwayat koin', on: { click: () => Panel.kas() } }),
         el('button', { kelas: 'tombol', teks: 'Ganti password', on: { click: () => Panel.sandi() } }),
         el('button', { kelas: 'tombol', teks: 'Kode sekali pakai (TOTP): ' + (G.totp ? 'terpasang' : 'belum'), on: { click: () => Panel.totp() } }),
@@ -178,11 +178,17 @@ const Hud = {
   },
   sambungan(ok) { $('#hud-sambung').hidden = ok; },
   terputus(pesan) { Panel.buka('Terputus', el('div', {}, el('p', { teks: pesan }), el('button', { kelas: 'tombol utama', teks: 'Muat ulang', on: { click: () => location.reload() } })), { sempit: true, tanpaTutup: true }); },
-  stamina() {
-    const st = G.stamina, bagian = Math.round(st.nilai / G.level.stamina * 50);
+  lapar() {
+    const s = G.stamina, b = $('#hud-stamina');
+    b.firstElementChild.style.width = Math.max(0, Math.min(100, s.nilai / s.maks * 100)).toFixed(0) + '%';
+    b.classList.toggle('lapar', s.nilai < s.maks * 0.25);
+    b.title = `Stamina ${Math.round(s.nilai)} / ${s.maks} — turun karena kerja dan lama daring; makan untuk mengisinya`;
+  },
+  health() {
+    const st = G.health, bagian = Math.round(st.nilai / G.level.stamina * 50);
     if (bagian === this.staminaTerakhir && st.lelah === this.lelahTerakhir) return;
     this.staminaTerakhir = bagian; this.lelahTerakhir = st.lelah;
-    const b = $('#hud-stamina');
+    const b = $('#hud-health');
     b.firstElementChild.style.width = (bagian * 2) + '%';
     b.classList.toggle('lelah', st.lelah);
     b.classList.toggle('kopi', st.kopi > G.kini);
@@ -563,12 +569,12 @@ const Sosial = {
   },
 
   async kopi(e) {
-    if (G.stamina.kopi > G.kini && G.stamina.nilai >= G.level.stamina - 1) { kabar('Masih segar. Kopinya nanti saja.'); return; }
+    if (G.health.kopi > G.kini && G.health.nilai >= G.level.stamina - 1) { kabar('Masih segar. Kopinya nanti saja.'); return; }
     const d = await aksi('/api/interaksi/kopi', {});
     if (!d) return;
-    G.stamina.nilai = G.level.stamina; G.stamina.lelah = false; G.stamina.kopi = G.kini + d.kopi;
+    G.health.nilai = G.level.stamina; G.health.lelah = false; G.health.kopi = G.kini + d.kopi;
     G.aku.emot = { n: 'nada', sampai: performance.now() + 2400 };
-    kabar('Kopi diminum: stamina penuh, pulih dua kali lebih cepat selama ' + d.kopi + ' detik.');
+    kabar('Kopi diminum: Health penuh, lelah pulih dua kali lebih cepat selama ' + d.kopi + ' detik.');
   },
 
   ajakSuit(e) {
@@ -731,7 +737,7 @@ const Remote = {
 
   async sambung() {
     if (this.ws) return;
-    if (!G.totp) { kabar('Remote butuh kode sekali pakai (TOTP). Pasang dulu lewat Menu.', 'galat'); return; }
+    if (!G.totp) { kabar('Set dulu TOTP untuk SSH/telnet.', 'galat'); Panel.totp(); return; }
     let t;
     try { t = await api('/api/totp'); } catch (e) { kabar(e.message, 'galat'); return; }
     if (!t.segar) { Panel.kodeSegar(() => this.sambung()); return; }

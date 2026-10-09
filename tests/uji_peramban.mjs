@@ -121,7 +121,7 @@ await tunggu(400);
 cek('obrolan tampil di log dan gelembung', (await pg.textContent('#obrolan-log')).includes('halo semua') && await pg.evaluate(() => !!G.aku.gelembung));
 
 // --- lari & stamina
-await pg.evaluate(() => { G.aku.x = 40; G.aku.y = 44 * 16; G.stamina.nilai = G.level.stamina; G.stamina.lelah = false; });
+await pg.evaluate(() => { G.aku.x = 40; G.aku.y = 44 * 16; G.health.nilai = G.level.stamina; G.health.lelah = false; });
 const xJalan0 = await pg.evaluate(() => G.aku.x);
 await tekan('d', 600);
 const jalan = (await pg.evaluate(() => G.aku.x)) - xJalan0;
@@ -129,12 +129,12 @@ await pg.evaluate(() => { G.aku.x = 40; });
 await pg.keyboard.down('Shift'); await tekan('d', 600); await pg.keyboard.up('Shift');
 const lari = (await pg.evaluate(() => G.aku.x)) - 40;
 cek('Shift membuat lari lebih cepat dari jalan', lari > jalan * 1.4, `jalan ${jalan.toFixed(0)} px, lari ${lari.toFixed(0)} px`);
-cek('lari menguras stamina', await pg.evaluate(() => G.stamina.nilai < G.level.stamina - 8), String(await pg.evaluate(() => G.stamina.nilai.toFixed(1))));
-await pg.evaluate(() => { G.stamina.nilai = 0.5; G.aku.x = 40; });
+cek('lari menguras stamina', await pg.evaluate(() => G.health.nilai < G.level.stamina - 8), String(await pg.evaluate(() => G.health.nilai.toFixed(1))));
+await pg.evaluate(() => { G.health.nilai = 0.5; G.aku.x = 40; });
 await pg.keyboard.down('Shift'); await tekan('d', 500); await pg.keyboard.up('Shift');
-cek('stamina habis = tak bisa lari', await pg.evaluate(() => G.stamina.lelah && $('#hud-stamina').classList.contains('lelah')));
+cek('stamina habis = tak bisa lari', await pg.evaluate(() => G.health.lelah && $('#hud-health').classList.contains('lelah')));
 await tunggu(1500);
-cek('stamina pulih saat diam', await pg.evaluate(() => G.stamina.nilai > 20));
+cek('stamina pulih saat diam', await pg.evaluate(() => G.health.nilai > 20));
 
 // --- level: terkunci di level 1, lalu admin menaikkan XP
 cek('HUD menampilkan level', (await pg.textContent('#hud-level')).startsWith('Lv '));
@@ -215,8 +215,18 @@ await pg.keyboard.press('i'); await pg.waitForSelector('.inv-kisi');
 cek('inventory berslot: 20 slot awal + baris hotbar', await pg.evaluate(() => document.querySelectorAll('.inv-kisi:not(.hotbar) .inv-sel').length === 20 && document.querySelectorAll('.inv-kisi.hotbar .inv-sel').length === 10));
 await pg.keyboard.press('Escape');
 await pg.evaluate(() => aksi('/api/toko/beli', { barang: 'makan:roti', jumlah: 1 })); await tunggu(400);
-await pg.evaluate(() => { Hotbar.isi(2, 'makan:roti'); G.stamina.nilai = 10; }); await pg.keyboard.press('3'); await pg.keyboard.press('f'); await tunggu(500);
-cek('F memakan makanan yang dipegang: stamina naik, barang berkurang', await pg.evaluate(() => G.stamina.nilai >= 30 && !G.inventori['makan:roti']));
+// Stamina = lapar, dihitung server: admin menyetelnya, HUD mengikuti, makan mengisinya, kelaparan melarang lari.
+const setelStamina = async (n) => { await pg.evaluate(([id, n]) => fetch('/api/admin/pemakai/ubah', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, stamina: n }) }), [idSaya, n]); await tunggu(400); };
+await setelStamina(10);
+cek('stamina (lapar) dari server tampil di HUD', await pg.evaluate(() => G.stamina.nilai === 10 && $('#hud-stamina').classList.contains('lapar') && !!$('#hud-health')), JSON.stringify(await pg.evaluate(() => G.stamina)));
+await pg.evaluate(() => { Hotbar.isi(2, 'makan:roti'); }); await pg.keyboard.press('3'); await pg.keyboard.press('f'); await tunggu(500);
+cek('F memakan makanan yang dipegang: stamina naik, barang berkurang', await pg.evaluate(() => G.stamina.nilai === 35 && !G.inventori['makan:roti']), JSON.stringify(await pg.evaluate(() => G.stamina)));
+await setelStamina(0);
+await pg.evaluate(() => { G.health.nilai = G.level.stamina; G.health.lelah = false; });
+await pg.keyboard.down('Shift'); await tekan('d', 500); await pg.keyboard.up('Shift');
+cek('kelaparan (stamina 0): tidak bisa lari', await pg.evaluate(() => G.stamina.nilai === 0 && G.health.nilai >= G.level.stamina - 1));
+await setelStamina(999);
+cek('stamina tidak melewati batas level', await pg.evaluate(() => G.stamina.nilai === G.stamina.maks && G.stamina.maks === G.level.stamina));
 cek('tata letak hotbar tersimpan di server', await pg.evaluate(async () => { await new Promise(r => setTimeout(r, 900)); return (await (await fetch('/api/saya')).json()).tata.hotbar[0] === 'benih:sawi'; }));
 
 // --- kebun: tanam, siram, tunggu matang (KEVI_LAJU uji besar), panen, jual
@@ -402,7 +412,7 @@ const cobaRemote = (hal, host) => hal.evaluate((host) => new Promise((res) => {
   ws.onmessage = (ev) => { teks += new TextDecoder().decode(ev.data); };
   ws.onclose = () => res(teks); setTimeout(() => { ws.close(); res(teks); }, 6000);
 }), host);
-cek('remote tanpa kode sekali pakai ditolak (admin sekalipun)', (await cobaRemote(pg, '127.0.0.1')).includes('Pasang dulu'));
+cek('remote tanpa kode sekali pakai ditolak (admin sekalipun)', (await cobaRemote(pg, '127.0.0.1')).includes('Set dulu TOTP'));
 // Pasang TOTP lewat Menu: password -> kunci tampil -> bukti kode.
 await pg.evaluate(() => Panel.totp());
 await pg.fill('#tirai input[type=password]', password); await pg.click('#tirai button.utama');

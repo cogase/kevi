@@ -360,12 +360,46 @@ def sisa_jatah(kon: sqlite3.Connection, uid: int, kunci: str, maks: int) -> int:
 
 
 def xp_kegiatan(kon: sqlite3.Connection, uid: int, kunci: str, kali: int = 1) -> int:
-    """XP untuk satu kegiatan menurut tabel XP, tunduk pada jatah harian bila ada. Mengembalikan XP yang masuk."""
+    """XP untuk satu kegiatan menurut tabel XP, tunduk pada jatah harian bila ada. Mengembalikan XP yang masuk.
+    Kegiatan kerja juga membuat lapar; bekerja dalam keadaan kelaparan (stamina 0) hanya memberi separuh XP."""
+    kelaparan = stamina(kon, uid) <= 0
+    if kunci in LAPAR_AKSI:
+        ubah_stamina(kon, uid, -LAPAR_AKSI[kunci] * kali)
     if kunci in XP_JATAH and not jatah_harian(kon, uid, "xp_" + kunci, XP_JATAH[kunci]):
         return 0
     n = XP[kunci] * kali
+    if kelaparan:
+        n = max(1, n // 2)
     tambah_xp(kon, uid, n)
     return n
+
+
+# ---------------------------------------------------------------- stamina = lapar (0.7.0)
+# Kata yosi: stamina = lapar, berkurang karena lama sesi daring dan saat bekerja; makanan mengisinya kembali.
+# Health (lelah karena lari) masih dihitung di peramban dan akan pindah ke server bersama fitur lawan monster.
+LAPAR_PER_MENIT = 0.5                 # selama daring: stamina 100 habis dalam sekitar 3 jam 20 menit tanpa bekerja
+LAPAR_AKSI = {"terminal": 1.0, "remote": 1.0, "tanam": 0.5, "siram": 0.3, "panen": 0.5, "produk": 0.3, "hias": 0.2, "masak": 0.5}
+
+
+def stamina_maks(kon: sqlite3.Connection, uid: int) -> int:
+    return STAMINA_DASAR + (level(kon, uid) - 1) * STAMINA_PER_LEVEL
+
+
+def stamina(kon: sqlite3.Connection, uid: int) -> float:
+    """Stamina tersimpan; karakter lama (kolom masih kosong) dianggap kenyang."""
+    r = kon.execute("SELECT stamina FROM karakter WHERE pemakai_id = ?", (uid,)).fetchone()
+    maks = stamina_maks(kon, uid)
+    return maks if not r or r["stamina"] is None else max(0.0, min(float(maks), float(r["stamina"])))
+
+
+def ubah_stamina(kon: sqlite3.Connection, uid: int, n: float) -> float:
+    baru = max(0.0, min(float(stamina_maks(kon, uid)), stamina(kon, uid) + n))
+    kon.execute("UPDATE karakter SET stamina = ? WHERE pemakai_id = ?", (baru, uid))
+    return baru
+
+
+def potret_stamina(kon: sqlite3.Connection, uid: int) -> dict:
+    return {"nilai": round(stamina(kon, uid), 1), "maks": stamina_maks(kon, uid)}
 
 
 def butuh_level(kon: sqlite3.Connection, uid: int, kunci: str) -> None:
@@ -977,7 +1011,8 @@ def makan(kon: sqlite3.Connection, uid: int, barang: str) -> dict:
         raise Ditolak("Itu bukan makanan.")
     kurang_barang(kon, uid, barang)
     tambah_statistik(kon, uid, "makan")
-    return {"stamina": m[2], "kopi": m[3], "inventori": inventori(kon, uid), "nama": m[0]}
+    ubah_stamina(kon, uid, m[2])
+    return {"kenyang": m[2], "kopi": m[3], "inventori": inventori(kon, uid), "nama": m[0]}
 
 
 def masak(kon: sqlite3.Connection, uid: int, kode: str) -> dict:
@@ -988,6 +1023,7 @@ def masak(kon: sqlite3.Connection, uid: int, kode: str) -> dict:
         kurang_barang(kon, uid, b, n)
     tambah_barang(kon, uid, "makan:" + kode)
     tambah_xp(kon, uid, XP_MASAK)
+    ubah_stamina(kon, uid, -LAPAR_AKSI["masak"])
     tambah_statistik(kon, uid, "masak")
     return {"inventori": inventori(kon, uid), "dapat": "makan:" + kode}
 

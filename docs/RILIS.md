@@ -2,6 +2,27 @@
 
 Melengkapi PRD, GDD, dan TDD untuk rilis sesudah 0.2.0. Angka dan aturan di sini adalah yang berlaku di kode.
 
+## 0.7.0 — 9 Oktober 2026
+
+**Health dan Stamina dipisah (jawaban yosi atas Y11: health = lelah, stamina = lapar)**
+- **Stamina = lapar**, kini dihitung dan disimpan di server. Turun 0,5 per menit selama daring, dan tiap bekerja:
+  perintah terminal 1, tiap menit sesi remote 1, tanam 0,5, panen 0,5, masak 0,5, siram 0,3, ambil hasil kandang 0,3,
+  pasang perabot 0,2. Makanan mengisinya (roti +25, nasi bungkus +55, masakan +60 sampai +150). Batasnya 100 di
+  level 1, bertambah 6 tiap level.
+- **Mulai lapar** (di bawah 25%): lelah pulih lebih lambat (0,6 kali). **Kelaparan** (stamina 0): tidak bisa lari,
+  lelah pulih seperempat kecepatan, dan XP dari kerja tinggal separuh. Tidak ada mati. Pemain diberi tahu sekali
+  saat mulai lapar dan sekali saat kelaparan.
+- **Health = lelah**: meter lari yang lama (turun saat lari, pulih saat diam atau berjalan), sekarang bernama
+  Health. Masih dihitung di peramban; akan pindah ke server bersama fitur lawan monster. Kopi Mbak Tia dan efek
+  "pulih cepat" dari masakan berlaku untuk Health.
+- Menu atas menampilkan tiga bilah: XP (ungu), Health (hijau, merah saat lelah), Stamina (kuning, jingga saat
+  lapar). Bilah mini di atas karakter ikut menjadi tiga baris.
+- Dashboard admin: `POST /api/admin/pemakai/ubah` menerima `stamina` (belum ada tombolnya di tabel).
+- Karakter yang sudah ada mulai dalam keadaan kenyang.
+
+**Keterangan remote (kata yosi):** akun tanpa TOTP yang membuka remote kini mendapat "Set dulu TOTP untuk
+SSH/telnet" dan panel pemasangan langsung terbuka.
+
 ## 0.6.1 — 9 Oktober 2026
 
 **Perbaikan: Remote SSH tidak pernah tersambung.** Sejak 0.3.0 setiap sambungan SSH putus seketika (telnet tidak

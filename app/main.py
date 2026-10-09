@@ -35,6 +35,7 @@ ASET = _sidik_aset()
 @app.on_event("startup")
 async def _mulai() -> None:
     asyncio.get_running_loop().create_task(DUNIA.putar_pesan())
+    asyncio.get_running_loop().create_task(DUNIA.putar_lapar())
 
 
 def _alamat(request: Request) -> str:
@@ -115,6 +116,7 @@ def _aksi(request: Request, fn):
         hasil.setdefault("koin", permainan.saldo(KON, p["id"]))
         hasil["misi"] = permainan.potret_misi(KON, p["id"])
         hasil["level"] = permainan.potret_level(KON, p["id"])
+        hasil["stamina"] = permainan.potret_stamina(KON, p["id"])
         hasil["naik"] = hasil["level"]["level"] > sebelum
     pemain = DUNIA.pemain.get(p["id"])
     if pemain:
@@ -251,7 +253,8 @@ def _potret_saya(p) -> dict:
         hasil["inventori"] = permainan.inventori(KON, p["id"])
         hasil["misi"] = permainan.potret_misi(KON, p["id"])
         hasil["level"] = permainan.potret_level(KON, p["id"])
-        hasil["tas"] = permainan.potret_tas(KON, p["id"])["tas"]
+        hasil["stamina"] = permainan.potret_stamina(KON, p["id"])
+        hasil["tas"] =permainan.potret_tas(KON, p["id"])["tas"]
         hasil["tata"] = permainan.baca_tata(KON, p["id"])
     return hasil
 
@@ -471,6 +474,8 @@ async def admin_ubah(request: Request):
             punya = KON.execute("SELECT 1 FROM karakter WHERE pemakai_id = ?", (uid,)).fetchone()
             if punya and isinstance(d.get("koin"), int) and not isinstance(d.get("koin"), bool) and d["koin"]:
                 permainan.ubah_koin(KON, uid, max(-10 ** 6, min(10 ** 6, d["koin"])), f"penyesuaian admin ({saya['username']})")
+            if punya and isinstance(d.get("stamina"), (int, float)) and not isinstance(d.get("stamina"), bool):
+                permainan.ubah_stamina(KON, uid, float(d["stamina"]) - permainan.stamina(KON, uid))
             if punya and isinstance(d.get("xp"), int) and not isinstance(d.get("xp"), bool):
                 KON.execute("UPDATE karakter SET xp = ? WHERE pemakai_id = ?", (max(0, min(10 ** 7, d["xp"])), uid))
     except (akun.AkunDitolak, permainan.Ditolak) as e:
@@ -480,6 +485,7 @@ async def admin_ubah(request: Request):
     pemain = DUNIA.pemain.get(uid)
     if pemain:
         await DUNIA.kabar_level(pemain, pemain["level"])
+        await DUNIA.kabar_stamina(uid)
     return {"ok": True}
 
 

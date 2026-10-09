@@ -120,7 +120,7 @@ def test_api_pasang_masuk_dan_remote(klien):
     assert klien.post("/api/masuk", json={"username": "kepala", "password": "sandi-kepala-1"}).status_code == 200
     assert klien.get("/api/saya").json()["totp"] is False
     assert klien.get("/api/totp").json() == {"terpasang": False, "segar": False}
-    assert "Pasang dulu" in _remote(klien)                                        # admin pun tanpa TOTP ditolak remote
+    assert "Set dulu TOTP" in _remote(klien)                                        # admin pun tanpa TOTP ditolak remote
     assert klien.post("/api/totp/mulai", json={"password": "salah"}).status_code == 400
     rahasia = klien.post("/api/totp/mulai", json={"password": "sandi-kepala-1"}).json()["rahasia"]
     assert klien.post("/api/totp/pasang", json={"kode": "abc"}).status_code == 400

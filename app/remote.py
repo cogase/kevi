@@ -29,7 +29,7 @@ import time
 
 from fastapi import WebSocket, WebSocketDisconnect
 
-from . import atur, basis, konfig, terminal
+from . import atur, basis, konfig, permainan, terminal
 
 POLA_USER = re.compile(r"^[A-Za-z0-9._@-]{1,64}$")
 SERENTAK_PER_PEMAKAI = 3
@@ -264,7 +264,7 @@ async def sesi(ws: WebSocket, kon, pemakai, totp_segar: bool = False) -> None:
             if not boleh(kon, pemakai):
                 raise RemoteDitolak("Kamu tidak punya izin remote, atau fitur ini dimatikan admin.")
         if not pemakai["totp"]:
-            raise RemoteDitolak("Remote butuh kode sekali pakai (TOTP). Pasang dulu lewat Menu.")
+            raise RemoteDitolak("Set dulu TOTP untuk SSH/telnet: buka Menu, lalu pilih Kode sekali pakai (TOTP).")
         if not totp_segar:
             raise RemoteDitolak("Masukkan kode sekali pakai dulu sebelum membuka remote.")
         proto = m.get("proto")
@@ -292,8 +292,13 @@ async def sesi(ws: WebSocket, kon, pemakai, totp_segar: bool = False) -> None:
         terakhir = time.time()
 
     async def penjaga() -> None:
+        putaran = 0
         while True:
             await asyncio.sleep(15)
+            putaran += 1
+            if putaran % 4 == 0:                    # tiap menit sesi remote = bekerja = bertambah lapar
+                with basis.KUNCI:
+                    permainan.ubah_stamina(kon, uid, -permainan.LAPAR_AKSI["remote"])
             if time.time() - terakhir > DIAM_MAKS:
                 raise RemoteDitolak("Sesi ditutup: terlalu lama diam.")
             if time.time() - mulai > LAMA_MAKS:

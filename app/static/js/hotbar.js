@@ -73,11 +73,11 @@ const Hotbar = {
     if (!b.startsWith('makan:')) { kabar(namaBarang(b) + this.petunjuk(b).replace(' — ', ': ') + '.'); return; }
     const d = await aksi('/api/inventori/makan', { barang: b });
     if (!d) return;
-    const st = G.stamina;
-    st.nilai = Math.min(G.level.stamina, st.nilai + d.stamina); st.lelah = false;
+    const st = G.health;
+    st.lelah = false;
     if (d.kopi) st.kopi = Math.max(st.kopi, G.kini) + d.kopi;
     G.aku.emot = { n: 'hati', sampai: performance.now() + 1800 };
-    apung('+' + d.stamina + ' stamina', '#a7f3d0');
+    apung('+' + d.kenyang + ' stamina', '#fde68a');
   },
 };
 

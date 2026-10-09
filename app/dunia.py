@@ -81,6 +81,20 @@ class Dunia:
                 await self.siar(None, {"t": "sistem", "teks": pesan[giliran % len(pesan)]})
                 giliran += 1
 
+    async def kabar_stamina(self, uid: int) -> None:
+        with basis.KUNCI:
+            potret = permainan.potret_stamina(self.kon, uid)
+        await self.kabari(uid, {"t": "stamina", "stamina": potret})
+
+    async def putar_lapar(self, jeda: float = 60.0) -> None:
+        """Tiap menit, pemain yang daring bertambah lapar (stamina turun) dan dikabari nilainya."""
+        while True:
+            await asyncio.sleep(jeda)
+            for uid in list(self.pemain):
+                with basis.KUNCI:
+                    permainan.ubah_stamina(self.kon, uid, -permainan.LAPAR_PER_MENIT * jeda / 60.0)
+                await self.kabar_stamina(uid)
+
     async def siar_dunia(self) -> None:
         """Admin mengubah NPC / titik / pengaturan: semua layar ikut berubah tanpa muat ulang."""
         await self.siar(None, dict(self._dunia(), t="dunia"))
@@ -447,4 +461,5 @@ class Dunia:
                     koin = permainan.saldo(self.kon, p["id"])
                 await self._hadiah(p, cair, koin)
                 await self.kabar_level(p, sebelum)
+                await self.kabar_stamina(p["id"])
             await self._kirim(p, {"t": "term_selesai"})

@@ -106,9 +106,12 @@ body:not(.siap) #hud, body:not(.siap) #obrolan { visibility: hidden; }
 .bar i { display: block; height: 100%; width: 0; }
 /* XP dianimasikan lewat transform (bukan width) supaya tak memicu tata letak ulang. */
 .bar.xp i { background: linear-gradient(180deg, #c4b5fd, #8b5cf6); width: 100%; transform-origin: left center; transform: scaleX(0); transition: transform .25s linear; }
-.bar.stamina i { background: linear-gradient(180deg, #a7f3d0, #34d399); width: 100%; }
-.bar.stamina.lelah i { background: linear-gradient(180deg, #fca5a5, #dc2626); }
-.bar.stamina.kopi { box-shadow: 0 0 6px rgba(252,211,77,.8); }
+.bar.health i { background: linear-gradient(180deg, #a7f3d0, #34d399); width: 100%; }
+.bar.health.lelah i { background: linear-gradient(180deg, #fca5a5, #dc2626); }
+.bar.health.kopi { box-shadow: 0 0 6px rgba(252,211,77,.8); }
+.bar.stamina i { background: linear-gradient(180deg, #fde68a, #f59e0b); width: 100%; transition: width .4s linear; }
+.bar.stamina.lapar i { background: linear-gradient(180deg, #fdba74, #ea580c); }
+.hud-bar .bar { width: 84px; }
 .hud-kanan { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 .koin { display: inline-flex; align-items: center; gap: 7px; padding: 4px 12px; background: #070b14; border: 2px solid #6b4a1c; border-radius: 6px; font: 700 14px var(--mono); color: var(--emas); cursor: pointer;
   box-shadow: inset 0 0 0 1px rgba(251,191,36,.25), 0 2px 0 #000; text-shadow: 0 1px 0 #000; }

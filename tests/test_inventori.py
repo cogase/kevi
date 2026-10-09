@@ -39,7 +39,7 @@ def test_tata_letak_disaring(kon, pemain):
 def test_makan_dan_masak(kon, pemain):
     permainan.beli(kon, pemain, "makan:roti", 1)
     d = permainan.makan(kon, pemain, "makan:roti")
-    assert d["stamina"] == 25 and "makan:roti" not in d["inventori"]
+    assert d["kenyang"] == 25 and "makan:roti" not in d["inventori"]
     with pytest.raises(Ditolak):
         permainan.makan(kon, pemain, "makan:roti")                        # sudah habis
     with pytest.raises(Ditolak):
@@ -52,7 +52,7 @@ def test_makan_dan_masak(kon, pemain):
     xp = permainan.xp_kini(kon, pemain)
     d = permainan.masak(kon, pemain, "tumis_sawi")
     assert d["inventori"]["makan:tumis_sawi"] == 1 and "panen:sawi" not in d["inventori"] and permainan.xp_kini(kon, pemain) == xp + permainan.XP_MASAK
-    assert permainan.makan(kon, pemain, "makan:tumis_sawi")["stamina"] == 60
+    assert permainan.makan(kon, pemain, "makan:tumis_sawi")["kenyang"] == 60
 
 
 def test_semua_resep_punya_makanan_dan_bahan_dikenal():

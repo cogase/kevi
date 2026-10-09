@@ -74,7 +74,8 @@ function putaran() {
     Mesin.siapkanKantor();
     if (!s.karakter) { muat.remove(); Buat.buka(true); return; }
     G.karakter = s.karakter; G.koin = s.koin; G.inventori = s.inventori; G.misi = s.misi;
-    G.level = s.level; G.stamina.nilai = s.level.stamina; G.tas = s.tas; G.tata = s.tata;
+    G.level = s.level; G.health.nilai = s.level.stamina; G.tas = s.tas; G.tata = s.tata;
+    if (s.stamina) aturStamina(s.stamina);
     G.aku = buatEntitas(G.saya.id, 'saya', { nama: s.karakter.nama, tampilan: s.karakter.tampilan });
     const k = s.karakter, punyaPosisi = typeof k.x === 'number' && typeof k.y === 'number';
     if (k.adegan === 'rumah:' + G.saya.id && await Mesin.masukRumah(G.saya.id, punyaPosisi ? k.x : undefined, punyaPosisi ? k.y : undefined)) { /* lanjut di rumah */ }
