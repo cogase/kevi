@@ -221,9 +221,14 @@ const Rumah = {
       const m = this.kursiMejaSemua.find(s => Math.abs(s.x + 8 - e.x) <= 1 && Math.abs(s.y + 14 - e.y) <= 1);
       if (m) return m.hadap === 'bawah' ? Math.min(dasar, m.alas - 0.5) : Math.max(dasar, m.alas + 0.5);
     }
-    if (!/duduk/.test(e.pose || '')) return dasar;
-    const cx = e.x + 8, cy = e.y + 25;
-    for (const b of this.urut) if (b.o.l !== 'atas' && PERABOT_DUDUK.test(b.o.n) && cx >= b.o.x && cx <= b.o.x + b.w && Math.abs(b.y + b.h - cy) <= 2) return Math.max(dasar, b.alas + 0.5);
+    if (!/^(santai|kiri_duduk|kanan_duduk|atas_diam)$/.test(e.pose || '')) return dasar;
+    // Duduk di kursi atau sofa berlayer Otomatis: tokoh digambar di depan perabotnya. Kecuali kursi yang menghadap ke
+    // belakang (diputar 180 derajat): tokoh di balik sandarannya, jadi yang terlihat hanya belakang kepalanya.
+    const cx = e.x + 8, cy = e.y + 12;
+    for (const b of this.urut) {
+      if (b.o.l === 'atas' || !PERABOT_DUDUK.test(b.o.n) || cx < b.o.x - 2 || cx > b.o.x + b.w + 2 || cy < b.y - 10 || cy > b.y + b.h + 6) continue;
+      return (b.o.r || 0) === 2 ? Math.min(dasar, b.alas - 0.5) : Math.max(dasar, b.alas + 0.5);
+    }
     return dasar;
   },
 

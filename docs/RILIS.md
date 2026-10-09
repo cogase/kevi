@@ -2,6 +2,18 @@
 
 Melengkapi PRD, GDD, dan TDD untuk rilis sesudah 0.2.0. Angka dan aturan di sini adalah yang berlaku di kode.
 
+## 0.18.2 — 9 Oktober 2026
+
+**Perbaikan duduk di kursi dan sofa (laporan yosi)**
+- Hadap depan: kaki karakter hilang karena memakai pose duduk di balik meja. Kini memakai pose `santai` (duduk dengan
+  kaki terlihat), sama seperti Agent Pak.
+- Hadap belakang (kursi diputar 180 derajat): tadinya tetap tampak dari depan. Kini tampak punggung dan digambar di
+  balik sandaran kursi, jadi yang terlihat hanya belakang kepalanya.
+- Menyamping: posisi duduk diturunkan 5 px supaya kaki pas di dudukan. Posisi semua arah kini mengikuti Agent Pak
+  (4 px di atas pojok perabot setinggi 16 px, lebih turun untuk yang bersandaran tinggi).
+- Sofa dan bangku lebar punya satu tempat duduk tiap 16 px; karakter duduk di tempat yang terdekat, tidak selalu di
+  tengah.
+
 ## 0.18.1 — 9 Oktober 2026
 
 **Perbaikan: ikon perabot melenceng (laporan yosi).** Di katalog Edit Map, Koperasi, inventory, dan hotbar, ikon

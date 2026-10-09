@@ -190,9 +190,14 @@ const Mesin = {
   // Duduk santai di perabot yang ditaruh (kursi, sofa, bangku, bean bag): tanpa Komputer, lelah pulih lebih cepat.
   // Arah hadap mengikuti putaran perabotnya. Berdiri: tombol gerak, Esc, atau tombol E di layar sentuh.
   dudukSantai(b) {
-    const a = G.aku, o = b.o, hadap = ['bawah', 'kiri', 'atas', 'kanan'][o.r || 0] || 'bawah';
+    const a = G.aku, o = b.o, r = o.r || 0, hadap = ['bawah', 'kiri', 'atas', 'kanan'][r] || 'bawah';
     G.duduk = { kursi: { hadap }, santai: true, dari: { x: a.x, y: a.y, arah: a.arah } };
-    a.x = Math.round(o.x + b.w / 2 - 8); a.y = Math.round(b.y + b.h - 25); a.jalan = false; a.arah = hadap;
+    // Posisi duduk mengikuti Agent Pak (TITIK_PERABOT): satu tempat tiap 16 px sepanjang perabot, tokoh 4 px di atas
+    // pojok perabot setinggi 16 px dan makin turun untuk perabot bersandaran tinggi. Yang dipakai tempat terdekat.
+    const jepit = (v, n) => Math.max(0, Math.min(n - 1, v)), datar = r % 2 === 0, tinggiAsli = datar ? b.h : b.w, dy = Math.round((tinggiAsli - 16) * 0.6) - 4;
+    if (datar) { const n = Math.max(1, Math.floor(b.w / 16)), i = jepit(Math.floor((a.x + 8 - o.x) / 16), n); a.x = o.x + Math.round((b.w - n * 16) / 2) + i * 16; a.y = b.y + dy; }
+    else { const n = Math.max(1, Math.floor(b.h / 16)), i = jepit(Math.floor((a.y + 12 - b.y) / 16), n); a.x = o.x + Math.round((b.w - 16) / 2); a.y = b.y + Math.round((b.h - n * 16) / 2) + i * 16 - 4; }
+    a.jalan = false; a.arah = hadap;
     this.tombol.clear();
     this.aturTerdekat(null);
     kabar('Duduk santai. Tekan tombol gerak atau Esc untuk berdiri.');
@@ -214,7 +219,8 @@ const Mesin = {
       Sunting.geserKamera(dt, this.sibuk() ? null : this.tombol);
     } else if (G.duduk && G.duduk.santai) {
       const h = G.duduk.kursi.hadap, st = G.health;
-      a.pose = h === 'kiri' || h === 'kanan' ? h + '_duduk' : 'duduk_a';
+      // Hadap depan = pose santai (kaki terlihat; duduk_a itu pose di balik meja), hadap belakang = tampak punggung.
+      a.pose = h === 'kiri' || h === 'kanan' ? h + '_duduk' : h === 'atas' ? 'atas_diam' : 'santai';
       st.nilai = Math.min(G.level.stamina, st.nilai + LELAH.pulihDiam * 1.5 * faktorLapar() * dt);      // duduk = istirahat
       if (!this.sibuk() && ['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].some(k => this.tombol.has(k))) this.berdiri();
     } else if (G.duduk) {

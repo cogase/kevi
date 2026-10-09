@@ -336,11 +336,26 @@ const kursiUji = await pg.evaluate(async () => {
 cek('kursi yang ditaruh menjadi titik "Duduk"', kursiUji.titik === 1, JSON.stringify(kursiUji));
 await pg.evaluate(() => { G.health.nilai = 5; Rumah.interaksi().find(t => t.duduk).aksi(); });
 await tunggu(600);
-cek('duduk santai: berpose duduk, tanpa Komputer, lelah pulih', await pg.evaluate(() => G.duduk && G.duduk.santai && /duduk/.test(G.aku.pose) && !Terminal.terbuka() && G.health.nilai > 12),
+cek('duduk santai: berpose duduk, tanpa Komputer, lelah pulih', await pg.evaluate(() => G.duduk && G.duduk.santai && G.aku.pose === 'santai' && !Terminal.terbuka() && G.health.nilai > 12),
   JSON.stringify(await pg.evaluate(() => ({ pose: G.aku.pose, health: G.health.nilai }))));
 // Laporan yosi: kursi berlayer Otomatis menutupi karakter yang mendudukinya.
 const urutDuduk = await pg.evaluate((n) => { const b = Rumah.urut.find(b => b.o.n === n); return { layer: b.o.l || '', kursi: b.alas, kaki: G.aku.y + 19, tokoh: Rumah.alasEntitas(G.aku), berdiri: Rumah.alasEntitas({ x: G.aku.x, y: G.aku.y, pose: '' }) }; }, kursiUji.n);
 cek('duduk santai: karakter digambar di depan kursi berlayer Otomatis, bukan tertutup olehnya', urutDuduk.layer === '' && urutDuduk.kaki < urutDuduk.kursi && urutDuduk.tokoh > urutDuduk.kursi && urutDuduk.berdiri === urutDuduk.kaki, JSON.stringify(urutDuduk));
+// Laporan yosi: hadap depan kakinya hilang (pose meja), hadap belakang salah arah, menyamping perlu digeser.
+const arahDuduk = await pg.evaluate(async (n) => {
+  const b = Rumah.urut.find(b => b.o.n === n), hasil = { depan: { pose: G.aku.pose, dx: G.aku.x - b.o.x, dy: G.aku.y - b.y }, bisaPutar: (Rumah.infoBarang(n).putar || []).length };
+  for (const [r, nama] of [[2, 'belakang'], [1, 'kiri'], [3, 'kanan']]) {
+    b.o.r = r; Mesin.berdiri(); Mesin.dudukSantai(b);
+    await new Promise(res => setTimeout(res, 120));
+    hasil[nama] = { pose: G.aku.pose, dy: G.aku.y - b.y, depanKursi: Rumah.alasEntitas(G.aku) > b.alas };
+  }
+  b.o.r = 0; Mesin.berdiri(); Mesin.dudukSantai(b);
+  return hasil;
+}, kursiUji.n);
+cek('duduk: hadap depan berpose santai, hadap belakang tampak punggung di balik sandaran, menyamping di depan kursi, semua 4 px di atas pojok kursi', arahDuduk.depan.pose === 'santai' && arahDuduk.depan.dx === 0
+  && arahDuduk.belakang.pose === 'atas_diam' && !arahDuduk.belakang.depanKursi && arahDuduk.kiri.pose === 'kiri_duduk' && arahDuduk.kiri.depanKursi && arahDuduk.kanan.pose === 'kanan_duduk'
+  && [arahDuduk.depan.dy, arahDuduk.belakang.dy, arahDuduk.kiri.dy, arahDuduk.kanan.dy].every(v => v >= -4 && v <= 2), JSON.stringify(arahDuduk));
+await tunggu(200);
 await tekan('s', 250);
 cek('tombol gerak membuat berdiri lagi', await pg.evaluate(() => !G.duduk));
 await pg.evaluate(async (n) => { const d = G.rumah; serap(await api('/api/rumah/simpan', { lantai: d.lantai, tembok: d.tembok, ruang: d.ruang || [], benda: d.benda.filter(o => o.n !== n) })); await aksi('/api/toko/jual', { barang: n, jumlah: 1 }); }, kursiUji.n);
