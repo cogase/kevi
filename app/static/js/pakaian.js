@@ -14,11 +14,13 @@ const Pakaian = {
     let d;
     try { d = await api('/api/lemari'); } catch (e) { kabar(e.message, 'galat'); return; }
     const t = Object.assign({}, G.karakter.tampilan), isi = el('div', { kelas: 'pakaian' });
-    const kv = el('canvas', { width: 72, height: 96, kelas: 'profil-potret', 'aria-label': 'Tampang karakter' });
+    const kv = el('canvas', { width: 64, height: 88, kelas: 'profil-potret', 'aria-label': 'Tampang karakter' });
     const potret = () => {
       const b = bingkaiTokoh(penampilan({ session_id: 'lemari', nama: G.karakter.nama, tampilan: t }), 'bawah_diam'), k = kv.getContext('2d');
       k.imageSmoothingEnabled = false; k.clearRect(0, 0, kv.width, kv.height);
-      if (b) k.drawImage(b.kanvas, 0, 0, b.kanvas.width, b.kanvas.height, 4, 4, b.kanvas.width * 2, b.kanvas.height * 2);
+      if (!b) return;
+      const s = Math.max(1, Math.floor(Math.min(kv.width / b.kanvas.width, kv.height / b.kanvas.height))), w = b.kanvas.width * s, h = b.kanvas.height * s;
+      k.drawImage(b.kanvas, 0, 0, b.kanvas.width, b.kanvas.height, Math.round((kv.width - w) / 2), Math.round((kv.height - h) / 2), w, h);      // tepat di tengah bingkai
     };
     const dipakai = (jenis, kode) => (jenis === 'aksesori' ? !!t[kode] : (t[jenis] || '') === kode);
     // Kenakan (atau lepas, untuk aksesori yang sedang dipakai) lalu simpan ke server.

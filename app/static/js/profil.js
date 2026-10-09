@@ -16,7 +16,8 @@ const Profil = {
     const s = d.statistik || {}, lv = d.level, sendiri = d.id === G.saya.id, rb = (n) => (n || 0).toLocaleString('id-ID');
     const potret = el('canvas', { width: 64, height: 88, kelas: 'profil-potret', 'aria-label': 'Tampang ' + d.nama });
     const b = bingkaiTokoh(penampilan({ session_id: 'profil-' + d.id, nama: d.nama, tampilan: d.tampilan || {} }), 'bawah_diam');
-    if (b) { const k = potret.getContext('2d'); k.imageSmoothingEnabled = false; k.drawImage(b.kanvas, 0, 0, b.kanvas.width, b.kanvas.height, 4, 4, b.kanvas.width * 2, b.kanvas.height * 2); }
+    if (b) { const k = potret.getContext('2d'); k.imageSmoothingEnabled = false; const s = Math.max(1, Math.floor(Math.min(potret.width / b.kanvas.width, potret.height / b.kanvas.height))), w = b.kanvas.width * s, h = b.kanvas.height * s;
+      k.drawImage(b.kanvas, 0, 0, b.kanvas.width, b.kanvas.height, Math.round((potret.width - w) / 2), Math.round((potret.height - h) / 2), w, h); }      // skala terbesar yang muat, tepat di tengah
     const kelompok = [
       ['Permainan', [['Level', lv.level], ['Total XP', rb(lv.xp)], ['Koin', rb(d.koin)], ['Lama bermain', this.lama(s.menit)], ['Slot inventory', d.slot]]],
       ['Kerja', [['Perintah terminal', rb(s.terminal)], ['Tanam', rb(s.tanam)], ['Panen', rb(s.panen)], ['Hasil ternak', rb(s.produk)], ['Nilai jualan', rb(s.jual) + ' koin']]],

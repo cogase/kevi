@@ -2,6 +2,11 @@
 
 Melengkapi PRD, GDD, dan TDD untuk rilis sesudah 0.2.0. Angka dan aturan di sini adalah yang berlaku di kode.
 
+## 0.24.1 — 9 Oktober 2026
+
+**Perbaikan: potret karakter tidak di tengah (laporan yosi).** Di panel Profil dan di lemari pakaian, gambar karakter
+menempel di pojok kiri atas bingkainya. Kini digambar dengan skala terbesar yang muat dan tepat di tengah bingkai.
+
 ## 0.24.0 — 9 Oktober 2026
 
 **Peti harta acak (kata yosi).** Di peta utama, sebuah peti berkilau muncul di tempat acak tiap kira-kira 10 menit

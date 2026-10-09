@@ -331,6 +331,12 @@ cek('jual hasil lewat kotak kiriman menambah koin', (await pg.evaluate(() => G.k
 // --- profil: statistik sendiri dari Menu
 await pg.evaluate(() => Profil.buka());
 await pg.waitForSelector('.profil .profil-potret');
+cek('profil: potret karakter berada di tengah bingkainya (laporan yosi: menempel di pojok kiri atas)', await pg.evaluate(() => {
+  const kv = $('.profil-potret'), d = kv.getContext('2d').getImageData(0, 0, kv.width, kv.height).data;
+  let x0 = 999, x1 = -1, y0 = 999, y1 = -1;
+  for (let y = 0; y < kv.height; y++) for (let x = 0; x < kv.width; x++) if (d[(y * kv.width + x) * 4 + 3] > 40) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+  return x1 > 0 && Math.abs((x0 + x1 + 1) / 2 - kv.width / 2) <= 4 && Math.abs((y0 + y1 + 1) / 2 - kv.height / 2) <= 6 && x1 - x0 > 30;
+}));
 cek('profil sendiri bertab: terbuka di tab Karakter dengan Ganti pakaian dan Ubah karakter di atas, statistik di tab lain', await pg.evaluate(() => {
   const tab = [...document.querySelectorAll('.profil-tab button')].map(b => b.textContent).join(), awal = $('.profil-tab button.aktif').textContent, karakter = $('.profil-badan').textContent;
   const buka = (n) => { [...document.querySelectorAll('.profil-tab button')].find(b => b.textContent === n).click(); return $('.profil-badan').textContent; };
