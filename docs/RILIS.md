@@ -2,6 +2,20 @@
 
 Melengkapi PRD, GDD, dan TDD untuk rilis sesudah 0.2.0. Angka dan aturan di sini adalah yang berlaku di kode.
 
+## 0.22.2 — 9 Oktober 2026
+
+**Edit Map dan Edit Rumah (laporan dan permintaan yosi)**
+- **Klik perabot tersangkut di petak kebun (perbaikan).** Alat Pilih dulu selalu mengambil benda berluas terkecil di
+  bawah kursor, dan petak kebun (16x16) hampir selalu yang terkecil, sehingga perabot yang bertumpuk dengannya tidak
+  bisa dipilih. Kini perabot biasa diutamakan, lalu lampu gantung, dan benda alas (petak kebun, karpet) paling akhir.
+  **Alt+klik** berpindah ke benda berikutnya di tumpukan yang sama. Alat Hapus memakai urutan yang sama.
+- **Subkategori di katalog perabot.** Begitu sebuah kategori dipilih di bilah sisi, di atas kisi muncul kepingan
+  subkategorinya (mis. Meja: Kantor, Makan, Unik, ...) dengan jumlah isinya; klik untuk menyaring, "Semua" untuk
+  kembali. Kategori yang hanya punya satu subkategori tidak menampilkan kepingan.
+- **Lampu gantung di langit-langit.** Semua `lampu_gantung_*` kini digambar samar dan sedikit kabur di atas tokoh dan
+  perabot, dan tidak lagi menghalangi langkah. Selagi menyunting, lampu menjadi jelas saat kursor berada di atasnya
+  atau saat dipilih. Cahayanya di malam hari tidak berubah.
+
 ## 0.22.1 — 9 Oktober 2026
 
 **Edit Rumah punya alat Penghalang (kata yosi).** Alat "Halang" di kelompok Bangun kini juga ada di Edit Rumah, sama

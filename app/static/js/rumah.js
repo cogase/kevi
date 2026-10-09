@@ -12,6 +12,7 @@
 const JALUR_ATAS = 3;                       // rumah: baris di ATAS tanah (jalan dari kantor + pagar bergerbang)
 const ALAS_TANAH = /^(karpet|keset|em_tikar_|tidur_karpet|kebun_petak|kebun_jalan|kebun_batu_pijakan|kota_zebra|kota_manhole)/;
 const TITIK_JUAL = /^kebun_(kotak_kiriman|peti_tani|peti_hasil|lumbung_)/;
+const LAMPU_GANTUNG = /^lampu_gantung/;      // tergantung di langit-langit: digambar samar di atas semuanya, tidak menghalangi langkah
 const PERABOT_DUDUK = /(^|_)(kursi|sofa|bangku|bean_bag|puff)(_|$)/;
 const WARNA_TEMBOK = ['#8b9bb4', '#c98a4b', '#b5651d', '#7c9a6a', '#b0606a', '#e8e2d0', '#4a5568'];
 // Perabot yang "berfungsi" bila ditaruh admin di peta utama (nama sprite Agent Pak).
@@ -112,7 +113,7 @@ const Rumah = {
       const b = { o, w: u.w, h: u.h, y: o.y + oy, alas: o.l === 'atas' ? 1e9 + o.id : o.y + oy + u.h };
       const alasTanah = this.alasTanah(o.n);
       if (alasTanah || o.l === 'bawah') this.alas.push(b); else this.urut.push(b);
-      if (!alasTanah && !info.tembus && !o.t && !/^hewan_/.test(o.n) && !(o.g && POLA_KENDARAAN.test(o.n))) gridJejak(g, o.x, b.y, u.w, u.h, !!info.datar);      // o.t = dibuat tembus di Edit Map
+      if (!alasTanah && !info.tembus && !o.t && !/^hewan_/.test(o.n) && !LAMPU_GANTUNG.test(o.n) && !(o.g && POLA_KENDARAAN.test(o.n))) gridJejak(g, o.x, b.y, u.w, u.h, !!info.datar);      // o.t = dibuat tembus di Edit Map
     }
     this.alas.sort((p, q) => p.o.id - q.o.id);
     G.grid = g;
@@ -199,6 +200,13 @@ const Rumah = {
       if (liar) {
         const s = this.jelajah('b' + o.id, liar[1], { x: o.x - 64, y: b.y - 64, w: b.w + 128, h: b.h + 128 }, t, { rumah: { x: o.x, y: b.y } }), us = ukuranSprite(s.n);
         daftar.push({ alas: s.y + us.h, lukis: () => lukis(k, s.n, s.x, s.y) });
+        continue;
+      }
+      // Lampu gantung ada di langit-langit (kata yosi): samar dan sedikit kabur, di atas tokoh dan perabot. Selagi
+      // menyunting ia jadi jelas bila dipilih atau kursor berada di atasnya, supaya mudah diedit.
+      if (LAMPU_GANTUNG.test(o.n) && o.l !== 'bawah') {
+        const sunting = G.bangun && G.bangun.sunting, jelas = sunting && (Sunting.pilih === o.id || (Sunting.mx >= o.x && Sunting.mx < o.x + b.w && Sunting.my >= b.y && Sunting.my < b.y + b.h));
+        daftar.push({ alas: 5e8 + o.id, lukis: () => { k.save(); if (!jelas) { k.globalAlpha = 0.5; k.filter = 'blur(0.6px)'; } lukis(k, o.r ? namaPutar(n, o.r) : n, o.x, b.y); k.restore(); } });
         continue;
       }
       // Kendaraan yang disetel Bergerak menyusuri ubin jalan (hidup.js); selagi menyunting ia parkir di tempatnya.

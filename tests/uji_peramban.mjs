@@ -226,6 +226,41 @@ await pg.evaluate(() => Sunting.ubah((d) => { d.lantai = {}; d.tembok = {}; }));
 await pg.click('#sunting-simpan');
 await pg.waitForFunction(() => !Sunting.kotor && !Sunting.sibuk);
 cek('mencabut lantai dan tembok tidak mengisi inventory', await pg.evaluate((k) => G.koin === k && !Object.keys(G.inventori).some(b => b === 'tembok' || b.startsWith('lantai:')), koinUbin));
+// Laporan yosi: klik perabot tersangkut di petak kebun; lampu gantung di langit-langit; subkategori katalog.
+const pilihUji = await pg.evaluate(() => {
+  const d = Sunting.d, petak = d.benda.find(o => o.n === 'kebun_petak'), asal = d.benda.slice(), pilihAsal = Sunting.pilih;
+  d.benda.push({ id: 99001, n: 'luar_bangku_taman', x: petak.x - 8, y: petak.y, r: 0 }, { id: 99002, n: 'lampu_gantung_kaca', x: petak.x - 8, y: petak.y - 8, r: 0 });
+  Rumah.segarkan();
+  const b = Sunting.kotak(petak), titik = { x: b.x + 6, y: b.y + 6 }, J = Rumah.oy / 16;
+  Sunting.pilih = null;
+  const pertama = Sunting.kena(titik).n;
+  const urutan = [];
+  for (let i = 0; i < 4; i++) { const o = Sunting.kena(titik, true); urutan.push(o.n); Sunting.pilih = o.id; }
+  const lampu = Rumah.urut.find(x => x.o.id === 99002), ubinLampu = { gx: Math.floor((lampu.o.x + 8) / 16), gy: Math.floor((lampu.y + lampu.h - 4) / 16) };
+  const hasil = { pertama, urutan: urutan.join(), lampuTembus: !gridPadat(G.grid, ubinLampu.gx, ubinLampu.gy) || gridPadat(G.grid, Math.floor((petak.x + 20) / 16), Math.floor(petak.y / 16) + J), regex: LAMPU_GANTUNG.test('lampu_gantung_rotan') && !LAMPU_GANTUNG.test('lampu_lantai') };
+  d.benda = asal; Sunting.pilih = pilihAsal; Rumah.segarkan();
+  return hasil;
+});
+cek('Edit: klik di tumpukan memilih perabotnya, bukan petak kebun di bawahnya; Alt+klik bergiliran ke lampu gantung lalu petak', pilihUji.pertama === 'luar_bangku_taman'
+  && pilihUji.urutan === 'luar_bangku_taman,lampu_gantung_kaca,kebun_petak,luar_bangku_taman' && pilihUji.regex, JSON.stringify(pilihUji));
+await pg.evaluate(() => { Sunting.kat.kategori = ''; Sunting.kat.sub = ''; Sunting.kat.cari = ''; Sunting.pakaiAlat('pilih'); Sunting.bukaKatalog('perabot'); });
+await pg.waitForSelector('#sunting-katalog .kartu');
+const subUji = await pg.evaluate(async () => {
+  const semu = Sunting.rumah; Sunting.rumah = false;              // lihat katalog penuh, bukan hanya yang dimiliki
+  const tunggu = () => new Promise(r => setTimeout(r, 60));
+  const awal = $('#sunting-katalog .kat-sub').hidden;
+  $('#sunting-katalog .kat-sisi [data-kategori="Meja"]').click(); await tunggu();
+  const kep = [...document.querySelectorAll('#sunting-katalog .kat-sub button')], semua = document.querySelectorAll('#sunting-katalog .kartu').length;
+  kep[1].click(); await tunggu();
+  const B = G.katalog.barang, dipilih = kep[1].dataset.sub, kartu = [...document.querySelectorAll('#sunting-katalog .kartu')].map(k => B[k.dataset.n].k);
+  const hasil = { awal, kepingan: kep.map(k => k.dataset.sub).join('|'), semua, sesudah: kartu.length, cocok: kartu.every(k => k === 'Meja/' + dipilih), aktif: $('#sunting-katalog .kat-sub button.aktif').dataset.sub === dipilih };
+  $('#sunting-katalog .kat-sisi [data-kategori="Hewan"]').click(); await tunggu();
+  hasil.satuSub = $('#sunting-katalog .kat-sub').hidden && Sunting.kat.sub === '';
+  Sunting.rumah = semu; Sunting.kat.kategori = ''; Sunting.kat.sub = ''; Sunting.tutupKatalog();
+  return hasil;
+});
+cek('katalog perabot: kategori terpilih menampilkan kepingan subkategori yang menyaring kisi; kategori bersub tunggal tanpa kepingan', subUji.awal && subUji.kepingan.split('|').length >= 3 && subUji.kepingan.startsWith('|')
+  && subUji.sesudah > 0 && subUji.sesudah < subUji.semua && subUji.cocok && subUji.aktif && subUji.satuSub, JSON.stringify(subUji));
 // Penghalang buatan sendiri di Edit Rumah (kata yosi): disimpan server, menghalangi langkah, bisa dihapus lagi.
 await pg.evaluate(() => { Sunting.pakaiAlat('halang'); Sunting.ubah((d) => { d.halang['12,12'] = 1; d.halang['13,12'] = 1; }); });
 await pg.click('#sunting-simpan');

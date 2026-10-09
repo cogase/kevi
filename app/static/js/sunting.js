@@ -18,7 +18,7 @@ const ALAT_SUNTING = [
   ['Katalog', [['perabot', '▣', 'Perabot', 'Katalog perabot']]],
 ];
 const PETUNJUK_SUNTING = {
-  pilih: 'Klik benda atau ruang untuk memilih, seret untuk memindah. Seret tempat kosong untuk menggeser peta. Panah menggeser pilihan (Shift = 1 ubin). Shift+klik menambah ke grup.',
+  pilih: 'Klik benda atau ruang untuk memilih (Alt+klik: benda berikutnya di tumpukan yang sama), seret untuk memindah. Seret tempat kosong untuk menggeser peta. Panah menggeser pilihan (Shift = 1 ubin). Shift+klik menambah ke grup.',
   ruang: 'Seret di peta untuk menggambar ruang (minimal 3×3 ubin). Dinding, lantai, dan satu pintu dibuat otomatis; ubah lewat alat Pilih.',
   area: 'Seret di peta untuk memilih banyak benda, lalu seret kotaknya untuk memindah semuanya. Klik benda untuk menambah atau melepasnya.',
   hapus: 'Klik benda untuk menghapusnya. Seret untuk menghapus tembok dan lantai ubin demi ubin.',
@@ -32,7 +32,7 @@ const jepret = (v, kisi = JEPRET) => Math.round(v / kisi) * kisi;
 const Sunting = {
   aktif: false, alat: 'pilih', akar: '', rev: 0, kotor: false, urung: [], pilih: null, grup: null, seret: null,
   sprite: null, r: 0, lantai: null, warna: WARNA_TEMBOK[0], lihatHalang: true, ikutUbin: false, terakhir: [],
-  mx: -99, my: -99, pesan: '', tanya: 0, sibuk: false, luar: null, kat: { mode: 'perabot', kategori: '', cari: '' },
+  mx: -99, my: -99, pesan: '', tanya: 0, sibuk: false, luar: null, kat: { mode: 'perabot', kategori: '', sub: '', cari: '' },
   pilihRuang: null, bawaIsi: true, kam: { x: 0, y: 0 },
 
   get d() { return Rumah.d; },
@@ -195,14 +195,22 @@ const Sunting = {
 
   /* ---------- mencari benda ---------- */
 
-  kena(p) {
-    let hasil = null, luas = Infinity;
+  // Benda di bawah kursor. Perabot biasa diutamakan; lampu gantung (di langit-langit) sesudahnya; benda alas seperti
+  // petak kebun dan karpet paling akhir, supaya perabot yang berdiri di atasnya tetap bisa diklik (dulu yang terkecil
+  // selalu menang, dan petak kebun 16x16 hampir selalu yang terkecil). Di tiap kelompok yang terkecil menang.
+  // `gilir` (Alt+klik): tiap klik di titik yang sama berpindah ke benda berikutnya di tumpukan itu.
+  kena(p, gilir) {
+    const calon = [];
     for (const o of this.d.benda) {
       const b = this.kotak(o);
       if (p.x < b.x || p.x >= b.x + b.w || p.y < b.y || p.y >= b.y + b.h) continue;
-      if (b.w * b.h <= luas) { hasil = o; luas = b.w * b.h; }
+      calon.push({ o, luas: b.w * b.h, kelas: Rumah.alasTanah(o.n) || o.l === 'bawah' ? 2 : LAMPU_GANTUNG.test(o.n) ? 1 : 0 });
     }
-    return hasil;
+    if (!calon.length) return null;
+    calon.sort((a, b) => a.kelas - b.kelas || a.luas - b.luas || b.o.id - a.o.id);
+    if (!gilir) return calon[0].o;
+    const kini = calon.findIndex(c => c.o.id === this.pilih);
+    return calon[(kini + 1) % calon.length].o;
   },
   bendaDalam(x0, y0, x1, y1) {
     return this.d.benda.filter(o => { const b = this.kotak(o), cx = b.x + b.w / 2, cy = b.y + b.h / 2; return cx >= x0 && cx < x1 && cy >= y0 && cy < y1; });
@@ -392,7 +400,7 @@ const Sunting = {
       const h = this.letakHantu();
       this.ubah((d) => { d.urut += 1; d.benda.push({ id: d.urut, n: this.sprite, x: h.x, y: h.y, r: this.r }); });
     } else if (this.alat === 'pilih') {
-      const o = this.kena(p);
+      const o = this.kena(p, ev.altKey);
       if (o && tambah) {                                   // Shift+klik: mulai atau tambah grup
         const ids = new Set(this.pilih != null ? [this.pilih] : []);
         ids.add(o.id);
@@ -868,7 +876,7 @@ const Sunting = {
     const lukisKisi = () => {
       const q = kat.cari.toLowerCase().split(/\s+/).filter(Boolean), B = G.katalog.barang;
       let daftar = mode === 'lantai' ? G.katalog.lantai.slice()
-        : Object.keys(B).filter(n => !kat.kategori || B[n].k.startsWith(kat.kategori + '/')).sort((x, y) => B[x].k.localeCompare(B[y].k) || x.localeCompare(y));
+        : Object.keys(B).filter(n => !kat.kategori || (kat.sub ? B[n].k === kat.kategori + '/' + kat.sub : B[n].k.startsWith(kat.kategori + '/'))).sort((x, y) => B[x].k.localeCompare(B[y].k) || x.localeCompare(y));
       daftar = daftar.filter(n => q.every(x => (n.replace(/_/g, ' ') + ' ' + (mode === 'lantai' ? '' : B[n].k)).toLowerCase().includes(x)));
       // Rumah: hanya yang dimiliki atau dijual toko (yang lain tak mungkin dipasang).
       if (this.rumah && mode !== 'lantai') daftar = daftar.filter(n => (G.inventori[n] || 0) > 0 || hargaBeli(n) != null);
@@ -895,12 +903,23 @@ const Sunting = {
     const B0 = G.katalog.barang, hitung = (nama) => Object.keys(B0).filter(n => !nama || B0[n].k.startsWith(nama + '/')).length;
     const sisi = mode === 'lantai' ? null : el('nav', { kelas: 'kat-sisi', 'aria-label': 'Kategori perabot' },
       [{ nama: '' }, ...G.katalog.kategori].map(k => el('button', { kelas: k.nama === kat.kategori ? 'aktif' : '', 'data-kategori': k.nama, title: (k.nama || 'Semua perabot') + ' (' + hitung(k.nama) + ')',
-        teks: k.nama || 'Semua', on: { click: (ev) => { kat.kategori = k.nama; for (const s of sisi.children) s.classList.toggle('aktif', s === ev.currentTarget); kisi.scrollTop = 0; lukisKisi(); } } })));
+        teks: k.nama || 'Semua', on: { click: (ev) => { kat.kategori = k.nama; kat.sub = ''; for (const s of sisi.children) s.classList.toggle('aktif', s === ev.currentTarget); kisi.scrollTop = 0; lukisSub(); lukisKisi(); } } })));
+    // Subkategori (kata yosi: daftar per kategori terlalu panjang untuk digulir): kepingan di atas kisi, menurut kategori terpilih.
+    const sub = el('div', { kelas: 'kat-sub', 'aria-label': 'Subkategori' });
+    const lukisSub = () => {
+      const jumlah = {};
+      if (mode !== 'lantai' && kat.kategori) for (const n of Object.keys(B0)) if (B0[n].k.startsWith(kat.kategori + '/')) { const s = B0[n].k.slice(kat.kategori.length + 1); jumlah[s] = (jumlah[s] || 0) + 1; }
+      const nama = Object.keys(jumlah).sort();
+      sub.hidden = nama.length < 2;
+      sub.replaceChildren(...(nama.length < 2 ? [] : [['', 'Semua'], ...nama.map(s => [s, s])].map(([v, t]) => el('button', { kelas: kat.sub === v ? 'aktif' : '', 'data-sub': v, teks: t + (v ? ' ' + jumlah[v] : ''),
+        on: { click: () => { kat.sub = v; kisi.scrollTop = 0; lukisSub(); lukisKisi(); } } }))));
+    };
+    lukisSub();
     const cari = el('input', { type: 'search', placeholder: mode === 'lantai' ? 'Cari motif lantai…' : 'Cari perabot…', value: kat.cari, on: Object.assign({ input: (ev) => { kat.cari = ev.target.value; lukisKisi(); } }, diam) });
     lukisKisi();
     const kepala = el('header', {}, el('b', { teks: mode === 'lantai' ? 'Motif lantai' : 'Katalog perabot' }), el('button', { kelas: 'tutup', 'aria-label': 'Tutup katalog', teks: '✕', on: { click: () => this.tutupKatalog() } }));
     const jendela = el('section', { id: 'sunting-katalog', kelas: 'bingkai tipis' + (sisi ? ' bersisi' : ''), 'aria-label': 'Katalog' }, kepala,
-      el('div', { kelas: 'kat-badan' }, sisi, el('div', { kelas: 'kat-isi' }, el('div', { kelas: 'saring' }, cari), kisi)));
+      el('div', { kelas: 'kat-badan' }, sisi, el('div', { kelas: 'kat-isi' }, el('div', { kelas: 'saring' }, cari), sub, kisi)));
     document.body.append(jendela);
     bisaDigeser(jendela, kepala, 'sunting-katalog');
   },
