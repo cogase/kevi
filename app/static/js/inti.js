@@ -227,10 +227,12 @@ function ikon(nama, maks = 40) {
   const p = atlas[nama];
   const kotak = el('span', { kelas: 'ikon', gaya: { width: maks + 'px', height: maks + 'px' } });
   if (!p) return kotak;
-  const s = Math.max(0.5, Math.min(3, Math.floor(maks / Math.max(p.w, p.h) * 2) / 2));
+  // Sprite kecil diperbesar dengan kelipatan setengah (tetap tajam); sprite yang lebih besar dari kotaknya dikecilkan
+  // sampai pas. Selalu ditambatkan di tengah kotak (lihat .ikon > span), berapa pun ukuran aslinya.
+  const pas = maks / Math.max(p.w, p.h), s = pas >= 1 ? Math.min(3, Math.floor(pas * 2) / 2) : pas;
   kotak.append(el('span', { gaya: {
     width: p.w + 'px', height: p.h + 'px', backgroundImage: `url(/static/gambar/sprite.png${V})`,
-    backgroundPosition: `-${p.x}px -${p.y}px`, transform: `scale(${s})`,
+    backgroundPosition: `-${p.x}px -${p.y}px`, transform: `translate(-50%, -50%) scale(${+s.toFixed(4)})`,
   } }));
   return kotak;
 }

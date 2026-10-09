@@ -2,6 +2,12 @@
 
 Melengkapi PRD, GDD, dan TDD untuk rilis sesudah 0.2.0. Angka dan aturan di sini adalah yang berlaku di kode.
 
+## 0.18.1 — 9 Oktober 2026
+
+**Perbaikan: ikon perabot melenceng (laporan yosi).** Di katalog Edit Map, Koperasi, inventory, dan hotbar, ikon
+perabot yang sprite-nya lebih besar dari kotaknya tampil melenceng ke pojok atau ke bawah, bahkan keluar dari
+kotaknya. Ikon kini selalu ditambatkan di tengah kotak dan dikecilkan sampai muat, berapa pun ukuran aslinya.
+
 ## 0.18.0 — 9 Oktober 2026
 
 **Lantai dan tembok tidak dikomersilkan (kata yosi).**

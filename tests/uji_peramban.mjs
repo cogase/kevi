@@ -721,6 +721,24 @@ await pg2.click('#tirai button.utama');
 await pg2.waitForFunction(() => !document.querySelector('#tirai'));
 cek('feedback terkirim dari dalam game', true);
 
+// --- ikon sprite selalu di tengah kotaknya dan muat (laporan yosi: ikon perabot melenceng ke pojok/bawah)
+const ikonUji = await pg.evaluate(() => {
+  const B = G.katalog.barang, nama = Object.keys(B).filter(n => atlas[n]), besar = nama.slice().sort((a, b) => Math.max(atlas[b].w, atlas[b].h) - Math.max(atlas[a].w, atlas[a].h)).slice(0, 12);
+  const kecil = nama.filter(n => Math.max(atlas[n].w, atlas[n].h) <= 16).slice(0, 4), wadah = document.createElement('div');
+  wadah.style.cssText = 'position:fixed;left:300px;top:300px;display:flex;gap:40px;';
+  document.body.append(wadah);
+  let terburuk = 0, luber = 0;
+  for (const n of [...besar, ...kecil]) for (const maks of [26, 28, 40]) {
+    const k = ikon(n, maks); wadah.replaceChildren(k);
+    const a = k.getBoundingClientRect(), b = k.firstElementChild.getBoundingClientRect();
+    terburuk = Math.max(terburuk, Math.abs((a.left + a.right) / 2 - (b.left + b.right) / 2), Math.abs((a.top + a.bottom) / 2 - (b.top + b.bottom) / 2));
+    luber = Math.max(luber, b.width - a.width, b.height - a.height);
+  }
+  wadah.remove();
+  return { terburuk, luber, terbesar: Math.max(atlas[besar[0]].w, atlas[besar[0]].h), n: besar.length + kecil.length };
+});
+cek('ikon sprite: selalu di tengah kotak dan tidak meluber, juga untuk sprite yang jauh lebih besar dari kotaknya', ikonUji.terburuk <= 0.6 && ikonUji.luber <= 0.6 && ikonUji.terbesar > 60 && ikonUji.n >= 12, JSON.stringify(ikonUji));
+
 // --- sudut tembok menyatu (laporan yosi): balok mendatar tidak menjorok keluar dari sisi luar tembok tegak
 const sudutUji = await pg.evaluate(() => {
   const kv = document.createElement('canvas'); kv.width = 64; kv.height = 64;

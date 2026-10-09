@@ -198,8 +198,8 @@ textarea { resize: vertical; font-family: var(--mono); font-size: 13px; }
 .kartu small { font-size: 11px; color: var(--redup); text-shadow: none; }
 .kartu small.harga { color: var(--emas); }
 .punya { position: absolute; top: 3px; right: 6px; font: 700 11px var(--mono); color: #93c5fd; }
-.ikon { display: inline-grid; place-items: center; flex: none; overflow: visible; }
-.ikon > span { display: block; flex: none; image-rendering: pixelated; }
+.ikon { position: relative; display: inline-block; flex: none; overflow: visible; }
+.ikon > span { position: absolute; left: 50%; top: 50%; display: block; image-rendering: pixelated; }
 .ikon-tembok { background: linear-gradient(#4a5568 0 55%, #8b9bb4 55% 100%); border: 2px solid #0b1220; }
 .tab { display: flex; align-items: center; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
 .tab button, .tab-admin button { padding: 6px 13px; font-weight: 700; }
