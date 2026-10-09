@@ -875,8 +875,12 @@ const Sunting = {
       const dipilih = mode === 'lantai' ? this.lantai : this.sprite;
       kisi.replaceChildren(...daftar.slice(0, 240).map(n => {
         const b = mode === 'lantai' ? 'lantai:' + n : n;
-        const ket = namaBarang(b) + (this.rumah ? ' · punya ' + (G.inventori[b] || 0) + (hargaBeli(b) != null ? ' · ' + hargaBeli(b) + ' koin' : '') : '');
-        return el('button', { kelas: 'kartu' + (n === dipilih ? ' aktif' : ''), title: ket, 'aria-label': ket, 'data-n': n, on: { click: () => {
+        // Rumah: lantai gratis tetapi motifnya terbuka menurut level; perabot memakai stok lalu dibeli. Admin di peta utama bebas.
+        const kunci = this.rumah && mode === 'lantai' && levelBarang(b) > G.level.level ? levelBarang(b) : 0;
+        const ket = namaBarang(b) + (!this.rumah ? '' : mode === 'lantai' ? (kunci ? ' · terbuka di level ' + kunci : ' · gratis')
+          : ' · punya ' + (G.inventori[b] || 0) + (hargaBeli(b) != null ? ' · ' + hargaBeli(b) + ' koin' : ''));
+        return el('button', { kelas: 'kartu' + (n === dipilih ? ' aktif' : '') + (kunci ? ' gembok' : ''), title: ket, 'aria-label': ket, 'data-n': n, 'aria-disabled': kunci ? 'true' : null, on: { click: () => {
+          if (kunci) { this.kabar(namaBarang(b) + ' terbuka di level ' + kunci + '.'); return; }
           const r = mode === 'lantai' && this.alat === 'pilih' && this.pilihRuang != null ? this.ruang(this.pilihRuang) : null;
           if (r) this.ubah(() => { r.lantai = n; });        // katalog dibuka dari properti ruang: motif untuk ruang itu
           else if (mode === 'lantai') { this.lantai = n; if (this.alat !== 'ruang') { this.alat = 'lantai'; this.pilih = null; this.grup = null; } this.lukisDok(); }

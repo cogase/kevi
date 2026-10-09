@@ -2,6 +2,28 @@
 
 Melengkapi PRD, GDD, dan TDD untuk rilis sesudah 0.2.0. Angka dan aturan di sini adalah yang berlaku di kode.
 
+## 0.18.0 — 9 Oktober 2026
+
+**Lantai dan tembok tidak dikomersilkan (kata yosi).**
+- Di Edit Rumah, lantai dan tembok kini **gratis** dan tidak lewat inventory: dipasang tanpa biaya, dicabut tanpa
+  kembali ke inventory. Perabot tetap memakai stok lalu dibeli seharga toko.
+- Motif lantai **terbuka menurut level**, per keluarga motif: level 1 kayu, parket, ubin, tile, keramik, luar; level 2
+  dapur, kamar mandi, vinyl, trotoar; level 3 karpet; level 4 teraso, alam; level 5 kota; level 6 marmer, server;
+  level 7 pantai. Tembok terbuka sejak level 1. Di katalog lantai, motif yang belum terbuka bergembok dan menyebut
+  levelnya. Motif yang sudah terpasang boleh tetap; yang diperiksa hanya motif yang baru dipakai.
+- Admin di peta utama tetap tanpa gembok dan tanpa biaya.
+- Tab "Lantai & tembok" di Koperasi dibuang.
+- **Stok lama dikembalikan jadi koin**: lantai dan tembok yang telanjur dibeli (di inventory maupun di dalam peti)
+  diuangkan seharga belinya dulu (lantai 2, tembok 3 koin per ubin) saat server mulai, tercatat di riwayat koin
+  sebagai "pengembalian N ubin lantai/tembok (kini gratis)".
+
+**Tanaman berulang ada batas panennya (kata yosi).** Sesudah sekian kali panen tanamannya habis dan petak kosong lagi:
+cabai, tomat, dan stroberi **6 kali panen**; pohon jeruk dan mangga **12 kali**. Usul awal 3 kali tidak dipakai karena
+benih pohon mahal: pohon jeruk dengan 3 kali panen hanya untung 30 koin dalam 40 jam. Dengan angka ini untung per jam
+tanaman berulang sekitar 5 sampai 6,5 koin, sedikit di bawah tanaman sekali panen (6,7 sampai 10) yang harus ditanam
+ulang. Petunjuk petak menyebut sisa panen ("sisa 3 kali panen", "panen terakhir"), kartu benih di Koperasi menyebut
+jumlah panennya. Tanaman yang sudah tertanam mulai dihitung dari nol.
+
 ## 0.17.0 — 9 Oktober 2026
 
 **Meja kerja beranimasi duduk (kata yosi).** Meja kerja yang ditaruh dari katalog (kategori Meja: `meja_L`,

@@ -31,6 +31,11 @@ TANAMAN = {
     "jeruk": ("Pohon jeruk", 24, 150, 60, 8, True),
     "mangga": ("Pohon mangga", 36, 200, 90, 10, True),
 }
+# 0.18.0 (yosi: "tanaman yang bisa berulang kali panen ada batasnya"): sesudah sekian kali panen tanamannya habis dan
+# petak kosong lagi. Angkanya dipilih supaya untung per jam sedikit di bawah tanaman sekali panen (yang repot ditanam
+# ulang): sayur berulang 6 kali (sekitar 6 koin/jam), pohon 12 kali karena benihnya mahal (jeruk 5, mangga 6 koin/jam).
+# Dengan 3 kali panen pohon jeruk hanya untung 30 koin dalam 40 jam, jadi 3 tidak dipakai.
+PANEN_MAKS = {"cabai": 6, "tomat": 6, "stroberi": 6, "jeruk": 12, "mangga": 12}
 BASAH_JAM = 12
 TAHAP_MATANG = 4
 JANGKAU_PENYIRAM = 26          # px dari pusat penyiram ke pusat petak (8 petak sekeliling)
@@ -49,8 +54,13 @@ PRODUK = {"telur": ("Telur", 18), "telur_bebek": ("Telur bebek", 25), "susu_kamb
 HARGA_PAKAN = 8
 KENYANG_JAM = 24
 
-HARGA_LANTAI = 2
-HARGA_TEMBOK = 3
+# 0.18.0 (yosi: "lantai dan tembok jangan dikomersilkan"): keduanya gratis di Edit Rumah, tidak lewat inventory, dan
+# motif lantai terbuka menurut level. Harga lama hanya dipakai untuk mengembalikan stok yang telanjur dibeli.
+HARGA_LANTAI_LAMA = 2
+HARGA_TEMBOK_LAMA = 3
+# Level pembuka motif lantai, menurut keluarga namanya (lantai_<keluarga>_...). Yang tak tercantum = level 1.
+LEVEL_LANTAI = {"dapur": 2, "mandi": 2, "vinyl": 2, "trotoar": 2, "karpet": 3, "teraso": 4, "alam": 4, "kota": 5,
+                "marmer": 6, "server": 6, "pantai": 7}
 JUAL_KEMBALI = 0.5             # perabot dijual lagi = separuh harga
 KATEGORI_TAK_DIJUAL = ("Antar lantai/", "Tempat kerja/", "Hewan/")
 
@@ -210,6 +220,10 @@ def nama_barang(b: str) -> str:
     return b.removeprefix("em_").replace("_", " ").capitalize()
 
 
+def ubin_bebas(b: str) -> bool:
+    return b == "tembok" or b.startswith("lantai:")
+
+
 def harga_beli(b: str) -> int | None:
     """Harga satu barang di toko, None = tidak dijual."""
     if b.startswith("benih:"):
@@ -218,10 +232,8 @@ def harga_beli(b: str) -> int | None:
         return MAKANAN[b[6:]][1] if b[6:] in MAKANAN else None
     if b == "pakan":
         return HARGA_PAKAN
-    if b == "tembok":
-        return HARGA_TEMBOK
-    if b.startswith("lantai:"):
-        return HARGA_LANTAI if b[7:] in katalog()["lantai"] else None
+    if ubin_bebas(b):                            # lantai dan tembok gratis: tidak dijual, tidak disimpan di inventory
+        return None
     k = katalog()["barang"].get(b)
     if not k or k["k"].startswith(KATEGORI_TAK_DIJUAL):
         return None
@@ -233,7 +245,7 @@ def harga_jual(b: str) -> int | None:
         return TANAMAN[b[6:]][3] if b[6:] in TANAMAN else None
     if b in PRODUK:
         return PRODUK[b][1]
-    if b.startswith("benih:") or b == "pakan" or b == "tembok" or b.startswith("lantai:"):
+    if b.startswith("benih:") or b == "pakan":
         h = harga_beli(b)
         return max(1, int(h * JUAL_KEMBALI)) if h else None
     h = harga_beli(b)
@@ -257,7 +269,9 @@ def level_barang(b: str) -> int:
     """Level yang dibutuhkan untuk MEMBELI barang (yang sudah dimiliki tetap bisa dipasang dan dijual)."""
     if b in LEVEL_KHUSUS:
         return LEVEL_KHUSUS[b]
-    if b.startswith(("lantai:", "makan:")):
+    if b.startswith("lantai:"):
+        return LEVEL_LANTAI.get(b[7:].removeprefix("lantai_").split("_")[0], 1)
+    if b.startswith("makan:"):
         return 1
     h = harga_beli(b) or 0
     return next((lv for batas, lv in TINGKAT_HARGA if h <= batas), LEVEL_BARANG_PUNCAK)
@@ -266,7 +280,7 @@ def level_barang(b: str) -> int:
 def _cek_level_barang(kon: sqlite3.Connection, uid: int, barang: str) -> None:
     perlu = level_barang(barang)
     if level(kon, uid) < perlu:
-        raise Ditolak(f"{nama_barang(barang)} baru bisa dibeli di level {perlu}.")
+        raise Ditolak(f"{nama_barang(barang)} baru terbuka di level {perlu}." if ubin_bebas(barang) else f"{nama_barang(barang)} baru bisa dibeli di level {perlu}.")
 
 
 def beli(kon: sqlite3.Connection, uid: int, barang: str, jumlah: int) -> dict:
@@ -305,6 +319,39 @@ def jual_semua_hasil(kon: sqlite3.Connection, uid: int) -> dict:
     if not total:
         raise Ditolak("Belum ada hasil kebun atau kandang untuk dijual.")
     return {"koin": saldo(kon, uid), "inventori": inventori(kon, uid), "dapat": total}
+
+
+def kembalikan_ubin(kon: sqlite3.Connection) -> int:
+    """Lantai dan tembok kini gratis: stok yang telanjur dibeli (di inventory maupun di dalam peti) dikembalikan jadi
+    koin seharga belinya dulu. Dipanggil tiap server mulai; sesudah sekali jalan tak ada lagi yang dikembalikan.
+    Mengembalikan jumlah pemain yang menerima koin."""
+    def nilai(b: str, n: int) -> int:
+        return (HARGA_TEMBOK_LAMA if b == "tembok" else HARGA_LANTAI_LAMA) * max(0, int(n))
+
+    dapat: dict[int, list[int]] = {}
+    for r in kon.execute("SELECT pemakai_id, barang, jumlah FROM inventori WHERE barang = 'tembok' OR barang LIKE 'lantai:%'").fetchall():
+        d = dapat.setdefault(r["pemakai_id"], [0, 0])
+        d[0] += nilai(r["barang"], r["jumlah"])
+        d[1] += max(0, int(r["jumlah"]))
+    kon.execute("DELETE FROM inventori WHERE barang = 'tembok' OR barang LIKE 'lantai:%'")
+    for r in kon.execute("SELECT pemakai_id, data FROM rumah").fetchall():
+        dok = basis.muat_json(r["data"], {})
+        berubah = False
+        for isi in (dok.get("peti") or {}).values():
+            for b in [b for b in isi if ubin_bebas(b)]:
+                d = dapat.setdefault(r["pemakai_id"], [0, 0])
+                d[0] += nilai(b, isi[b])
+                d[1] += max(0, int(isi[b]))
+                del isi[b]
+                berubah = True
+        if berubah:
+            kon.execute("UPDATE rumah SET data = ? WHERE pemakai_id = ?", (basis.tulis_json(dok), r["pemakai_id"]))
+    penerima = 0
+    for uid, (koin, ubin) in dapat.items():
+        if koin > 0 and kon.execute("SELECT 1 FROM karakter WHERE pemakai_id = ?", (uid,)).fetchone():
+            ubah_koin(kon, uid, koin, f"pengembalian {ubin} ubin lantai/tembok (kini gratis)")
+            penerima += 1
+    return penerima
 
 
 def tambah_statistik(kon: sqlite3.Connection, uid: int, kunci: str, n: int = 1) -> None:
@@ -468,19 +515,14 @@ def pasang(kon: sqlite3.Connection, uid: int, p: dict) -> dict:
             if kunci in d["tembok"]:
                 raise Ditolak("Sudah ada tembok di situ.")
             warna = p.get("warna") if POLA_WARNA.match(str(p.get("warna") or "")) else "#8b9bb4"
-            _pastikan_punya(kon, uid, barang, p.get("beli"))
-            kurang_barang(kon, uid, barang)
-            d["tembok"][kunci] = warna
+            d["tembok"][kunci] = warna          # gratis
         else:
             if barang[7:] not in katalog()["lantai"]:
                 raise Ditolak("Lantai tidak dikenal.")
             lama = d["lantai"].get(kunci)
             if lama == barang[7:]:
                 raise Ditolak("Lantai itu sudah terpasang di situ.")
-            _pastikan_punya(kon, uid, barang, p.get("beli"))
-            kurang_barang(kon, uid, barang)
-            if lama:
-                tambah_barang(kon, uid, "lantai:" + lama)
+            _cek_level_barang(kon, uid, barang)   # gratis, tetapi motifnya terbuka menurut level
             d["lantai"][kunci] = barang[7:]
     else:
         k = katalog()["barang"].get(barang)
@@ -749,9 +791,8 @@ def angkat(kon: sqlite3.Connection, uid: int, p: dict) -> dict:
         kunci = f"{gx},{gy}"
         if kunci in d["tembok"]:
             d["tembok"].pop(kunci)
-            tambah_barang(kon, uid, "tembok")
         elif kunci in d["lantai"]:
-            tambah_barang(kon, uid, "lantai:" + d["lantai"].pop(kunci))
+            d["lantai"].pop(kunci)
         else:
             raise Ditolak("Tidak ada yang bisa diambil di situ.")
     simpan_rumah(kon, uid, d)
@@ -807,6 +848,8 @@ def _potret_petak(pt: dict, kini: float) -> dict:
         bagian = min(1.0, (pt.get("tumbuh") or 0) / total)
         hasil.update(t=pt["t"], tahap=TAHAP_MATANG if bagian >= 1 else int(bagian * TAHAP_MATANG), matang=bagian >= 1,
                      sisa=round(total - (pt.get("tumbuh") or 0)))
+        if TANAMAN[pt["t"]][4]:
+            hasil["sisa_panen"] = max(1, PANEN_MAKS.get(pt["t"], 1) - int(pt.get("panen") or 0))      # termasuk panen berikutnya
     return hasil
 
 
@@ -860,9 +903,11 @@ def panen(kon: sqlite3.Connection, uid: int, bid) -> dict:
     total = TANAMAN[t][1] * konfig.JAM_KEBUN
     if (pt.get("tumbuh") or 0) < total:
         raise Ditolak("Belum matang.")
-    ulang = TANAMAN[t][4]
-    if ulang:
+    ulang, ke = TANAMAN[t][4], int(pt.get("panen") or 0) + 1
+    habis = bool(ulang) and ke >= PANEN_MAKS.get(t, 1)
+    if ulang and not habis:
         pt["tumbuh"] = total - ulang * konfig.JAM_KEBUN
+        pt["panen"] = ke
     else:
         basah = pt.get("basah")
         pt.clear()
@@ -872,7 +917,8 @@ def panen(kon: sqlite3.Connection, uid: int, bid) -> dict:
     catat_aksi(kon, uid, "panen", 1)
     tambah_statistik(kon, uid, "panen")
     xp_kegiatan(kon, uid, "panen")
-    return {"rumah": potret_rumah(kon, uid, d), "inventori": inventori(kon, uid), "dapat": "panen:" + t}
+    return {"rumah": potret_rumah(kon, uid, d), "inventori": inventori(kon, uid), "dapat": "panen:" + t, "habis": habis,
+            "sisa_panen": PANEN_MAKS[t] - ke if ulang and not habis else 0}
 
 
 def cabut(kon: sqlite3.Connection, uid: int, bid) -> dict:
@@ -1019,10 +1065,9 @@ def _ubin_efektif(d: dict) -> tuple[dict, dict]:
 
 
 def _isi_denah(d: dict) -> dict[str, int]:
-    """Barang yang terpakai oleh sebuah denah rumah: perabot, ubin lantai per motif, dan ubin tembok."""
+    """Barang yang terpakai oleh sebuah denah rumah: perabotnya. Lantai dan tembok gratis, jadi tidak dihitung."""
     isi: dict[str, int] = {}
-    lantai, tembok = _ubin_efektif(d)
-    for nama in [o["n"] for o in d["benda"]] + ["lantai:" + n for n in lantai.values()] + ["tembok"] * len(tembok):
+    for nama in [o["n"] for o in d["benda"]]:
         isi[nama] = isi.get(nama, 0) + 1
     return isi
 
@@ -1093,6 +1138,9 @@ def _rencana_rumah(kon: sqlite3.Connection, uid: int, p: dict) -> dict:
             raise Ditolak(f"{nama_barang(o['n'])} {hidup}; tidak bisa dicabut.")
     for bagian in ("petak", "kandang", "peti"):
         baru[bagian] = {k: v for k, v in d[bagian].items() if int(k) in tetap}
+    # Motif lantai yang baru dipakai harus sudah terbuka di level pemain (yang sudah terpasang boleh tetap).
+    for motif in sorted(set(_ubin_efektif(baru)[0].values()) - set(_ubin_efektif(d)[0].values())):
+        _cek_level_barang(kon, uid, "lantai:" + motif)
     lama_isi, baru_isi, inv = _isi_denah(d), _isi_denah(baru), inventori(kon, uid)
     beli, biaya, stok = [], 0, dict(inv)
     for barang in sorted(set(lama_isi) | set(baru_isi)):
@@ -1409,11 +1457,12 @@ def buat_karakter(kon: sqlite3.Connection, uid: int, nama: str, tampilan) -> Non
 
 def info_toko() -> dict:
     return {
-        "tanaman": {k: {"nama": v[0], "jam": v[1], "benih": v[2], "jual": v[3], "ulang": v[4], "pohon": v[5]} for k, v in TANAMAN.items()},
+        "tanaman": {k: {"nama": v[0], "jam": v[1], "benih": v[2], "jual": v[3], "ulang": v[4], "pohon": v[5], "panen_maks": PANEN_MAKS.get(k, 1)} for k, v in TANAMAN.items()},
         "hewan": {k: {"nama": v[0], "harga": v[1], "produk": v[2], "jam": v[3], "pakan": v[4]} for k, v in HEWAN.items()},
         "produk": {k: {"nama": v[0], "jual": v[1]} for k, v in PRODUK.items()},
         "kandang": {k: {"nama": v[0], "kapasitas": v[1], "hewan": list(v[2])} for k, v in KANDANG.items()},
-        "harga": {"pakan": HARGA_PAKAN, "lantai": HARGA_LANTAI, "tembok": HARGA_TEMBOK, "jual_kembali": JUAL_KEMBALI},
+        "harga": {"pakan": HARGA_PAKAN, "jual_kembali": JUAL_KEMBALI},
+        "level_lantai": {n: level_barang("lantai:" + n) for n in katalog()["lantai"]},
         "tak_dijual": list(KATEGORI_TAK_DIJUAL), "jam_kebun": konfig.JAM_KEBUN, "basah_jam": BASAH_JAM,
         "makanan": {k: {"nama": v[0], "harga": v[1], "stamina": v[2], "kopi": v[3], "ikon": v[4]} for k, v in MAKANAN.items()},
         "resep": RESEP, "hotbar": HOTBAR, "peti": list(PETI), "peti_jenis": PETI_JENIS,

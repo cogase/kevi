@@ -81,7 +81,7 @@ const Panel = {
       el('h4', { teks: 'Alur singkat' }),
       el('ol', { kelas: 'redup' }, ['Di kantor: duduk di meja mana saja (E) untuk membuka Komputer — Terminal (ping, dns, lalu trace, mtr, port seiring level) dan Browser.',
         'Hampir semua kegiatan memberi XP. Naik level membuka interaksi baru: tos, kuis, arcade, kirim koin, suit, browser.',
-        'Bu Sari (kiri bawah, dekat mesin penjual) = Koperasi: benih, pakan, perabot, lantai, tembok.',
+        'Bu Sari (kiri bawah, dekat mesin penjual) = Koperasi: benih, pakan, perabot. Lantai dan tembok gratis di Edit Rumah (B).',
         'Jalan keluar lewat pintu depan lalu terus ke bawah = pulang; kamu muncul di jalan atas rumahmu. Jalan terus ke atas = kembali ke kantor.',
         'Di rumah tekan B untuk menaruh petak kebun, lalu E: tanam, siram, panen. Jual lewat Kotak Kiriman.',
         'Koin juga datang dari misi harian (Rina, resepsionis) dan bonus hadir.'].map(t => el('li', { teks: t })))));
@@ -334,13 +334,13 @@ const Toko = {
       G.inventori[b] ? el('span', { kelas: 'punya', teks: 'x' + G.inventori[b] }) : null);
   },
   lukis(isi) {
-    const t = G.toko, tabs = [['benih', 'Benih & pakan'], ['makan', 'Makanan & tas'], ['perabot', 'Perabot'], ['lantai', 'Lantai & tembok'], ['jual', 'Jual']];
+    const t = G.toko, tabs = [['benih', 'Benih & pakan'], ['makan', 'Makanan & tas'], ['perabot', 'Perabot'], ['jual', 'Jual']];
     const kepala = el('div', { kelas: 'tab' }, tabs.map(([id, nama]) => el('button', { kelas: this.tab === id ? 'aktif' : '', teks: nama, on: { click: () => { this.tab = id; this.lukis(isi); } } })),
       el('span', { kelas: 'tumbuh' }), el('span', { kelas: 'harga besar', teks: G.koin.toLocaleString('id-ID') }));
     let badan;
     if (this.tab === 'benih') {
       badan = el('div', {}, el('p', { kelas: 'redup', teks: 'Klik = beli 1, Shift+klik = beli 5. Tanaman hanya tumbuh selama petaknya basah.' }),
-        el('div', { kelas: 'kisi' }, Object.entries(t.tanaman).map(([k, v]) => this.kartuBeli('benih:' + k, `${lamaTeks(v.jam * t.jam_kebun)} · jual ${v.jual}${v.ulang ? ' · berulang' : ''}`)),
+        el('div', { kelas: 'kisi' }, Object.entries(t.tanaman).map(([k, v]) => this.kartuBeli('benih:' + k, `${lamaTeks(v.jam * t.jam_kebun)} · jual ${v.jual}${v.ulang ? ' · ' + v.panen_maks + ' kali panen' : ''}`)),
           this.kartuBeli('pakan', 'per porsi'), this.kartuBeli('kebun_petak', 'petak tanam'), this.kartuBeli('kebun_penyiram', 'siram 8 petak sekitar'),
           this.kartuBeli('kebun_kotak_kiriman', 'titik jual'), this.kartuBeli('kandang_ayam', 'ayam & bebek'), this.kartuBeli('kandang_ternak', 'kambing & sapi')));
     } else if (this.tab === 'makan') {
@@ -372,9 +372,6 @@ const Toko = {
       };
       lukisKisi();
       badan = el('div', {}, el('div', { kelas: 'saring' }, pilih, cari), kisi);
-    } else if (this.tab === 'lantai') {
-      badan = el('div', {}, el('p', { kelas: 'redup', teks: 'Dijual per ubin. Shift+klik = beli 5. Dipasang lewat mode Bangun (B) di rumah; seret untuk mengecat banyak ubin.' }),
-        el('div', { kelas: 'kisi' }, this.kartuBeli('tembok', 'per ubin, warna dipilih saat memasang'), G.katalog.lantai.map(n => this.kartuBeli('lantai:' + n))));
     } else {
       const punya = Object.keys(G.inventori).filter(b => G.inventori[b] > 0 && hargaJual(b) != null).sort((a, b) => (hargaJual(b) * G.inventori[b]) - (hargaJual(a) * G.inventori[a]));
       const hasil = punya.filter(b => b.startsWith('panen:') || t.produk[b]);

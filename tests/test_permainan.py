@@ -88,8 +88,11 @@ def test_pasang_tanpa_stok_dan_di_luar_tanah_ditolak(kon, pemain):
 
 
 def test_lantai_dan_tembok(kon, pemain):
-    permainan.beli(kon, pemain, "lantai:lantai_parket", 2)
-    permainan.beli(kon, pemain, "tembok", 1)
+    # 0.18.0: lantai dan tembok gratis, tidak dijual dan tidak lewat inventory.
+    for barang in ("lantai:lantai_parket", "tembok"):
+        with pytest.raises(Ditolak, match="tidak dijual"):
+            permainan.beli(kon, pemain, barang, 1)
+    koin = permainan.saldo(kon, pemain)
     permainan.pasang(kon, pemain, {"barang": "lantai:lantai_parket", "gx": 3, "gy": 3})
     permainan.pasang(kon, pemain, {"barang": "tembok", "gx": 3, "gy": 2, "warna": "javascript:1"})
     d = permainan.baca_rumah(kon, pemain)
@@ -97,7 +100,38 @@ def test_lantai_dan_tembok(kon, pemain):
     with pytest.raises(Ditolak):
         permainan.pasang(kon, pemain, {"barang": "tembok", "gx": 99, "gy": 2})
     permainan.angkat(kon, pemain, {"gx": 3, "gy": 2})
-    assert permainan.inventori(kon, pemain)["tembok"] == 1
+    permainan.angkat(kon, pemain, {"gx": 3, "gy": 3})
+    inv = permainan.inventori(kon, pemain)
+    assert "tembok" not in inv and not any(b.startswith("lantai:") for b in inv) and permainan.saldo(kon, pemain) == koin
+    assert not permainan.baca_rumah(kon, pemain)["tembok"] and not permainan.baca_rumah(kon, pemain)["lantai"]
+
+
+def test_motif_lantai_terbuka_menurut_level(kon, pemain):
+    assert permainan.level_barang("lantai:lantai_parket") == 1 and permainan.level_barang("tembok") == 1
+    assert permainan.level_barang("lantai:lantai_marmer") == permainan.LEVEL_LANTAI["marmer"] > 1
+    assert all(1 <= permainan.level_barang("lantai:" + n) <= permainan.LEVEL_MAKS for n in permainan.katalog()["lantai"])
+    with pytest.raises(Ditolak, match="terbuka di level"):
+        permainan.pasang(kon, pemain, {"barang": "lantai:lantai_marmer", "gx": 2, "gy": 2})
+    kon.execute("UPDATE karakter SET xp = ? WHERE pemakai_id = ?", (permainan.ambang(permainan.LEVEL_LANTAI["marmer"]), pemain))
+    permainan.pasang(kon, pemain, {"barang": "lantai:lantai_marmer", "gx": 2, "gy": 2})
+    assert permainan.baca_rumah(kon, pemain)["lantai"]["2,2"] == "lantai_marmer"
+
+
+def test_stok_ubin_lama_dikembalikan_jadi_koin(kon, pemain):
+    permainan.tambah_barang(kon, pemain, "tembok", 4)
+    permainan.tambah_barang(kon, pemain, "lantai:lantai_parket", 10)
+    permainan.tambah_barang(kon, pemain, "pakan", 2)
+    d = permainan.baca_rumah(kon, pemain)
+    d["peti"]["7"] = {"lantai:lantai_parket": 5, "pakan": 1}
+    permainan.simpan_rumah(kon, pemain, d)
+    koin = permainan.saldo(kon, pemain)
+    assert permainan.kembalikan_ubin(kon) == 1
+    harga = 4 * permainan.HARGA_TEMBOK_LAMA + 15 * permainan.HARGA_LANTAI_LAMA
+    assert permainan.saldo(kon, pemain) == koin + harga
+    inv = permainan.inventori(kon, pemain)
+    assert inv.get("pakan") == 2 and "tembok" not in inv and "lantai:lantai_parket" not in inv
+    assert permainan.baca_rumah(kon, pemain)["peti"]["7"] == {"pakan": 1}
+    assert permainan.kembalikan_ubin(kon) == 0 and permainan.saldo(kon, pemain) == koin + harga      # sekali saja
 
 
 def test_kebun_tumbuh_hanya_saat_basah(kon, pemain):
@@ -129,8 +163,37 @@ def test_tanaman_berulang_berbuah_lagi(kon, pemain):
     d = permainan.panen(kon, pemain, bid)
     pt = d["rumah"]["petak"][str(bid)]
     assert pt["t"] == "cabai" and not pt["matang"]
+    assert d["habis"] is False and d["sisa_panen"] == permainan.PANEN_MAKS["cabai"] - 1 == pt["sisa_panen"]
     time.sleep(konfig.JAM_KEBUN * 3.5)
     assert permainan.potret_rumah(kon, pemain)["petak"][str(bid)]["matang"]
+
+
+def test_tanaman_berulang_habis_setelah_batas_panen(kon, pemain):
+    """0.18.0: panen berulang ada batasnya; panen terakhir mengosongkan petak."""
+    assert all(permainan.TANAMAN[t][4] for t in permainan.PANEN_MAKS) and all(t in permainan.PANEN_MAKS for t, v in permainan.TANAMAN.items() if v[4])
+    permainan.ubah_koin(kon, pemain, 100, "uji")
+    setel_xp(kon, pemain, permainan.ambang(2))
+    permainan.beli(kon, pemain, "benih:cabai", 1)
+    bid = _petak(kon, pemain)
+    permainan.tanam(kon, pemain, bid, "cabai")
+    maks = permainan.PANEN_MAKS["cabai"]
+    for ke in range(1, maks + 1):
+        d = permainan.baca_rumah(kon, pemain)                      # matangkan langsung, tanpa menunggu
+        d["petak"][str(bid)]["tumbuh"] = permainan.TANAMAN["cabai"][1] * konfig.JAM_KEBUN
+        permainan.simpan_rumah(kon, pemain, d)
+        h = permainan.panen(kon, pemain, bid)
+        assert h["habis"] is (ke == maks) and h["sisa_panen"] == maks - ke
+    assert permainan.inventori(kon, pemain)["panen:cabai"] == maks
+    assert "t" not in h["rumah"]["petak"][str(bid)]                 # petak kosong lagi, siap ditanami
+    with pytest.raises(Ditolak):
+        permainan.panen(kon, pemain, bid)
+    permainan.beli(kon, pemain, "benih:sawi", 1)                    # tanaman sekali panen tidak berubah
+    permainan.tanam(kon, pemain, bid, "sawi")
+    d = permainan.baca_rumah(kon, pemain)
+    d["petak"][str(bid)]["tumbuh"] = permainan.TANAMAN["sawi"][1] * konfig.JAM_KEBUN
+    permainan.simpan_rumah(kon, pemain, d)
+    h = permainan.panen(kon, pemain, bid)
+    assert h["habis"] is False and h["sisa_panen"] == 0 and "t" not in h["rumah"]["petak"][str(bid)]
 
 
 def test_petak_berisi_tak_bisa_diangkat(kon, pemain):

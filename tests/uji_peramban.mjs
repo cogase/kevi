@@ -205,8 +205,33 @@ await pg.click('#sunting-simpan');
 await pg.waitForFunction(() => !Sunting.kotor && !Sunting.sibuk);
 s = await pg.evaluate(() => ({ benda: G.rumah.benda.map(o => o.n), petak: G.inventori.kebun_petak }));
 cek('perabot terpasang dari inventory', s.benda.filter(n => n === 'kebun_petak').length === 2 && s.petak === 4 && s.benda.includes('kebun_kotak_kiriman'), JSON.stringify(s));
+// R2 (yosi): lantai dan tembok gratis di Edit Rumah, motif lantai terbuka menurut level, tidak lewat inventory.
+await pg.click('#bangun [data-alat=lantai]');
+await pg.waitForSelector('#sunting-katalog .kartu');
+const lantaiUji = await pg.evaluate(() => {
+  const kartu = (n) => $('#sunting-katalog .kartu[data-n="' + n + '"]'), marmer = kartu('lantai_marmer'), parket = kartu('lantai_parket');
+  marmer.click();
+  return { level: G.level.level, marmer: marmer.className + ' | ' + marmer.title, parket: parket.className + ' | ' + parket.title, dipilih: Sunting.lantai, kabar: Sunting.pesan };
+});
+cek('Edit Rumah: motif lantai gratis; yang di atas level pemain bergembok dan tidak bisa dipilih', lantaiUji.marmer.includes('gembok') && lantaiUji.marmer.includes('terbuka di level 6') && !lantaiUji.parket.includes('gembok')
+  && lantaiUji.parket.includes('gratis') && lantaiUji.dipilih !== 'lantai_marmer' && lantaiUji.kabar.includes('level 6'), JSON.stringify(lantaiUji));
+const koinUbin = await pg.evaluate(() => G.koin);
+await pg.evaluate(() => { Sunting.tutupKatalog(); Sunting.pakaiAlat('pilih'); Sunting.ubah((d) => { for (let gx = 4; gx <= 7; gx++) { d.lantai[gx + ',6'] = 'lantai_parket'; d.tembok[gx + ',5'] = '#8b9bb4'; } }); });
+await pg.waitForFunction(() => Sunting.kotor && $('#sunting-belanja').textContent.includes('Tanpa belanja'), null, { timeout: 5000 });
+await pg.click('#sunting-simpan');
+await pg.waitForFunction(() => !Sunting.kotor && !Sunting.sibuk);
+cek('lantai dan tembok terpasang tanpa biaya dan tanpa memakai inventory', await pg.evaluate((k) => G.koin === k && Object.keys(G.rumah.lantai).length === 4 && Object.keys(G.rumah.tembok).length === 4
+  && !Object.keys(G.inventori).some(b => b === 'tembok' || b.startsWith('lantai:')), koinUbin), JSON.stringify(await pg.evaluate(() => ({ koin: G.koin, inv: Object.keys(G.inventori) }))));
+await pg.evaluate(() => Sunting.ubah((d) => { d.lantai = {}; d.tembok = {}; }));
+await pg.click('#sunting-simpan');
+await pg.waitForFunction(() => !Sunting.kotor && !Sunting.sibuk);
+cek('mencabut lantai dan tembok tidak mengisi inventory', await pg.evaluate((k) => G.koin === k && !Object.keys(G.inventori).some(b => b === 'tembok' || b.startsWith('lantai:')), koinUbin));
 await potret('5-bangun');
 await pg.keyboard.press('b');
+await pg.waitForFunction(() => !G.bangun);
+await pg.evaluate(() => Toko.buka());
+cek('Koperasi tidak lagi menjual lantai dan tembok', await pg.evaluate(() => { const teks = $('#tirai').textContent; return teks.includes('Perabot') && !teks.includes('Lantai & tembok') && hargaBeli('tembok') === null && hargaBeli('lantai:lantai_parket') === null; }));
+await pg.evaluate(() => Panel.tutup());
 
 // --- hotbar: benih harus dipegang untuk menanam; perabot dipegang = siap ditaruh
 await pg.evaluate(() => { G.aku.x = 212; G.aku.y = 286; }); await tunggu(250);

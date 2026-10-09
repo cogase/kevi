@@ -283,7 +283,7 @@ const Rumah = {
 
   labelPetak(o) {
     const pt = (G.rumah && G.rumah.petak[o.id]) || {};
-    if (pt.matang) return 'Panen ' + G.toko.tanaman[pt.t].nama.toLowerCase();
+    if (pt.matang) return 'Panen ' + G.toko.tanaman[pt.t].nama.toLowerCase() + (pt.sisa_panen ? (pt.sisa_panen === 1 ? ' (panen terakhir)' : ' (sisa ' + pt.sisa_panen + ' kali panen)') : '');
     if (!pt.t) return 'Tanam benih';
     if (!pt.basah) return 'Siram ' + G.toko.tanaman[pt.t].nama.toLowerCase() + ' (kering, tak tumbuh)';
     return G.toko.tanaman[pt.t].nama + ' tumbuh, sisa ' + lamaTeks(pt.sisa);
@@ -291,7 +291,11 @@ const Rumah = {
 
   async aksiPetak(o, ev) {
     const pt = G.rumah.petak[o.id] || {};
-    if (pt.matang) { const d = await aksi('/api/kebun/panen', { id: o.id }); if (d) apung('+1 ' + namaBarang(d.dapat), '#bbf7d0', o.x + 8, o.y + this.oy); return; }
+    if (pt.matang) {
+      const d = await aksi('/api/kebun/panen', { id: o.id });
+      if (d) { apung('+1 ' + namaBarang(d.dapat), '#bbf7d0', o.x + 8, o.y + this.oy); if (d.habis) kabar(namaBarang(d.dapat) + ': panen terakhir. Tanamannya habis, petak kosong lagi.'); }
+      return;
+    }
     if (!pt.t) {
       const pegang = Hotbar.dipegang();
       if (!pegang || !pegang.startsWith('benih:')) {

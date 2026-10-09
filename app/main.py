@@ -17,6 +17,8 @@ from .dunia import Dunia
 KON = basis.buka(konfig.BASIS_DATA)
 atur.baca(KON)
 atur.pastikan_penjual_pakaian(KON)
+with basis.KUNCI:
+    permainan.kembalikan_ubin(KON)
 DUNIA = Dunia(KON)
 app = FastAPI(title="Kevi", docs_url=None, redoc_url=None, openapi_url=None)
 HALAMAN = konfig.STATIS / "halaman"

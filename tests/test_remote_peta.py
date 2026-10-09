@@ -167,4 +167,4 @@ def test_pasang_sambil_beli_tunduk_pada_level(kon, pemain):
         permainan.pasang(kon, pemain, {"barang": "sofa_krem", "x": 10, "y": 10, "beli": True})
     koin = permainan.saldo(kon, pemain)
     permainan.pasang(kon, pemain, {"barang": "tembok", "gx": 1, "gy": 1, "beli": True})
-    assert permainan.saldo(kon, pemain) == koin - permainan.HARGA_TEMBOK
+    assert permainan.saldo(kon, pemain) == koin                                                       # tembok gratis

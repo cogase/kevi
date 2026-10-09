@@ -265,8 +265,7 @@ function hargaBeli(b) {
   if (b.startsWith('makan:')) return (t.makanan[b.slice(6)] || {}).harga ?? null;
   if (b.startsWith('benih:')) return (t.tanaman[b.slice(6)] || {}).benih ?? null;
   if (b === 'pakan') return t.harga.pakan;
-  if (b === 'tembok') return t.harga.tembok;
-  if (b.startsWith('lantai:')) return k.lantai.includes(b.slice(7)) ? t.harga.lantai : null;
+  if (b === 'tembok' || b.startsWith('lantai:')) return null;      // gratis di Edit Rumah, tidak dijual
   const br = k.barang[b];
   if (!br || t.tak_dijual.some(a => br.k.startsWith(a))) return null;
   return br.harga;
@@ -283,7 +282,8 @@ function hargaJual(b) {
 function levelBarang(b) {
   const t = G.toko;
   if (t.level_khusus[b] != null) return t.level_khusus[b];
-  if (b.startsWith('lantai:') || b.startsWith('makan:')) return 1;
+  if (b.startsWith('lantai:')) return (t.level_lantai || {})[b.slice(7)] || 1;      // motif lantai gratis tetapi terbuka menurut level
+  if (b.startsWith('makan:')) return 1;
   const h = hargaBeli(b) || 0, tingkat = t.tingkat_harga.find(([batas]) => h <= batas);
   return tingkat ? tingkat[1] : t.level_puncak;
 }

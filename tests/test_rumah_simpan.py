@@ -33,13 +33,16 @@ def test_cabut_mengembalikan_dan_ruang_memakai_ubin(kon, pemain):
     koin = permainan.saldo(kon, pemain)
     ruang = {"gx": 2, "gy": 6, "w": 4, "h": 3, "warna": "#8b9bb4", "lantai": "lantai_parket", "nama": "Gudang", "pintu": [{"sisi": "bawah", "pos": 1}]}
     b = permainan.rumah_biaya(kon, pemain, _draf(kon, pemain, benda=[], ruang=[ruang]))
-    # Ruang 4x3: 12 ubin lantai, keliling 10 ubin dikurangi 1 ubin pintu (sisi 4 ubin = pintu selebar 1).
-    assert {x["barang"]: x["n"] for x in b["beli"]} == {"lantai:lantai_parket": 12, "tembok": 9}
+    # 0.18.0: ruang (12 ubin lantai + 9 ubin tembok) gratis, jadi tidak ada yang dibeli.
+    assert b["beli"] == [] and b["biaya"] == 0
     h = permainan.rumah_simpan(kon, pemain, _draf(kon, pemain, benda=[], ruang=[ruang]))
     assert h["inventori"]["kebun_petak"] == 6 and h["rumah"]["ruang"][0]["nama"] == "Gudang"                   # petak kembali ke inventory
     assert permainan.saldo(kon, pemain) == koin - b["biaya"]
     h = permainan.rumah_simpan(kon, pemain, _draf(kon, pemain, ruang=[]))                                      # ruang dihapus: ubinnya kembali
-    assert h["inventori"]["tembok"] == 9 and h["inventori"]["lantai:lantai_parket"] == 12 and h["belanja"] == 0
+    assert "tembok" not in h["inventori"] and "lantai:lantai_parket" not in h["inventori"] and h["belanja"] == 0
+    marmer = dict(ruang, lantai="lantai_marmer")                                                               # motif terkunci level
+    with pytest.raises(Ditolak, match="terbuka di level"):
+        permainan.rumah_biaya(kon, pemain, _draf(kon, pemain, ruang=[marmer]))
 
 
 def test_yang_hidup_tidak_bisa_dicabut(kon, pemain):
