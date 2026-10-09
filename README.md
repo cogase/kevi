@@ -1,2 +1,0 @@
-# kevi
-Kerja Virtual
