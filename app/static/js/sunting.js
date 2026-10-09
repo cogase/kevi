@@ -696,6 +696,7 @@ const Sunting = {
     wadah.replaceChildren(
       el('div', { kelas: 'sunting-kepala' },
         el('b', { teks: 'Edit Map' }), el('span', { id: 'sunting-kabar', kelas: 'redup kecil tumbuh', role: 'status', teks: this.pesan }),
+        tb('▤ Peta', '', () => this.kelolaPeta(), { id: 'sunting-peta', title: 'Koleksi peta: simpan banyak peta dan pilih yang aktif' }),
         tb('Simpan', 'utama', () => this.simpan(), { id: 'sunting-simpan', disabled: !this.kotor || this.sibuk, title: 'Simpan dan siarkan ke semua pemain (Ctrl+S)' }),
         tb('↶ Urungkan', '', () => this.urungkan(), { id: 'sunting-urung', disabled: !this.urung.length, title: 'Urungkan (Ctrl+Z)' }),
         tb('▦ Penghalang', this.lihatHalang ? 'aktif' : '', () => { this.lihatHalang = !this.lihatHalang; this.lukisDok(); }, { title: 'Lihat ubin yang tak bisa dilewati', 'aria-pressed': String(this.lihatHalang) }),
@@ -704,6 +705,54 @@ const Sunting = {
         el('div', {}, daftar.map(([kunci, tanda, pendek, panjang]) => el('button', { kelas: 'slot alat' + (this.alat === kunci ? ' aktif' : ''), title: panjang, 'data-alat': kunci, 'aria-pressed': String(this.alat === kunci),
           on: { click: (ev) => { ev.currentTarget.blur(); this.pakaiAlat(kunci); } } }, el('span', { kelas: 'tangan', teks: tanda }), el('small', { teks: pendek }))))))),
       el('div', { kelas: 'sunting-pilihan' }, isi));
+  },
+
+  /* ---------- koleksi peta: banyak peta tersimpan, satu yang aktif ---------- */
+
+  async kelolaPeta() {
+    if (this.kotor) { this.kabar('Simpan atau urungkan dulu perubahan peta ini sebelum membuka koleksi peta.'); return; }
+    let d;
+    try { d = await api('/api/admin/peta/daftar'); } catch (e) { kabar(e.message, 'galat'); return; }
+    const isi = el('div', { kelas: 'koleksi' }), diam = { keydown: (ev) => ev.stopPropagation() };
+    const panggil = async (jalur, badan, ok) => { try { const j = await api(jalur, badan); if (ok) kabar(ok); return j; } catch (e) { kabar(e.message, 'galat'); return null; } };
+    let yakin = 0;
+    const aktifkan = async (p) => {
+      const j = await panggil('/api/admin/peta/aktifkan', { id: p.id });
+      if (!j) return;
+      Panel.tutup();
+      this.tutup(true);
+      G.peta = j.denah;
+      Rumah.segarkan();
+      if (G.aku && !kakiBebas(G.aku.x, G.aku.y)) Object.assign(G.aku, titikBebas(G.aku.x, G.aku.y));
+      this.buka();
+      kabar('Peta "' + p.nama + '" kini aktif untuk semua pemain.', 'hadiah');
+    };
+    const lukis = () => {
+      const nama = el('input', { type: 'text', id: 'koleksi-nama', maxlength: 40, placeholder: 'Nama peta baru', on: diam });
+      const lebar = el('input', { type: 'number', min: 20, max: 80, value: 45, 'aria-label': 'Lebar (ubin)', on: diam }), tinggi = el('input', { type: 'number', min: 20, max: 80, value: 46, 'aria-label': 'Tinggi (ubin)', on: diam });
+      const ukuran = el('span', { kelas: 'koleksi-ukuran' }, lebar, ' × ', tinggi, ' ubin');
+      const dari = el('select', { id: 'koleksi-dari', 'aria-label': 'Asal peta', on: Object.assign({ change: () => { ukuran.hidden = dari.value !== 'kosong'; } }, diam) },
+        el('option', { value: 'kosong', teks: 'Kosong (tanah lapang, tanpa NPC)' }), el('option', { value: 'default', teks: 'Kantor bawaan (dengan NPC bawaan)' }), el('option', { value: 'salin', teks: 'Salinan peta aktif (termasuk NPC-nya)' }));
+      isi.replaceChildren(
+        el('p', { kelas: 'redup kecil', teks: 'Peta aktif adalah yang dilihat semua pemain. Tiap peta punya denah, penghalang, NPC, dan titik interaksinya sendiri.' }),
+        el('div', { kelas: 'daftar' }, d.peta.map(p => el('div', { kelas: 'baris', 'data-peta': p.id },
+          el('input', { type: 'text', kelas: 'tumbuh', maxlength: 40, value: p.nama, 'aria-label': 'Nama peta', on: Object.assign({ change: async (ev) => { const j = await panggil('/api/admin/peta/nama', { id: p.id, nama: ev.target.value }, 'Nama peta diganti.'); if (j) d = j; lukis(); } }, diam) }),
+          el('span', { kelas: 'redup kecil', teks: `${p.lebar}×${p.tinggi} · ${p.benda} benda · ${p.npc} NPC` }),
+          p.aktif ? el('span', { kelas: 'cip hijau', teks: 'aktif' }) : el('button', { kelas: 'tombol kecil utama', teks: 'Aktifkan', 'data-aksi': 'aktifkan', on: { click: () => aktifkan(p) } }),
+          p.aktif ? null : el('button', { kelas: 'tombol kecil bahaya', teks: yakin === p.id ? 'Yakin hapus?' : 'Hapus', 'data-aksi': 'hapus', on: { click: async () => {
+            if (yakin !== p.id) { yakin = p.id; lukis(); return; }
+            const j = await panggil('/api/admin/peta/hapus', { id: p.id }, 'Peta dihapus.');
+            yakin = 0; if (j) d = j; lukis();
+          } } })))),
+        el('h4', { teks: `Peta baru (${d.peta.length} / ${d.maks})` }),
+        el('form', { kelas: 'formulir', on: { submit: async (ev) => {
+          ev.preventDefault();
+          const j = await panggil('/api/admin/peta/baru', { nama: nama.value, dari: dari.value, lebar: Number(lebar.value), tinggi: Number(tinggi.value) }, 'Peta baru tersimpan. Aktifkan untuk mulai menyuntingnya.');
+          if (j) { d = j; lukis(); }
+        } } }, nama, dari, ukuran, el('button', { kelas: 'tombol utama', teks: 'Buat peta' })));
+    };
+    Panel.buka('Koleksi peta', isi, { kelas: 'ringkas' });
+    lukis();
   },
 
   /* ---------- jendela katalog (tetap terbuka selagi menaruh) ---------- */

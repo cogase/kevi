@@ -11,7 +11,7 @@ from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from . import akun, atur, basis, interaksi, konfig, laporan_token, permainan, remote, umpan
+from . import akun, atur, basis, interaksi, koleksi, konfig, laporan_token, permainan, remote, umpan
 from .dunia import Dunia
 
 KON = basis.buka(konfig.BASIS_DATA)
@@ -643,6 +643,50 @@ async def admin_peta_pasang(request: Request):
 @app.post("/api/admin/peta/angkat")
 async def admin_peta_angkat(request: Request):
     return await _rute_peta(request, lambda d: permainan.peta_angkat(KON, d))
+
+
+@app.get("/api/admin/peta/daftar")
+async def admin_peta_daftar(request: Request):
+    if not _admin(request):
+        return galat("Khusus admin.", 403)
+    with basis.KUNCI:
+        return koleksi.daftar(KON)
+
+
+async def _rute_koleksi(request: Request, fn, siar: bool = False):
+    """Rute koleksi peta. `siar`: peta aktif berganti, jadi peta, NPC, dan titik disiarkan ke semua pemain."""
+    if not _admin(request):
+        return galat("Khusus admin.", 403)
+    d = await _badan(request)
+    try:
+        with basis.KUNCI:
+            hasil = fn(d)
+    except (permainan.Ditolak, atur.AturDitolak) as e:
+        return galat(str(e))
+    if siar:
+        await DUNIA.siar_dunia()
+        await DUNIA.siar_peta()
+    return hasil
+
+
+@app.post("/api/admin/peta/baru")
+async def admin_peta_baru(request: Request):
+    return await _rute_koleksi(request, lambda d: koleksi.baru(KON, d))
+
+
+@app.post("/api/admin/peta/aktifkan")
+async def admin_peta_aktifkan(request: Request):
+    return await _rute_koleksi(request, lambda d: koleksi.aktifkan(KON, d.get("id")), siar=True)
+
+
+@app.post("/api/admin/peta/nama")
+async def admin_peta_nama(request: Request):
+    return await _rute_koleksi(request, lambda d: koleksi.ganti_nama(KON, d.get("id"), d.get("nama")))
+
+
+@app.post("/api/admin/peta/hapus")
+async def admin_peta_hapus(request: Request):
+    return await _rute_koleksi(request, lambda d: koleksi.hapus(KON, d.get("id")))
 
 
 @app.post("/api/admin/peta/simpan")

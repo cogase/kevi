@@ -2,6 +2,21 @@
 
 Melengkapi PRD, GDD, dan TDD untuk rilis sesudah 0.2.0. Angka dan aturan di sini adalah yang berlaku di kode.
 
+## 0.13.0 — 9 Oktober 2026
+
+**Koleksi peta: banyak peta untuk ganti suasana (kata yosi)**
+- Di Edit Map, tombol **▤ Peta** membuka koleksi peta. Admin bisa menyimpan sampai 30 peta dan memilih satu yang
+  **aktif**, yaitu yang dilihat semua pemain. Berganti peta langsung tersiar ke semua pemain, termasuk yang sedang
+  di rumah.
+- **Tiap peta unik**: denah, ruang, penghalang, perabot, **NPC, dan titik interaksinya** milik peta itu sendiri.
+  Menggeser atau menambah NPC di satu peta tidak mengubah peta lain. Dashboard (tab Peta & NPC) selalu menyunting
+  NPC peta yang sedang aktif.
+- Peta baru bisa dibuat dari: **Kosong** (tanah lapang 20 sampai 80 ubin per sisi, tanpa NPC), **Kantor bawaan**
+  (dengan NPC bawaan), atau **Salinan peta aktif** (termasuk NPC-nya). Nama bisa diganti langsung di daftar.
+- Peta yang sedang dipakai sekarang otomatis terdaftar sebagai "Kantor utama". Peta aktif tidak bisa dihapus;
+  menghapus peta lain diminta dua kali.
+- Koleksi baru bisa dibuka bila draf Edit Map sudah disimpan atau diurungkan.
+
 ## 0.12.0 — 9 Oktober 2026
 
 **Perapian Edit Map dan tampilan (kata yosi)**

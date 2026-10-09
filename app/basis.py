@@ -90,6 +90,15 @@ CREATE TABLE IF NOT EXISTS log_remote (
   pengguna TEXT NOT NULL,
   selesai REAL
 );
+CREATE TABLE IF NOT EXISTS peta_simpanan (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  nama TEXT NOT NULL,
+  data TEXT NOT NULL,
+  npc TEXT NOT NULL DEFAULT '[]',
+  titik TEXT NOT NULL DEFAULT '[]',
+  dibuat REAL NOT NULL,
+  diubah REAL NOT NULL
+);
 CREATE TABLE IF NOT EXISTS lemari (
   pemakai_id INTEGER NOT NULL REFERENCES pemakai(id) ON DELETE CASCADE,
   jenis TEXT NOT NULL,

@@ -66,7 +66,7 @@ class Dunia:
     async def siar_peta(self) -> None:
         with basis.KUNCI:
             peta = permainan.baca_peta(self.kon)
-        await self.siar("kantor", {"t": "peta", "peta": peta})
+        await self.siar(None, {"t": "peta", "peta": peta})      # juga ke yang sedang di rumah: mereka memakainya saat kembali ke kantor
 
     async def putar_pesan(self) -> None:
         """Pesan sistem berulang: satu pesan tiap `pesan_jeda` menit, bergiliran, selama ada yang daring."""
