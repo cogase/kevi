@@ -246,6 +246,15 @@ const koinSebelum = await pg.evaluate(() => G.koin);
 await pg.evaluate(() => Rumah.jualHasil()); await tunggu(500);
 cek('jual hasil menambah koin', (await pg.evaluate(() => G.koin)) >= koinSebelum + 30);
 
+// --- profil: statistik sendiri dari Menu
+await pg.evaluate(() => Profil.buka());
+await pg.waitForSelector('.profil .profil-potret');
+cek('profil sendiri menampilkan statistik dan tombol ubah karakter', await pg.evaluate(() => {
+  const t = $('.profil').textContent;
+  return t.includes('Lama bermain') && t.includes('Panen') && t.includes('Ubah karakter') && !!$('#profil-bilah');
+}));
+await pg.keyboard.press('Escape');
+
 // --- peti: taruh di rumah, titip barang, ambil satu, peti berisi tak bisa diangkat
 await pg.evaluate(async () => {
   await aksi('/api/toko/beli', { barang: 'gudang_peti_kayu', jumlah: 1 });
@@ -479,6 +488,14 @@ cek('pemain tanpa izin ditolak remote', (await cobaRemote(pg2, '10.9.8.1')).incl
 
 cek('NPC beraktivitas: ada yang berpindah atau berganti pose', JSON.stringify(await pg.evaluate(() => [...G.entitas.values()].filter(e => e.jenis === 'npc' && e.rumahX !== undefined).map(e => [e.x, e.y, e.pose].join()))) !== JSON.stringify(npcAwal));
 
+// --- feedback: pemain mengirim dari Menu, admin membacanya di dashboard
+await pg2.evaluate(() => Umpan.buka());
+await pg2.selectOption('#umpan-jenis', 'bug');
+await pg2.fill('#umpan-teks', 'Uji: kursi pantry tidak bisa diduduki.');
+await pg2.click('#tirai button.utama');
+await pg2.waitForFunction(() => !document.querySelector('#tirai'));
+cek('feedback terkirim dari dalam game', true);
+
 // --- dashboard admin
 const adm = await (await pg.context()).newPage();
 adm.on('pageerror', e => galat.push('pageerror(admin): ' + e.message));
@@ -486,6 +503,13 @@ await adm.goto(`http://127.0.0.1:${port}/admin`);
 await adm.waitForFunction(() => document.querySelectorAll('#ubin div').length >= 8 && document.querySelectorAll('#t-pemakai tbody tr').length >= 2, null, { timeout: 10000 });
 cek('dashboard: ringkasan dan daftar pemakai terisi', (await adm.textContent('#ubin')).includes('Koin beredar'));
 cek('dashboard: dua pemain tercatat daring', (await adm.$$('#t-daring tbody tr')).length === 2);
+await adm.click('#tab-umpan');
+await adm.waitForFunction(() => document.querySelector('#t-umpan tbody')?.textContent.includes('kursi pantry'));
+cek('dashboard: feedback pemain tampil dengan jenis, tempat, dan hitungan baru', await adm.evaluate(() => { const t = document.querySelector('#t-umpan tbody tr').textContent; return t.includes('bug') && t.includes('baru') && document.querySelector('#tab-umpan').textContent.includes('(1)'); }));
+await adm.click('#t-umpan tbody tr button.hijau');
+await adm.waitForFunction(() => document.querySelector('#t-umpan tbody tr').textContent.includes('selesai'));
+cek('dashboard: feedback bisa ditandai selesai', await adm.evaluate(() => document.querySelector('#tab-umpan').textContent === 'Feedback'));
+await adm.click('#tab [data-bagian=ringkasan]');
 await adm.click('#tab button[data-bagian=peta]');
 await adm.waitForFunction(() => document.querySelectorAll('#peta-daftar .butir-peta').length === 5);
 await adm.click('#titik-baru'); await adm.click('#peta', { position: { x: 200, y: 300 } });

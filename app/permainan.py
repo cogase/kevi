@@ -374,6 +374,21 @@ def xp_kegiatan(kon: sqlite3.Connection, uid: int, kunci: str, kali: int = 1) ->
     return n
 
 
+def potret_profil(kon: sqlite3.Connection, uid) -> dict:
+    """Profil satu pemain untuk dilihat siapa pun yang sudah masuk: level, koin, statistik kegiatan, isi rumah."""
+    r = kon.execute("SELECT k.nama, k.tampilan, k.koin, k.statistik, k.dibuat, k.tas, p.peran FROM karakter k "
+                    "JOIN pemakai p ON p.id = k.pemakai_id WHERE k.pemakai_id = ? AND p.aktif = 1", (uid,)).fetchone()
+    if not r:
+        raise Ditolak("Pemain tidak ditemukan.")
+    d = baca_rumah(kon, uid)
+    s = {k: int(v) for k, v in basis.muat_json(r["statistik"], {}).items() if isinstance(v, (int, float))}
+    return {"id": uid, "nama": r["nama"], "tampilan": basis.muat_json(r["tampilan"], {}), "peran": r["peran"], "koin": r["koin"],
+            "level": potret_level(kon, uid), "statistik": s, "dibuat": r["dibuat"], "slot": SLOT_AWAL + SLOT_PER_TAS * int(r["tas"]),
+            "rumah": {"benda": len(d["benda"]), "ubin": len(d["lantai"]) + len(d["tembok"]),
+                      "petak": sum(1 for o in d["benda"] if o["n"] == "kebun_petak"),
+                      "hewan": sum(len(k.get("hewan") or []) for k in d["kandang"].values())}}
+
+
 # ---------------------------------------------------------------- stamina = lapar (0.7.0)
 # Kata yosi: stamina = lapar, berkurang karena lama sesi daring dan saat bekerja; makanan mengisinya kembali.
 # Health (lelah karena lari) masih dihitung di peramban dan akan pindah ke server bersama fitur lawan monster.

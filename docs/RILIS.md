@@ -2,6 +2,23 @@
 
 Melengkapi PRD, GDD, dan TDD untuk rilis sesudah 0.2.0. Angka dan aturan di sini adalah yang berlaku di kode.
 
+## 0.10.0 — 9 Oktober 2026
+
+**Profil pemain (permintaan yosi)**
+- Menu, "Profil saya": tampang karakter, level, total XP, koin, lama bermain, slot inventory, lalu statistik kerja
+  (perintah terminal, tanam, panen, hasil ternak, nilai jualan), santai (masak, makan, arcade, kopi), dan rumah
+  (perabot, ubin, petak kebun, hewan). "Ubah karakter" dan sakelar bilah mini pindah ke sini.
+- Profil rekan: tekan E di dekatnya, pilih "Lihat profil". Menampilkan hal yang sama, plus tombol bertamu bila ia
+  sedang daring. Profil tidak memuat username maupun data akun.
+- Lama bermain baru dihitung sejak versi ini (satu menit tiap menit daring).
+
+**Feedback (permintaan yosi: seperti Bug Catcher, tetapi di dalam Kevi sendiri)**
+- Menu, "Kirim saran / lapor bug": pilih jenis (saran atau bug), tulis 5 sampai 1.000 karakter. Tempat, posisi
+  karakter, dan versi Kevi ikut tercatat. Paling banyak 5 kiriman per 10 menit per pemain.
+- Dashboard admin, tab **Feedback** (angka di tab = yang masih baru): waktu, pengirim, jenis, isi, tempat, versi,
+  status. Tombol: Tandai dibaca, Selesai (yang selesai turun ke bawah), Buka lagi, Catatan admin.
+- Tidak tersambung ke sistem lain; semuanya di basis data Kevi.
+
 ## 0.9.0 — 9 Oktober 2026
 
 **Edit Map lebih dekat ke Edit Layout Agent Pak (kata yosi: "ada layer, ruangan"; "karakter tidak bisa dimainkan")**

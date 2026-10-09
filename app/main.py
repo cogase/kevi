@@ -11,7 +11,7 @@ from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from . import akun, atur, basis, interaksi, konfig, laporan_token, permainan, remote
+from . import akun, atur, basis, interaksi, konfig, laporan_token, permainan, remote, umpan
 from .dunia import Dunia
 
 KON = basis.buka(konfig.BASIS_DATA)
@@ -349,6 +349,55 @@ async def api_kirim_koin(request: Request):
             saldo = permainan.saldo(KON, hasil["ke"])
         await DUNIA.kabari(hasil["ke"], {"t": "kiriman", "dari": hasil["dari"], "koin": hasil["terkirim"], "saldo": saldo})
     return jawab
+
+
+@app.post("/api/umpan-balik")
+async def api_umpan_kirim(request: Request):
+    p = _pemakai(request)
+    if not p:
+        return galat("Belum masuk.", 401)
+    d = await _badan(request)
+    try:
+        with basis.KUNCI:
+            uid = umpan.kirim(KON, p["id"], d, konfig.VERSI)
+    except umpan.UmpanDitolak as e:
+        return galat(str(e))
+    return {"id": uid}
+
+
+@app.get("/api/admin/umpan-balik")
+async def admin_umpan_daftar(request: Request):
+    if not _admin(request):
+        return galat("Khusus admin.", 403)
+    with basis.KUNCI:
+        return {"umpan": umpan.daftar(KON), "baru": umpan.jumlah_baru(KON)}
+
+
+@app.post("/api/admin/umpan-balik/ubah")
+async def admin_umpan_ubah(request: Request):
+    if not _admin(request):
+        return galat("Khusus admin.", 403)
+    d = await _badan(request)
+    try:
+        with basis.KUNCI:
+            umpan.ubah(KON, d)
+    except umpan.UmpanDitolak as e:
+        return galat(str(e))
+    return {"ok": True}
+
+
+@app.get("/api/profil")
+async def api_profil(request: Request, id: int | None = None):
+    p = _pemakai(request)
+    if not p:
+        return galat("Belum masuk.", 401)
+    try:
+        with basis.KUNCI:
+            hasil = permainan.potret_profil(KON, id or p["id"])
+    except permainan.Ditolak as e:
+        return galat(str(e), 404)
+    hasil["daring"] = hasil["id"] in DUNIA.pemain
+    return hasil
 
 
 @app.get("/api/kas")

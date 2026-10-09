@@ -39,6 +39,19 @@ def test_kelaparan_memotong_xp(kon, pemain):
     assert permainan.xp_kini(kon, pemain) == xp0 + permainan.XP["panen"] + permainan.XP["panen"] // 2 + 1
 
 
+def test_profil(kon, pemain):
+    permainan.xp_kegiatan(kon, pemain, "panen")
+    permainan.tambah_statistik(kon, pemain, "panen")
+    permainan.tambah_statistik(kon, pemain, "menit", 75)
+    d = permainan.potret_profil(kon, pemain)
+    assert d["nama"] == "Budi" and d["level"]["level"] == 1 and d["statistik"]["panen"] == 1 and d["statistik"]["menit"] == 75
+    assert d["rumah"]["petak"] == sum(1 for o in permainan.baca_rumah(kon, pemain)["benda"] if o["n"] == "kebun_petak") and d["slot"] == 20
+    assert "sandi" not in d and "username" not in d                 # profil tidak membocorkan data akun
+    import pytest
+    with pytest.raises(permainan.Ditolak):
+        permainan.potret_profil(kon, 9999)
+
+
 def test_daring_membuat_lapar(kon, pemain):
     dunia = Dunia(kon)
     terkirim = []

@@ -94,9 +94,9 @@ const Panel = {
       el('div', { kelas: 'baris-tombol tegak' },
         el('button', { kelas: 'tombol', teks: 'Panduan', on: { click: () => Panel.panduan() } }),
         el('button', { kelas: 'tombol', teks: 'Level & yang terbuka', on: { click: () => Panel.level() } }),
-        el('button', { kelas: 'tombol', teks: 'Ubah karakter', on: { click: () => Buat.buka(false) } }),
-        el('button', { kelas: 'tombol', teks: 'Bilah Health, Stamina, XP di atas karakter: ' + (G.tata.bilah ? 'nyala' : 'mati'), on: { click: () => { G.tata.bilah = !G.tata.bilah; Hotbar.simpan(); Panel.menu(); } } }),
+        el('button', { kelas: 'tombol', id: 'menu-profil', teks: 'Profil saya (statistik, ubah karakter)', on: { click: () => Profil.buka() } }),
         el('button', { kelas: 'tombol', teks: 'Riwayat koin', on: { click: () => Panel.kas() } }),
+        el('button', { kelas: 'tombol', id: 'menu-umpan', teks: 'Kirim saran / lapor bug', on: { click: () => Umpan.buka() } }),
         el('button', { kelas: 'tombol', teks: 'Ganti password', on: { click: () => Panel.sandi() } }),
         el('button', { kelas: 'tombol', teks: 'Kode sekali pakai (TOTP): ' + (G.totp ? 'terpasang' : 'belum'), on: { click: () => Panel.totp() } }),
         G.adegan === 'kantor' ? el('button', { kelas: 'tombol', teks: 'Pulang ke rumah', on: { click: () => { Panel.tutup(); Mesin.pindah('rumah:' + G.saya.id); } } })
@@ -554,6 +554,7 @@ const Sosial = {
     const tb = (teks, kunci, fn) => el('button', { kelas: 'tombol' + (kunci && !terbuka(kunci) ? ' terkunci' : ''), teks: teks + (kunci && !terbuka(kunci) ? '  (Lv ' + G.buka[kunci] + ')' : ''),
       on: { click: () => { if (kunci && !terbuka(kunci)) { kabar(pesanKunci(kunci), 'galat'); return; } Panel.tutup(); fn(); } } });
     Panel.buka(e.nama + (e.level ? ' · Lv ' + e.level : ''), el('div', { kelas: 'baris-tombol tegak' },
+      tb('Lihat profil', null, () => Profil.buka(e.id)),
       tb('Sapa', null, () => Obrolan.sapa(e)),
       tb('Bisik (pesan pribadi)', null, () => Obrolan.bisikKe(e)),
       tb('Tos', 'tos', () => Jaring.kirim({ t: 'tos', ke: e.id })),

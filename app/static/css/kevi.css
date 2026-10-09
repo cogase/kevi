@@ -273,6 +273,14 @@ body.menyunting #sentuh-tongkat { bottom: 190px; }
 .cip.pintu { display: inline-flex; align-items: center; gap: 3px; padding: 2px 4px; }
 .cip.pintu select { width: auto; padding: 2px 4px; font-size: 12px; }
 #sunting-nama-ruang { width: 150px; padding: 3px 8px; }
+.profil-kepala { display: flex; gap: 12px; align-items: center; }
+.profil-kepala b { font-size: 16px; color: var(--krem); }
+.profil-kepala p { margin: 4px 0 0; }
+.profil-potret { flex: none; width: 64px; height: 88px; image-rendering: pixelated; background: #070b14; border: 2px solid var(--garis); border-radius: 6px; }
+.profil-kelompok h4 { margin: 10px 0 4px; }
+.profil-kelompok dl { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; margin: 0; font-size: 13px; }
+.profil-kelompok dt { color: var(--redup); }
+.profil-kelompok dd { margin: 0; text-align: right; font-family: var(--mono); color: var(--krem); }
 .peti h4 { margin: 10px 0 6px; }
 .peti-kisi { min-height: 44px; padding: 4px; border: 1px dashed var(--garis); border-radius: 6px; }
 .peti-kisi > p { grid-column: 1 / -1; margin: 8px 0; text-align: center; }

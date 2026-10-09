@@ -25,6 +25,7 @@
     <button data-bagian="peta">Peta &amp; NPC</button>
     <button data-bagian="atur">Pengaturan</button>
     <button data-bagian="log">Log</button>
+    <button data-bagian="umpan" id="tab-umpan">Feedback</button>
   </nav>
 
   <section class="bagian" id="b-ringkasan">
@@ -111,6 +112,11 @@
     <div class="tabel-gulung"><table id="t-remote"></table></div>
     <h2>Obrolan (60 terakhir, tanpa bisikan)</h2>
     <div class="tabel-gulung"><table id="t-obrolan"></table></div>
+  </section>
+  <section class="bagian" id="b-umpan" hidden>
+    <h2>Feedback pemain</h2>
+    <p class="redup">Saran dan laporan bug yang dikirim pemain dari Menu di dalam game. Yang selesai turun ke bawah.</p>
+    <div class="tabel-gulung"><table id="t-umpan"></table></div>
   </section>
 </main>
 <script src="/static/js/tokoh.js?v={{aset}}"></script>

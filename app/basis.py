@@ -90,6 +90,18 @@ CREATE TABLE IF NOT EXISTS log_remote (
   pengguna TEXT NOT NULL,
   selesai REAL
 );
+CREATE TABLE IF NOT EXISTS umpan_balik (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  pemakai_id INTEGER NOT NULL,
+  waktu REAL NOT NULL,
+  jenis TEXT NOT NULL,
+  teks TEXT NOT NULL,
+  adegan TEXT NOT NULL DEFAULT '',
+  x REAL, y REAL,
+  versi TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'baru',
+  catatan_admin TEXT NOT NULL DEFAULT ''
+);
 CREATE INDEX IF NOT EXISTS catatan_pemakai ON catatan (pemakai_id, diubah DESC);
 CREATE INDEX IF NOT EXISTS kas_pemakai ON buku_kas (pemakai_id, id DESC);
 """

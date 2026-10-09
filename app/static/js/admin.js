@@ -260,8 +260,29 @@ $('#tab').addEventListener('click', (ev) => {
   for (const b of $('#tab').children) b.classList.toggle('aktif', b === tb);
   for (const s of document.querySelectorAll('.bagian')) s.hidden = s.id !== 'b-' + tb.dataset.bagian;
   if (tb.dataset.bagian === 'peta') Peta.muatPeta();
+  if (tb.dataset.bagian === 'umpan') muatUmpan();
 });
-$('#segarkan').addEventListener('click', () => { muatDasbor(); muatAtur(); });
+$('#segarkan').addEventListener('click', () => { muatDasbor(); muatAtur(); muatUmpan(); });
+
+/* ---------- feedback pemain ---------- */
+
+async function muatUmpan() {
+  const d = await coba(() => ambil('/api/admin/umpan-balik'));
+  if (!d) return;
+  $('#tab-umpan').textContent = 'Feedback' + (d.baru ? ' (' + d.baru + ')' : '');
+  tabel('#t-umpan', ['Waktu', 'Siapa', 'Jenis', 'Isi', 'Tempat', 'Versi', 'Status', 'Catatan admin', 'Aksi'], d.umpan.map(u => {
+    const ubah = async (badan, ok) => { if (await coba(() => ambil('/api/admin/umpan-balik/ubah', Object.assign({ id: u.id }, badan)), ok)) muatUmpan(); };
+    const tb = (teks, kelas, fn) => el('button', { kelas: 'tombol kecil ' + (kelas || ''), teks, on: { click: fn } });
+    return [jam(u.waktu), u.nama || u.username || '-', el('span', { kelas: 'cip ' + (u.jenis === 'bug' ? 'merah' : 'emas'), teks: u.jenis }),
+      el('span', { kelas: 'teks-umpan', teks: u.teks }), u.adegan ? u.adegan + (u.x != null ? ' (' + Math.round(u.x) + ', ' + Math.round(u.y) + ')' : '') : '-', u.versi || '-',
+      el('span', { kelas: 'cip ' + (u.status === 'baru' ? 'merah' : u.status === 'selesai' ? 'hijau' : ''), teks: u.status }), u.catatan_admin || '-',
+      el('div', { kelas: 'aksi-sel' },
+        u.status === 'baru' ? tb('Tandai dibaca', '', () => ubah({ status: 'dibaca' }, 'Ditandai dibaca.')) : null,
+        u.status !== 'selesai' ? tb('Selesai', 'hijau', () => ubah({ status: 'selesai' }, 'Ditandai selesai.')) : tb('Buka lagi', '', () => ubah({ status: 'dibaca' }, 'Dibuka lagi.')),
+        tb('Catatan', '', () => { const v = prompt('Catatan admin untuk feedback ini:', u.catatan_admin || ''); if (v !== null) ubah({ catatan: v }, 'Catatan disimpan.'); }))];
+  }));
+}
+muatUmpan();
 
 const gambar = (src) => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src + V; });
 (async () => {

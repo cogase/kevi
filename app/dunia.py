@@ -93,6 +93,7 @@ class Dunia:
             for uid in list(self.pemain):
                 with basis.KUNCI:
                     permainan.ubah_stamina(self.kon, uid, -permainan.LAPAR_PER_MENIT * jeda / 60.0)
+                    permainan.tambah_statistik(self.kon, uid, "menit")        # lama bermain, tampil di profil
                 await self.kabar_stamina(uid)
 
     async def siar_dunia(self) -> None:
