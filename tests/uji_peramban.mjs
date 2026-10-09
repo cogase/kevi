@@ -276,6 +276,22 @@ await pg.keyboard.press('Escape');
 cek('server menolak memakai yang belum dibeli', await pg.evaluate(async () => (await fetch('/api/karakter', { method: 'POST', headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ nama: G.karakter.nama, tampilan: Object.assign({}, G.karakter.tampilan, { kepala: 'helm_proyek' }) }) })).status === 400));
 
+// --- hewan kandang berjalan-jalan di depan kandangnya (seperti hewan di Agent Pak)
+await pg.evaluate((id) => fetch('/api/admin/pemakai/ubah', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, koin: 3000 }) }), idSaya);
+const kandangUji = await pg.evaluate(async () => {
+  const n = Object.keys(G.toko.kandang)[0];
+  await aksi('/api/toko/beli', { barang: n, jumlah: 1 });
+  await aksi('/api/rumah/pasang', { barang: n, x: 320, y: 96, r: 0 });
+  const o = G.rumah.benda.find(b => b.n === n);
+  if (o) await aksi('/api/kandang/beli', { id: o.id, j: G.toko.kandang[n].hewan[0] });
+  return o && { id: o.id, hewan: (G.rumah.kandang[o.id] || { hewan: [] }).hewan.length };
+});
+cek('kandang terpasang dan berisi seekor hewan', kandangUji && kandangUji.hewan === 1, JSON.stringify(kandangUji));
+await pg.waitForFunction(() => [...Rumah.hewan.values()].some(s => s.jalan), null, { timeout: 12000 });
+const hewan0 = await pg.evaluate(() => { const s = [...Rumah.hewan.values()].find(x => x.jalan); return { x: s.x, y: s.y }; });
+await tunggu(700);
+cek('hewan kandang berjalan-jalan sendiri', await pg.evaluate((a) => [...Rumah.hewan.values()].some(s => Math.hypot(s.x - a.x, s.y - a.y) > 2), hewan0));
+
 // --- peti: taruh di rumah, titip barang, ambil satu, peti berisi tak bisa diangkat
 await pg.evaluate(async () => {
   await aksi('/api/toko/beli', { barang: 'gudang_peti_kayu', jumlah: 1 });
@@ -619,7 +635,7 @@ if (await pg2.$('#tirai')) await pg2.keyboard.press('Escape');
 const id1 = await pg.evaluate(() => G.saya.id);
 await pg2.evaluate((id) => Mesin.pindah('rumah:' + id), id1); await tunggu(800);
 const tamu = await pg2.evaluate(() => ({ milik: G.rumahSaya, benda: G.rumah.benda.length, titik: Rumah.interaksi().length }));
-cek('bertamu: rumah terlihat tetapi tak bisa diubah', !tamu.milik && tamu.benda === 3 && tamu.titik === 1, JSON.stringify(tamu));
+cek('bertamu: rumah terlihat tetapi tak bisa diubah', !tamu.milik && tamu.benda === 4 && tamu.titik === 1, JSON.stringify(tamu));
 cek('tamu ditolak server saat mencoba mengambil benda', await pg2.evaluate(async () => {
   const r = await fetch('/api/rumah/angkat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: G.rumah.benda[0].id }) });
   return r.status === 400;

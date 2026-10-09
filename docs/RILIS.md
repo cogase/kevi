@@ -2,6 +2,14 @@
 
 Melengkapi PRD, GDD, dan TDD untuk rilis sesudah 0.2.0. Angka dan aturan di sini adalah yang berlaku di kode.
 
+## 0.14.1 — 9 Oktober 2026
+
+**Hewan berjalan-jalan (kata yosi: seperti di Agent Pak).** Ayam, bebek, kambing, sapi, dan hewan kandang lain kini
+berjalan kecil-kecilan di halaman depan kandangnya: menuju titik acak, berhenti sebentar (ayam kadang mematuk), lalu
+jalan lagi, tanpa menembus ubin terhalang. Hewan yang ditaruh sebagai benda di peta (misalnya hasil Generate peta)
+ikut berjalan di sekitar tempatnya dan tidak lagi menghalangi. Ini tampilan saja: tiap layar punya langkahnya
+sendiri. Dengan setelan "kurangi gerak" di perangkat, hewan diam di tempat.
+
 ## 0.14.0 — 9 Oktober 2026
 
 **Generate peta, seperti Agent Pak (kata yosi)**

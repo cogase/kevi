@@ -90,7 +90,7 @@ const Rumah = {
       const b = { o, w: u.w, h: u.h, y: o.y + oy, alas: o.l === 'atas' ? 1e9 + o.id : o.y + oy + u.h };
       const alasTanah = this.alasTanah(o.n);
       if (alasTanah || o.l === 'bawah') this.alas.push(b); else this.urut.push(b);
-      if (!alasTanah && !info.tembus && !o.t) gridJejak(g, o.x, b.y, u.w, u.h, !!info.datar);      // o.t = dibuat tembus di Edit Map
+      if (!alasTanah && !info.tembus && !o.t && !/^hewan_/.test(o.n)) gridJejak(g, o.x, b.y, u.w, u.h, !!info.datar);      // o.t = dibuat tembus di Edit Map
     }
     this.alas.sort((p, q) => p.o.id - q.o.id);
     G.grid = g;
@@ -163,11 +163,18 @@ const Rumah = {
       let n = o.n;
       const kd = kandang[o.id];
       if (kd && kd.hewan.some(h => h.siap > 0)) { const v = n + (n === 'kandang_ayam' ? '__telur' : '__susu'); if (atlas[v]) n = v; }
+      // Hewan yang ditaruh sebagai benda (mis. hasil Generate peta) berjalan-jalan kecil di sekitar tempatnya.
+      const liar = !G.bangun && /^hewan_([a-z]+)_diam$/.exec(o.n);
+      if (liar) {
+        const s = this.jelajah('b' + o.id, liar[1], { x: o.x - 22, y: b.y - 14, w: b.w + 44, h: b.h + 28 }, t), us = ukuranSprite(s.n);
+        daftar.push({ alas: s.y + us.h, lukis: () => lukis(k, s.n, s.x, s.y) });
+        continue;
+      }
       daftar.push({ alas: b.alas, lukis: () => lukis(k, o.r ? namaPutar(n, o.r) : bingkaiHidup(n, t), o.x, b.y) });
+      // Hewan kandang berjalan-jalan di halaman depan kandangnya.
       if (kd) kd.hewan.forEach((h, i) => {
-        const nh = bingkaiHidup('hewan_' + h.j + '_diam', t + i * 0.37, 2), uh = ukuranSprite(nh);
-        const hx = o.x + 2 + i * Math.max(12, (b.w - 4) / Math.max(1, kd.hewan.length)), hy = b.alas + 2;
-        daftar.push({ alas: hy + uh.h, lukis: () => { k.globalAlpha = h.kenyang ? 1 : 0.7; lukis(k, nh, hx, hy); k.globalAlpha = 1; } });
+        const s = this.jelajah('k' + o.id + ':' + i, h.j, { x: o.x - 14, y: b.alas - 2, w: b.w + 28, h: 34 }, t), uh = ukuranSprite(s.n);
+        daftar.push({ alas: s.y + uh.h, lukis: () => { k.globalAlpha = h.kenyang ? 1 : 0.7; lukis(k, s.n, s.x, s.y); k.globalAlpha = 1; } });
       });
     }
     for (const b of this.alas) {
@@ -182,6 +189,41 @@ const Rumah = {
     if (bawaan) this.lapisDepan(k, semua);
     for (const b of this.titik) if (b.tanda) lukis(k, 'seru', b.x, b.y - 14 - Math.abs(Math.sin(t * 2.4)) * 3);
     if (G.bangun) { if (G.bangun.sunting) Sunting.gambar(k); else this.gambarBangun(k); }
+  },
+
+  // Hewan berjalan-jalan kecil di dalam `kotak` (koordinat dunia), seperti hewan di Agent Pak: jalan ke titik acak,
+  // berhenti sebentar (ayam kadang mematuk), lalu jalan lagi. Hanya tampilan: tiap peramban punya langkahnya sendiri
+  // dan server tidak tahu. Dengan "kurangi gerak" di sistem, hewan diam di tempat.
+  hewan: new Map(),
+  diamSaja: typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches,
+  jelajah(kunci, j, kotak, t) {
+    const dasar = 'hewan_' + j + '_', maksX = Mesin.dunia.w - 14, maksY = Mesin.dunia.h - 14;
+    const acak = () => ({ x: Math.max(2, Math.min(maksX, kotak.x + Math.random() * kotak.w)), y: Math.max(2, Math.min(maksY, kotak.y + Math.random() * kotak.h)) });
+    let s = this.hewan.get(kunci);
+    if (!s) {
+      if (this.hewan.size > 600) this.hewan.clear();
+      s = Object.assign(acak(), { arah: 'bawah', jalan: false, patuk: false, sampai: t + Math.random() * 3, t });
+      for (let c = 0; c < 6 && G.grid && gridPadat(G.grid, Math.floor((s.x + 6) / T), Math.floor((s.y + 10) / T)); c++) Object.assign(s, acak());
+      s.tx = s.x; s.ty = s.y;
+      this.hewan.set(kunci, s);
+    }
+    const dt = Math.min(0.1, Math.max(0, t - s.t));
+    s.t = t;
+    if (this.diamSaja) return { x: Math.round(s.x), y: Math.round(s.y), n: dasar + 'diam' };
+    if (s.jalan) {
+      const dx = s.tx - s.x, dy = s.ty - s.y, jarak = Math.hypot(dx, dy), langkah = 13 * dt;
+      if (jarak <= langkah) { s.x = s.tx; s.y = s.ty; s.jalan = false; s.sampai = t + 1.5 + Math.random() * 4; s.patuk = j === 'ayam' && Math.random() < 0.5; }
+      else { s.x += dx / jarak * langkah; s.y += dy / jarak * langkah; s.arah = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'kiri' : 'kanan') : (dy < 0 ? 'atas' : 'bawah'); }
+    } else if (t >= s.sampai) {
+      for (let c = 0; c < 4 && !s.jalan; c++) {
+        const p = acak();
+        if (G.grid && gridPadat(G.grid, Math.floor((p.x + 6) / T), Math.floor((p.y + 10) / T))) continue;      // jangan menuju ubin terhalang
+        s.tx = p.x; s.ty = p.y; s.jalan = true; s.patuk = false;
+      }
+      if (!s.jalan) s.sampai = t + 1;
+    }
+    const n = s.jalan && atlas[dasar + s.arah] ? dasar + s.arah : (s.patuk && atlas[dasar + 'patuk'] ? dasar + 'patuk' : dasar + 'diam');
+    return { x: Math.round(s.x), y: Math.round(s.y), n: bingkaiHidup(n, t, s.jalan ? 6 : 2) };
   },
 
   // Peta terpanggang: lapis depan menimpa semua tokoh. Tokoh yang kakinya DI DEPAN benda tinggi digambar ulang di
