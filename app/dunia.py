@@ -14,7 +14,7 @@ import time
 
 from fastapi import WebSocket
 
-from . import atur, basis, konfig, permainan, terminal
+from . import atur, basis, cuaca, konfig, permainan, terminal
 from .battle import Battle
 
 POLA_ADEGAN = re.compile(r"^(kantor|rumah:\d{1,9})$")
@@ -100,6 +100,17 @@ class Dunia:
                     permainan.tambah_statistik(self.kon, uid, "menit")        # lama bermain, tampil di profil
                 await self.kabar_stamina(uid)
 
+    async def putar_cuaca(self, jeda: float = 60.0) -> None:
+        """Tiap menit periksa cuaca nyata (penarikannya sendiri paling sering 15 menit sekali); kabarkan bila berubah."""
+        lama = None
+        while True:
+            c = await asyncio.to_thread(cuaca.tarik)
+            tanda = (c or {}).get("jenis"), round((c or {}).get("suhu") or 0), (c or {}).get("basi")
+            if c and tanda != lama:
+                lama = tanda
+                await self.siar(None, {"t": "cuaca", "cuaca": c})
+            await asyncio.sleep(jeda)
+
     async def siar_dunia(self) -> None:
         """Admin mengubah NPC / titik / pengaturan: semua layar ikut berubah tanpa muat ulang."""
         await self.siar(None, dict(self._dunia(), t="dunia"))
@@ -136,7 +147,7 @@ class Dunia:
             riwayat = [dict(r) for r in self.kon.execute(
                 "SELECT pemakai_id AS id, nama, teks, waktu FROM obrolan WHERE saluran = 'semua' ORDER BY id DESC LIMIT 15")][::-1]
         # versi + aset: halaman yang dimuat sebelum rilis tahu dirinya usang begitu menyambung ulang
-        await self._kirim(p, dict(self._dunia(), t="halo", saya=self._publik(p), riwayat=riwayat, versi=konfig.VERSI, aset=self.aset,
+        await self._kirim(p, dict(self._dunia(), t="halo", saya=self._publik(p), riwayat=riwayat, versi=konfig.VERSI, aset=self.aset, cuaca=cuaca.keadaan(), harta=self.battle.potret_harta(),
                                   pemain=[self._publik(q) for q in self.pemain.values() if q["adegan"] == adegan and q["id"] != uid]))
         await self.siar(adegan, {"t": "masuk", "pemain": self._publik(p)}, kecuali=uid)
         return p
@@ -219,6 +230,8 @@ class Dunia:
                 p["tugas"].cancel()
         elif t == "pukul":
             await self.battle.pukul(p, m)
+        elif t == "buka_harta":
+            await self.battle.buka_harta(p, m.get("id"))
         elif t == "pegang":                        # barang hotbar yang sedang dipegang: hanya untuk digambar rekan
             barang = m.get("barang")
             barang = barang if isinstance(barang, str) and POLA_PEGANG.match(barang) else ""

@@ -23,18 +23,29 @@ const Profil = {
       ['Santai', [['Masak', rb(s.masak)], ['Makan', rb(s.makan)], ['Arcade', rb(s.arcade)], ['Kopi', rb(s.kopi)], ['Zombie dikalahkan', rb(s.zombie)]]],
       ['Rumah', [['Perabot terpasang', rb(d.rumah.benda)], ['Ubin lantai & tembok', rb(d.rumah.ubin)], ['Petak kebun', rb(d.rumah.petak)], ['Hewan', rb(d.rumah.hewan)]]],
     ];
+    // Bertab per kategori (kata yosi: tombol Ganti pakaian dulu tersembunyi di paling bawah). Profil sendiri dibuka di
+    // tab Karakter, yang memuat Ganti pakaian dan Ubah karakter; profil rekan dibuka di tab Permainan.
+    const tabs = [...(sendiri ? [['Karakter', null]] : []), ...kelompok];
+    let aktif = tabs[0][0];
+    const badan = el('div', { kelas: 'profil-badan' }), bilah = el('div', { kelas: 'tab profil-tab' });
+    const lukis = () => {
+      bilah.replaceChildren(...tabs.map(([judul]) => el('button', { kelas: judul === aktif ? 'aktif' : '', 'data-tab': judul, teks: judul, on: { click: () => { aktif = judul; lukis(); } } })));
+      const baris = tabs.find(([judul]) => judul === aktif)[1];
+      if (baris) { badan.replaceChildren(el('div', { kelas: 'profil-kelompok' }, el('dl', {}, baris.flatMap(([n, v]) => [el('dt', { teks: n }), el('dd', { teks: String(v) })])))); return; }
+      badan.replaceChildren(el('div', { kelas: 'menu-kisi' },
+        el('button', { kelas: 'ubin', id: 'profil-lemari', on: { click: () => Pakaian.buka(false) } }, el('i', { teks: '👕' }), el('b', { teks: 'Ganti pakaian' }), el('small', { teks: 'Pakai yang ada di lemarimu' })),
+        el('button', { kelas: 'ubin', id: 'profil-ubah', on: { click: () => Buat.buka(false) } }, el('i', { teks: '🧑' }), el('b', { teks: 'Ubah karakter' }), el('small', { teks: 'Nama, kulit, rambut' })),
+        el('button', { kelas: 'ubin', id: 'profil-bilah', on: { click: () => { G.tata.bilah = !G.tata.bilah; Hotbar.simpan(); lukis(); } } }, el('i', { teks: '📊' }), el('b', { teks: 'Bilah di atas karakter: ' + (G.tata.bilah ? 'nyala' : 'mati') }), el('small', { teks: 'Health, Stamina, XP mini' }))),
+        el('p', { kelas: 'redup kecil', teks: 'Pakaian baru dibeli di Kak Mira (toko pakaian) dan masuk ke lemari. Statistik ada di tab lain.' }));
+    };
+    lukis();
     Panel.buka('Profil ' + d.nama, el('div', { kelas: 'profil' },
       el('div', { kelas: 'profil-kepala' }, potret,
         el('div', {}, el('b', { teks: d.nama }), el('div', {}, el('span', { kelas: 'cip level', teks: 'Lv ' + lv.level }), ' ',
           d.peran === 'admin' ? el('span', { kelas: 'cip', teks: 'admin' }) : null, ' ', el('span', { kelas: 'cip ' + (d.daring ? 'hijau' : ''), teks: d.daring ? 'daring' : 'luring' })),
-        el('p', { kelas: 'redup kecil', teks: 'Bergabung ' + new Date(d.dibuat * 1000).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) }))),
-      kelompok.map(([judul, baris]) => el('div', { kelas: 'profil-kelompok' }, el('h4', { teks: judul }),
-        el('dl', {}, baris.flatMap(([n, v]) => [el('dt', { teks: n }), el('dd', { teks: String(v) })])))),
-      sendiri ? el('div', { kelas: 'baris-tombol' },
-        el('button', { kelas: 'tombol kecil', teks: 'Ubah karakter', on: { click: () => Buat.buka(false) } }),
-        el('button', { kelas: 'tombol kecil', id: 'profil-lemari', teks: 'Ganti pakaian', on: { click: () => Pakaian.buka(false) } }),
-        el('button', { kelas: 'tombol kecil', id: 'profil-bilah', teks: 'Bilah di atas karakter: ' + (G.tata.bilah ? 'nyala' : 'mati'), on: { click: (ev) => { G.tata.bilah = !G.tata.bilah; Hotbar.simpan(); ev.currentTarget.textContent = 'Bilah di atas karakter: ' + (G.tata.bilah ? 'nyala' : 'mati'); } } }))
-        : el('div', { kelas: 'baris-tombol' }, d.daring ? el('button', { kelas: 'tombol kecil', teks: 'Bertamu ke rumahnya', on: { click: () => { Panel.tutup(); Mesin.pindah('rumah:' + d.id); } } }) : null)),
+        el('p', { kelas: 'redup kecil', teks: 'Bergabung ' + new Date(d.dibuat * 1000).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) }),
+        !sendiri && d.daring ? el('button', { kelas: 'tombol kecil', teks: 'Bertamu ke rumahnya', on: { click: () => { Panel.tutup(); Mesin.pindah('rumah:' + d.id); } } }) : null)),
+      bilah, badan),
     { kelas: 'ringkas' });
   },
 };

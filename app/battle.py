@@ -29,6 +29,12 @@ PULIH_RUMAH_PER_MENIT = 5.0
 PULIH_KANTOR_PER_MENIT = 2.0
 JEDA_PULIH = 5.0
 KEBAL_PINGSAN = 10.0
+# Peti harta (0.24.0): muncul acak di peta utama, dibuka pemain yang menemukannya.
+HARTA_MAKS = 2
+HARTA_UMUR = 15 * 60.0
+JARAK_HARTA = 30.0
+# (bobot, jenis): koin 20–80, bahan makanan (makanan jadi, hasil panen, benih), atau satu perabot murah
+HARTA_ISI = ((50, "koin"), (28, "makanan"), (22, "perabot"))
 XP_ZOMBIE_PER_HARI = 60      # jumlah zombie per hari yang masih memberi EXP (koin jatuh tidak dibatasi)
 
 # jenis: (HP, laju px/dtk, Health yang hilang per gigitan, EXP, koin jatuh min, maks)
@@ -58,6 +64,8 @@ class Battle:
         self.paksa = False
         self._grid: tuple | None = None
         self._medan_cache: dict = {}
+        self.harta: dict[int, dict] = {}
+        self.harta_berikut: float | None = None
         self.acak = random.Random()
 
     # ------------------------------------------------------------ bantu
@@ -175,6 +183,7 @@ class Battle:
         pemain = self._di_kantor()
         self._medan_cache.clear()
         await self._pulih(kini, dt)
+        await self._harta(kini, pemain, a)
         if not pemain or not (a["zombie_aktif"] or self.paksa or self.zombie or self.koin):      # koin yang jatuh tetap menunggu dipungut
             if self.zombie or self.koin:
                 await self.bersihkan()
@@ -293,6 +302,68 @@ class Battle:
         self.zombie.clear()
         self.koin.clear()
         await self.dunia.siar(None, {"t": "zombie", "z": [], "k": []})
+
+    # ------------------------------------------------------------ peti harta
+    def potret_harta(self) -> list:
+        return [[h["id"], round(h["x"]), round(h["y"])] for h in self.harta.values()]
+
+    async def _harta(self, kini: float, pemain: list[dict], a: dict) -> None:
+        """Munculkan peti di ubin bebas acak tiap `harta_menit` (acak separuh sampai satu setengah kalinya), hanya bila ada
+        pemain di peta utama; paling banyak HARTA_MAKS sekaligus, dan yang tak ditemukan hilang sesudah HARTA_UMUR."""
+        berubah = False
+        for h in list(self.harta.values()):
+            if kini > h["habis"]:
+                del self.harta[h["id"]]
+                berubah = True
+        menit = float(a.get("harta_menit") or 0)
+        if not pemain or menit <= 0:
+            self.harta_berikut = None
+        else:
+            if self.harta_berikut is None:
+                self.harta_berikut = kini + menit * 60 * self.acak.uniform(0.5, 1.5)
+            if kini >= self.harta_berikut:
+                self.harta_berikut = kini + menit * 60 * self.acak.uniform(0.5, 1.5)
+                pos = self._tempat_muncul(pemain) if len(self.harta) < HARTA_MAKS else None
+                if pos:
+                    self.urut += 1
+                    self.harta[self.urut] = {"id": self.urut, "x": pos[0], "y": pos[1] + 4, "habis": kini + HARTA_UMUR}
+                    berubah = True
+        if berubah:
+            await self.dunia.siar("kantor", {"t": "harta", "daftar": self.potret_harta()})
+
+    def _isi_harta(self, uid: int) -> dict:
+        """Undi isi peti dan berikan ke pemain. Bila inventory penuh, hadiah barang diganti koin."""
+        jenis = self.acak.choices([j for _, j in HARTA_ISI], weights=[b for b, _ in HARTA_ISI])[0]
+        barang, jumlah = None, 1
+        if jenis == "makanan":
+            calon = ([("makan:" + k, 1) for k, v in permainan.MAKANAN.items() if v[1]] + [("panen:" + k, self.acak.randint(1, 3)) for k in permainan.TANAMAN]
+                     + [("benih:" + k, self.acak.randint(1, 3)) for k in permainan.TANAMAN] + [("pakan", self.acak.randint(2, 5))])
+            barang, jumlah = self.acak.choice(calon)
+        elif jenis == "perabot":
+            calon = [n for n, k in permainan.katalog()["barang"].items() if 15 <= (permainan.harga_beli(n) or 0) <= 150 and n not in permainan.KANDANG]
+            barang = self.acak.choice(calon) if calon else None
+        if barang:
+            try:
+                permainan.tambah_barang(self.kon, uid, barang, jumlah)
+                return {"barang": barang, "jumlah": jumlah, "nama": permainan.nama_barang(barang), "koin": 0}
+            except permainan.Ditolak:
+                pass                                   # inventory penuh: jatuh ke koin
+        koin = self.acak.randint(20, 80)
+        permainan.ubah_koin(self.kon, uid, koin, "peti harta")
+        return {"barang": None, "jumlah": 0, "nama": "", "koin": koin}
+
+    async def buka_harta(self, p: dict, hid) -> None:
+        h = self.harta.get(hid) if isinstance(hid, int) and not isinstance(hid, bool) else None
+        if not h or p.get("adegan") != "kantor" or math.hypot((p["x"] or 0) - h["x"], (p["y"] or 0) - h["y"]) > JARAK_HARTA:
+            return
+        del self.harta[h["id"]]
+        with basis.KUNCI:
+            isi = self._isi_harta(p["id"])
+            permainan.tambah_statistik(self.kon, p["id"], "harta")
+            inv = permainan.inventori(self.kon, p["id"])
+        await self.dunia.siar("kantor", {"t": "harta", "daftar": self.potret_harta(), "dibuka": h["id"], "oleh": p["id"], "nama": p.get("nama") or ""})
+        await self.dunia._kirim(p, dict(isi, t="harta_dapat", inventori=inv, x=round(h["x"]), y=round(h["y"])))
+        await self.dunia.kabar_level(p)
 
     # ------------------------------------------------------------ pukulan pemain
     def senjata_dipegang(self, p: dict, kode) -> str:

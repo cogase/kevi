@@ -151,6 +151,7 @@ const Suara = (() => {
     else if (nama === 'gigit') { nada('sawtooth', 52, t, 0.16, 0.16); desis(t, 0.14, 0.14, 'highpass', 2500); }
     else if (nama === 'koin') { nada('square', 88, t, 0.07, 0.07); nada('square', 93, t + 0.07, 0.16, 0.07); }
     else if (nama === 'pingsan') { for (let i = 0; i < 5; i++) nada('triangle', 60 - i * 4, t + i * 0.16, 0.3, 0.16); }
+    else if (nama === 'guntur') { desis(t + 0.25, 1.6, 0.22, 'lowpass', 140); nada('triangle', 30, t + 0.25, 1.2, 0.18); }
     else if (nama === 'sirene') { for (let i = 0; i < 4; i++) nada('sawtooth', i % 2 ? 70 : 76, t + i * 0.22, 0.2, 0.09); }
   }
 

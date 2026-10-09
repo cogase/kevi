@@ -140,5 +140,73 @@ const Suasana = (() => {
   }
   function pasang() { segarkanJam(); setInterval(segarkanJam, 5000); }
 
-  return { fase, cahaya, ruangMenyala, gambarMalam, gambarJam, pasang, pilih, pilihan, segarkanJam, NAMA_FASE, LAMPU, GELAP_MALAM };
+  /* ---------- cuaca nyata (server menarik Open-Meteo untuk Jakarta; aturan gambar dari Agent Pak) ---------- */
+
+  const LUAR = /^lantai_(luar|alam|trotoar|pantai|jalan|taman|pasir|rumput)/, LUAR_BILA_BEBAS = /^lantai_(abu_halus|kota_)/;
+  const INTENS = { gerimis: 0.35, hujan: 0.8, hujan_lebat: 1.4, badai: 1.6 };
+  const NAMA_CUACA = { ikut: 'Ikut cuaca asli', cerah: 'Cerah', hujan: 'Hujan', badai: 'Badai', kabut: 'Kabut', mati: 'Tanpa cuaca' };
+  let cuacaAsli = null, tetes = [], kilatBerikut = 0, kilatMulai = 0, lalu = 0;
+  const pilihanCuaca = () => { try { const v = localStorage.getItem('kevi.cuaca'); return NAMA_CUACA[v] ? v : 'ikut'; } catch (e) { return 'ikut'; } };
+  function pilihCuaca(v) { try { localStorage.setItem('kevi.cuaca', NAMA_CUACA[v] ? v : 'ikut'); } catch (e) { /* penyimpanan dimatikan */ } tetes = []; }
+  // Jenis cuaca yang digambar: pilihan per peramban menang atas cuaca asli; null = tidak ada cuaca.
+  function jenisCuaca() { const p = pilihanCuaca(); return p === 'mati' ? null : p !== 'ikut' ? p : cuacaAsli ? cuacaAsli.jenis : null; }
+  function aturCuaca(c) {
+    cuacaAsli = c || null;
+    const chip = document.getElementById('hud-cuaca');
+    if (!chip) return;
+    chip.hidden = !cuacaAsli;
+    if (!cuacaAsli) return;
+    chip.textContent = cuacaAsli.nama + (cuacaAsli.suhu != null ? ' ' + Math.round(cuacaAsli.suhu) + '°' : '');
+    chip.title = 'Jakarta: ' + cuacaAsli.nama + (cuacaAsli.suhu != null ? ', ' + cuacaAsli.suhu + '°C' : '') + (cuacaAsli.basi ? ' (data lama)' : '') + ' — Open-Meteo';
+    chip.dataset.jenis = cuacaAsli.jenis;
+  }
+  function terima(m) { if (m.t !== 'cuaca') return false; aturCuaca(m.cuaca); return true; }
+  // Ubin dunia ini di luar ruangan? Rumah: seluruh tanah kecuali yang berlantai dalam atau di dalam ruang. Peta utama
+  // buatan admin: menurut motif lantainya. Peta Default terpanggang: halaman di bawah garis `luar.y`.
+  function diLuar(gx, gy) {
+    const d = Rumah.d;
+    if (!d) return false;
+    if (Rumah.kantor && Rumah.dasarDefault) return !!(G.kantor && G.kantor.luar) && gy * T >= G.kantor.luar.y;
+    const J = Rumah.kantor ? 0 : JALUR_ATAS, dalamRuang = (d.ruang || []).some(r => gx >= r.gx && gx < r.gx + r.w && gy - J >= r.gy && gy - J < r.gy + r.h);
+    if (dalamRuang) return false;
+    const n = Rumah.lantaiDi(gx, gy);
+    return n ? LUAR.test(n) || LUAR_BILA_BEBAS.test(n) : !Rumah.kantor;
+  }
+  // Ruang layar, sebelum topeng malam: semburat mendung/kabut tipis seluruh layar, dan hujan yang hanya jatuh di luar ruangan.
+  function gambarCuaca(k, kv, jenis = jenisCuaca(), kini = performance.now()) {
+    if (!jenis || jenis === 'cerah' || jenis === 'berawan' || G.bangun) { tetes.length = 0; return; }
+    k.fillStyle = jenis === 'kabut' ? 'rgba(226,232,240,.22)' : 'rgba(40,50,70,.12)';
+    k.fillRect(0, 0, kv.width, kv.height);
+    const intens = INTENS[jenis];
+    if (!intens || Rumah.diamSaja) { tetes.length = 0; return; }
+    const dt = Math.min(0.05, Math.max(0, (kini - (lalu || kini)) / 1000)), kam = G.kamera, sk = kam.skala;
+    lalu = kini;
+    const target = Math.min(500, Math.round(kv.width * kv.height / 5200 * intens));
+    for (let coba = 0; tetes.length < target && coba < 60; coba++) {
+      const x = Math.random() * kv.width, y = Math.random() * kv.height;
+      if (diLuar(Math.floor((x / sk + kam.x) / T), Math.floor((y / sk + kam.y) / T))) tetes.push({ x, y: y - 14 * sk, v: (90 + Math.random() * 60) * sk, umur: 0.15 + Math.random() * 0.35, t: 0 });
+    }
+    k.strokeStyle = 'rgba(219,234,254,.8)'; k.lineWidth = Math.max(1, sk * 0.45);
+    k.beginPath();
+    for (let i = tetes.length - 1; i >= 0; i--) {
+      const d = tetes[i];
+      d.t += dt; d.y += d.v * dt; d.x -= d.v * dt * 0.15;
+      if (d.t >= d.umur) { tetes.splice(i, 1); continue; }
+      k.moveTo(d.x, d.y); k.lineTo(d.x + 2.5 * sk * 0.4, d.y - 11 * sk * 0.4);
+    }
+    k.stroke();
+  }
+  // Kilat (hanya badai): seluruh layar berkedip, di atas topeng malam.
+  function gambarKilat(k, kv, jenis = jenisCuaca(), kini = performance.now()) {
+    if (jenis !== 'badai' || G.bangun || Rumah.diamSaja) { kilatBerikut = 0; return; }
+    if (!kilatBerikut) kilatBerikut = kini + 6000 + Math.random() * 14000;
+    if (kini >= kilatBerikut) { kilatMulai = kini; kilatBerikut = kini + 8000 + Math.random() * 16000; if (typeof Suara !== 'undefined') Suara.efek('guntur'); }
+    const umur = kini - kilatMulai;
+    if (!kilatMulai || umur > 450) return;
+    const a = umur < 80 ? 0.45 : umur < 160 ? 0.08 : umur < 240 ? 0.3 : 0.3 * (1 - (umur - 240) / 210);
+    k.fillStyle = `rgba(241,245,255,${a.toFixed(3)})`; k.fillRect(0, 0, kv.width, kv.height);
+  }
+
+  return { fase, cahaya, ruangMenyala, gambarMalam, gambarJam, pasang, pilih, pilihan, segarkanJam, NAMA_FASE, LAMPU, GELAP_MALAM,
+    aturCuaca, terima, gambarCuaca, gambarKilat, diLuar, jenisCuaca, pilihCuaca, pilihanCuaca, NAMA_CUACA, get cuaca() { return cuacaAsli; }, get tetes() { return tetes.length; } };
 })();

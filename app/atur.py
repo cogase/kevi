@@ -71,10 +71,11 @@ BAWAAN = {
     "zombie_hp": 100,                 # persen pengali HP zombie
     "zombie_hadiah": 100,             # persen pengali EXP dan koin jatuh
     "zombie_denda_xp": 150,           # EXP yang hilang tiap pingsan (level bisa turun)
+    "harta_menit": 10,                # jarak kemunculan peti harta di peta utama; 0 = mati
 }
 ANGKA = {"laju": (1, 3600), "koin_awal": (0, 100000), "laju_jalan": (40, 200), "arcade_per_hari": (0, 50),
          "kuis_per_hari": (0, 50), "kirim_koin_maks": (0, 100000), "pesan_jeda": (1, 1440),
-         "zombie_menit": (1, 240), "zombie_jumlah": (0, 12), "zombie_hp": (50, 400), "zombie_hadiah": (0, 300), "zombie_denda_xp": (0, 5000)}
+         "zombie_menit": (1, 240), "zombie_jumlah": (0, 12), "zombie_hp": (50, 400), "zombie_hadiah": (0, 300), "zombie_denda_xp": (0, 5000), "harta_menit": (0, 240)}
 
 
 class AturDitolak(ValueError):

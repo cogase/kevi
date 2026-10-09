@@ -2,6 +2,32 @@
 
 Melengkapi PRD, GDD, dan TDD untuk rilis sesudah 0.2.0. Angka dan aturan di sini adalah yang berlaku di kode.
 
+## 0.24.0 — 9 Oktober 2026
+
+**Peti harta acak (kata yosi).** Di peta utama, sebuah peti berkilau muncul di tempat acak tiap kira-kira 10 menit
+(acak antara 5 dan 15; diatur admin di dashboard, 0 = mati), hanya bila ada pemain di sana, paling banyak dua
+sekaligus, dan hilang sendiri sesudah 15 menit. Pemain yang menemukannya menekan E untuk membukanya. Isinya diundi
+server: **koin** 20 sampai 80 (peluang 50%), **bahan makanan** (makanan jadi, hasil panen, benih, atau pakan; 28%),
+atau **satu perabot** seharga 15 sampai 150 koin (22%). Bila inventory penuh, hadiahnya jadi koin. Rekan di peta
+diberi tahu siapa yang menemukan.
+
+**Cuaca nyata (kata yosi, mengikuti Agent Pak).** Server menarik cuaca **Jakarta** saat ini dari Open-Meteo tiap 15
+menit (cara dan pemetaan kodenya disalin dari Agent Pak). Menu atas menampilkan keping cuaca, mis. "Hujan 26°".
+Mendung dan hujan meredupkan layar tipis; **hujan hanya jatuh di luar ruangan** (halaman kantor, tanah rumah yang
+tidak berlantai dalam), dengan lebat menurut jenisnya (gerimis, hujan, hujan lebat, badai); badai berkilat dan
+berguntur. Kabut memutihkan layar. Di Menu ada pilihan Cuaca per peramban: ikut cuaca asli (bawaan), cerah, hujan,
+badai, kabut, atau tanpa cuaca. Belum ada dibanding Agent Pak: bayangan awan, payung, dan hujan yang menyiram kebun.
+Dimatikan dengan `KEVI_CUACA=0`.
+
+**Profil bertab (kata yosi).** Profil sendiri kini dibuka di tab **Karakter** yang langsung memuat **Ganti pakaian**,
+Ubah karakter, dan sakelar bilah di atas karakter sebagai ubin besar; statistik pindah ke tab Permainan, Kerja,
+Santai, dan Rumah. Profil rekan dibuka di tab Permainan, dengan tombol Bertamu di kepalanya.
+
+**Menu dirapikan (kata yosi).** Menu tidak lagi deretan tombol ke bawah: kini ubin berikon dalam kisi, dikelompokkan
+Karakter (Profil, Level, Riwayat koin, Pulang atau Berangkat), Suasana (musik dan volume, siang dan malam, cuaca), dan
+Bantuan & akun (Panduan, Saran, Ganti password, Kode sekali pakai, tautan admin, Keluar), lalu daftar yang sedang
+daring.
+
 ## 0.23.0 — 9 Oktober 2026
 
 **Handphone (kata yosi).**

@@ -234,6 +234,7 @@ const Rumah = {
       const kam = G.kamera, x0 = Math.floor(kam.x / T) - 1, y0 = Math.floor(kam.y / T) - 1, x1 = x0 + Math.ceil(kanvas.width / kam.skala / T) + 2, y1 = y0 + Math.ceil(kanvas.height / kam.skala / T) + 2;
       for (const [gx, gy] of this.tembokUbin) if (gx >= x0 && gx <= x1 && gy >= y0 && gy <= y1) daftar.push({ alas: (gy + 1) * T, lukis: () => k.drawImage(this.tembokKv, gx * T, gy * T, T, T, gx * T, gy * T, T, T) });
     }
+    Harta.gambar(k, daftar);                     // peti harta acak di peta utama
     Battle.gambar(k, daftar);                    // zombie, koin jatuh, dan ayunan ikut diurutkan kedalamannya
     daftar.sort((p, q) => p.alas - q.alas);
     for (const b of daftar) b.lukis();
@@ -291,6 +292,7 @@ const Rumah = {
     if (this.kantor) {
       if (this.dasarDefault) daftar.push(...Mesin.statisKantor);
       daftar.push(...Mesin.titikAdmin());
+      daftar.push(...Harta.titik());
       this.kursiMejaSemua = [];
       for (const b of [...this.alas, ...this.urut]) {
         const f = FUNGSI_BENDA.find(([re]) => re.test(b.o.n));

@@ -8,7 +8,7 @@ PY="${KEVI_PY:-$AKAR/venv/bin/python}"
 PORT="${KEVI_PORT_UJI:-8811}"
 TMP="$(mktemp -d)"
 cd "$AKAR"
-export KEVI_ABAIKAN_DOTENV=1 KEVI_DB="$TMP/uji.db" KEVI_PORT="$PORT" KEVI_BIND=127.0.0.1 KEVI_LAJU=3600
+export KEVI_CUACA=0 KEVI_ABAIKAN_DOTENV=1 KEVI_DB="$TMP/uji.db" KEVI_PORT="$PORT" KEVI_BIND=127.0.0.1 KEVI_LAJU=3600
 [ -n "${KEVI_LEWATI_PYTEST:-}" ] || "$PY" -m pytest -q tests
 "$PY" -m tools.pemakai tambah penguji --admin --password rahasia-uji-123 >/dev/null
 "$PY" -m tools.pemakai tambah penguji2 --password rahasia-uji-123 >/dev/null

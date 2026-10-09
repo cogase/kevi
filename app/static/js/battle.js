@@ -301,3 +301,41 @@ const Pegang = {
     k.drawImage(sp.g || lembar, sp.x, sp.y, sp.w, sp.h, t.x - Math.round(w / 2), t.y - h + 2, w, h);
   },
 };
+
+/* ---------- peti harta: muncul acak di peta utama, dibuka pemain yang menemukannya (isi diundi server) ---------- */
+
+const Harta = {
+  peti: new Map(),
+  pasang(daftar) {
+    this.peti.clear();
+    for (const [id, x, y] of daftar || []) this.peti.set(id, { id, x, y });
+    if (G.adegan === 'kantor' && typeof Rumah !== 'undefined' && Rumah.titik) { Rumah.susunTitik(); Mesin.aturTerdekat(null); }
+  },
+  // Titik interaksi (tombol E) untuk tiap peti; dipanggil Rumah.susunTitik di peta utama.
+  titik() { return [...this.peti.values()].map(h => ({ x: h.x, y: h.y, w: 16, h: 16, label: 'Buka peti harta', harta: h.id, aksi: () => Jaring.kirim({ t: 'buka_harta', id: h.id }) })); },
+  gambar(k, daftar) {
+    if (G.adegan !== 'kantor') return;
+    const t = performance.now() / 1000;
+    for (const h of this.peti.values()) daftar.push({ alas: h.y + 16, lukis: () => {
+      k.fillStyle = 'rgba(0,0,0,.2)'; k.beginPath(); k.ellipse(h.x + 8, h.y + 15, 7, 2.5, 0, 0, Math.PI * 2); k.fill();
+      if (!lukis(k, 'gudang_peti_kayu', h.x, h.y)) { k.fillStyle = '#92400e'; k.fillRect(h.x + 2, h.y + 5, 12, 10); k.fillStyle = '#fcd34d'; k.fillRect(h.x + 7, h.y + 9, 2, 3); }
+      lukis(k, 'kilau', h.x, h.y - 12 - Math.abs(Math.sin(t * 2.2)) * 3);
+    } });
+  },
+  terima(m) {
+    if (m.t === 'harta') {
+      this.pasang(m.daftar);
+      if (m.dibuka && m.oleh !== G.saya.id) Obrolan.catat('', (m.nama || 'Seseorang') + ' menemukan peti harta.', 'sistem');
+      return true;
+    }
+    if (m.t === 'harta_dapat') {
+      if (m.inventori) serap({ inventori: m.inventori });
+      const teks = m.barang ? '+' + m.jumlah + ' ' + m.nama : '+' + m.koin + ' koin';
+      apung(teks, '#fcd34d', m.x + 8, m.y - 4);
+      kabar('Peti harta: ' + (m.barang ? m.jumlah + ' ' + m.nama : m.koin + ' koin') + '!', 'hadiah');
+      Suara.efek('koin');
+      return true;
+    }
+    return false;
+  },
+};

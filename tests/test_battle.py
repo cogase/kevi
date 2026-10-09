@@ -235,3 +235,77 @@ def test_barang_yang_dipegang_disiarkan_ke_rekan(kon, pemain):
         jalankan(dunia.terima(p, {"t": "pegang", "barang": buruk}))
         assert p["pegang"] == ""
     assert _jenis(terkirim, "pegang")[-1]["barang"] == ""
+
+
+# ---- 0.24.0: peti harta acak dan cuaca nyata
+
+def test_peti_harta_muncul_dibuka_dan_berisi_hadiah(kon, pemain):
+    dunia, b, p, terkirim = _dunia(kon, pemain)
+    b.acak.seed(3)
+    atur.simpan(kon, {"harta_menit": 2})
+    jalankan(b.langkah(1000.0))
+    assert not b.harta and 1060.0 <= b.harta_berikut <= 1180.0             # dijadwalkan acak: separuh sampai satu setengah kali
+    jalankan(b.langkah(b.harta_berikut + 1))
+    assert len(b.harta) == 1 and _jenis(terkirim, "harta")[-1]["daftar"] == b.potret_harta()
+    h = next(iter(b.harta.values()))
+    assert b._bebas(h["x"], h["y"] - 4)
+    koin, inv = permainan.saldo(kon, pemain), dict(permainan.inventori(kon, pemain))
+    jalankan(b.buka_harta(p, h["id"]))                                     # terlalu jauh: tidak terbuka
+    assert len(b.harta) == 1
+    for buruk in ("x", None, True, 9999):
+        jalankan(b.buka_harta(p, buruk))
+    p["x"], p["y"] = h["x"] + 6, h["y"] - 6
+    jalankan(b.buka_harta(p, h["id"]))
+    dapat = _jenis(terkirim, "harta_dapat")[0]
+    assert not b.harta and _jenis(terkirim, "harta")[-1]["dibuka"] == h["id"]
+    if dapat["barang"]:
+        assert permainan.inventori(kon, pemain)[dapat["barang"]] == inv.get(dapat["barang"], 0) + dapat["jumlah"] and dapat["nama"]
+    else:
+        assert 20 <= dapat["koin"] <= 80 and permainan.saldo(kon, pemain) == koin + dapat["koin"]
+    jalankan(b.buka_harta(p, h["id"]))                                     # sudah dibuka: tidak dua kali
+    assert len(_jenis(terkirim, "harta_dapat")) == 1
+    # Tiga jenis isi semuanya bisa keluar; perabot hadiah selalu yang murah dan dijual toko.
+    jenis = set()
+    for i in range(60):
+        b.acak.seed(i)
+        isi = b._isi_harta(pemain)
+        jenis.add("koin" if not isi["barang"] else "perabot" if isi["barang"] in permainan.katalog()["barang"] else "makanan")
+        if isi["barang"] in permainan.katalog()["barang"]:
+            assert 15 <= permainan.harga_beli(isi["barang"]) <= 150
+    assert jenis == {"koin", "makanan", "perabot"}
+
+
+def test_peti_harta_dibatasi_kedaluwarsa_dan_bisa_dimatikan(kon, pemain):
+    dunia, b, p, terkirim = _dunia(kon, pemain)
+    atur.simpan(kon, {"harta_menit": 1})
+    kini = 0.0
+    for _ in range(12):
+        kini += 120.0
+        jalankan(b.langkah(kini))
+    assert len(b.harta) == battle.HARTA_MAKS                               # tidak menumpuk
+    jalankan(b.langkah(kini + battle.HARTA_UMUR + 200))
+    assert len(b.harta) <= 1                                               # yang lama hilang sendiri
+    atur.simpan(kon, {"harta_menit": 0})
+    b.harta.clear()
+    for _ in range(5):
+        kini += 5000.0
+        jalankan(b.langkah(kini))
+    assert not b.harta and b.harta_berikut is None
+    p["adegan"] = f"rumah:{pemain}"
+    atur.simpan(kon, {"harta_menit": 1})
+    jalankan(b.langkah(kini + 9000))
+    assert not b.harta                                                     # tak ada pemain di peta utama: tidak muncul
+
+
+def test_cuaca_pemetaan_kode_dan_keadaan():
+    from app import cuaca
+    assert [cuaca.jenis_dari(k) for k in (0, 1, 2, 3, 45, 53, 61, 80, 65, 75, 95, 99, 1234)] == ["cerah", "cerah", "berawan", "mendung", "kabut", "gerimis", "hujan", "hujan", "hujan_lebat", "hujan_lebat", "badai", "badai", "berawan"]
+    c = cuaca.urai({"current": {"weather_code": 63, "temperature_2m": 26.4, "precipitation": 1.2, "cloud_cover": 90}}, 1000.0)
+    assert c == {"jenis": "hujan", "nama": "Hujan", "kode": 63, "suhu": 26.4, "hujan_mm": 1.2, "awan": 90, "pada": 1000.0}
+    assert cuaca.urai({}, 5.0)["jenis"] == "berawan"
+    assert cuaca.AKTIF is False and cuaca.tarik() is None and cuaca.keadaan() is None      # uji tidak menyentuh internet
+    cuaca._TERAKHIR.update(c)
+    try:
+        assert cuaca.keadaan(1000.0 + 60)["basi"] is False and cuaca.keadaan(1000.0 + 3 * cuaca.JEDA + 1)["basi"] is True
+    finally:
+        cuaca._TERAKHIR.clear()

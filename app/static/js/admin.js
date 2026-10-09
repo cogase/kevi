@@ -107,6 +107,7 @@ const KET_ZOMBIE = {
   zombie_hp: ['HP zombie (%)', '100 = bawaan: biasa 6, gesit 4, besar 20.'],
   zombie_hadiah: ['Hadiah (%)', 'Pengali EXP dan koin jatuh. 0 = tanpa hadiah.'],
   zombie_denda_xp: ['EXP hilang saat pingsan', 'Dipotong dari total EXP; level bisa turun. 0 = tanpa denda.'],
+  harta_menit: ['Peti harta: jarak kemunculan (menit)', 'Peti acak di peta utama berisi koin, bahan makanan, atau perabot. 0 = mati.'],
 };
 async function muatAtur() {
   A = await coba(() => ambil('/api/admin/pengaturan'));

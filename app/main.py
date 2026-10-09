@@ -43,6 +43,7 @@ async def _mulai() -> None:
     asyncio.get_running_loop().create_task(DUNIA.putar_pesan())
     asyncio.get_running_loop().create_task(DUNIA.putar_lapar())
     asyncio.get_running_loop().create_task(DUNIA.battle.putar())
+    asyncio.get_running_loop().create_task(DUNIA.putar_cuaca())
 
 
 def _alamat(request: Request) -> str:

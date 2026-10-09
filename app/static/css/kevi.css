@@ -112,6 +112,23 @@ body:not(.siap) #hud, body:not(.siap) #obrolan { visibility: hidden; }
 #versi-baru { position: fixed; top: 0; left: 0; right: 0; z-index: calc(var(--z-kabar) + 10); display: flex; align-items: center; justify-content: center; gap: 6px 12px; flex-wrap: wrap; padding: 8px 12px;
   background: linear-gradient(180deg, #fde68a, #f59e0b); color: #1c1203; font-size: 14px; border-bottom: 3px solid #78350f; box-shadow: 0 6px 18px rgba(0,0,0,.55); animation: versi-denyut 1.6s ease-in-out infinite; }
 #versi-baru b { font-size: 15px; }
+/* Menu dan profil: ubin berikon dalam kisi, dikelompokkan dengan judul kecil. */
+.menu h4, .profil h4 { margin: 12px 0 6px; font: 700 10px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--redup); }
+.menu h4:first-child { margin-top: 0; }
+.menu-kisi { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 7px; }
+.ubin { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: 72px; padding: 8px 9px; text-align: left; text-decoration: none; color: var(--teks); font: inherit; cursor: pointer;
+  background: var(--tekstur), linear-gradient(180deg, #1b2a4a, #131d35); border: 2px solid #0b1220; border-radius: 8px; box-shadow: inset 0 0 0 1px #33487a, 0 2px 0 #05070d; }
+.ubin:hover, .ubin:focus-visible { filter: brightness(1.18); box-shadow: inset 0 0 0 1px var(--emas), 0 2px 0 #05070d; }
+.ubin:active { transform: translateY(2px); }
+.ubin i { font-style: normal; font-size: 20px; line-height: 1.1; }
+.ubin b { font-size: 13px; color: var(--krem); line-height: 1.2; }
+.ubin small { font-size: 11px; color: var(--redup); line-height: 1.25; }
+.ubin.bahaya { box-shadow: inset 0 0 0 1px #9f1239, 0 2px 0 #05070d; }
+.ubin.bahaya b { color: #fda4af; }
+.menu-atur { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; background: rgba(7,11,20,.5); border: 1px solid var(--garis); border-radius: 8px; }
+.profil-tab { margin: 10px 0 8px; }
+.profil-tab button { padding: 4px 10px; font-size: 12px; }
+.profil-badan { min-height: 130px; }
 /* Handphone: tombol berbentuk handphone di kanan layar, dengan lencana pesan belum dibaca. */
 #hp-tombol { position: fixed; right: 12px; top: 104px; z-index: var(--z-hud); width: 30px; height: 52px; padding: 5px 3px 9px; border: 2px solid #0b1220; border-radius: 7px; background: linear-gradient(180deg, #334155, #1e293b); box-shadow: 0 3px 0 #05070d, 0 6px 12px rgba(0,0,0,.45); cursor: pointer; }
 #hp-tombol::after { content: ""; position: absolute; left: 50%; bottom: 3px; width: 6px; height: 3px; margin-left: -3px; border-radius: 2px; background: #64748b; }
@@ -136,6 +153,7 @@ body.digigit::after { content: ""; position: fixed; inset: 0; z-index: var(--z-k
 .menu-suara { display: flex; align-items: center; gap: 10px; padding: 2px 4px; }
 .menu-suara select { flex: 1; min-width: 0; }
 .cip.jam { font-variant-numeric: tabular-nums; color: var(--krem); }
+#hud-cuaca[data-jenis^=hujan], #hud-cuaca[data-jenis=gerimis], #hud-cuaca[data-jenis=badai] { color: #bfdbfe; border-color: #3b5b8f; }
 .cip.jam[data-fase=malam] { color: #c7d2fe; border-color: #4f5d8f; }
 .cip.jam[data-fase=senja], .cip.jam[data-fase=fajar] { color: #fdba74; border-color: #9a5a2a; }
 .menu-suara input[type=range] { flex: 1; min-width: 0; }

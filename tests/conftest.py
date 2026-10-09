@@ -6,6 +6,7 @@ os.environ["KEVI_ABAIKAN_DOTENV"] = "1"
 os.environ["KEVI_DB"] = os.path.join(tempfile.mkdtemp(prefix="kevi-uji-"), "uji.db")
 os.environ["KEVI_LAJU"] = "3600"          # 1 jam kebun = 1 detik
 os.environ["KEVI_KOIN_AWAL"] = "300"
+os.environ["KEVI_CUACA"] = "0"             # uji tidak menyentuh internet
 
 import pytest  # noqa: E402
 

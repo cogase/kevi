@@ -382,7 +382,9 @@ const Mesin = {
     Rumah.gambar(ktx, semua);
     this.gambarApung();
     ktx.setTransform(1, 0, 0, 1, 0, 0);
-    Suasana.gambarMalam(ktx, kanvas, semua);          // gelap malam + cahaya lampu; nama dan gelembung sesudahnya tetap terang
+    Suasana.gambarCuaca(ktx, kanvas);                  // hujan dan mendung (hanya di luar ruangan), digelapkan malam seperti yang lain
+    Suasana.gambarMalam(ktx, kanvas, semua);
+    Suasana.gambarKilat(ktx, kanvas);          // gelap malam + cahaya lampu; nama dan gelembung sesudahnya tetap terang
     this.gambarLabel(semua);
   },
 
@@ -465,6 +467,7 @@ const Jaring = {
       case 'halo':
         this.tersambung = true; Hud.sambungan(true);
         this.versiServer = m.versi || ''; Versi.periksa(m.versi, m.aset);
+        Harta.pasang(m.harta); Suasana.aturCuaca(m.cuaca);
         Pegang.terkirim = null; Pegang.kabarkan();      // sambungan baru: kabarkan lagi barang yang dipegang
         for (const [id, e] of G.entitas) if (e.jenis === 'pemain') G.entitas.delete(id);
         Npc.pasang(m.npc || []);
@@ -518,7 +521,7 @@ const Jaring = {
       case 'term_bersih': Terminal.bersih(); break;
       case 'term_selesai': Terminal.selesai(); break;
       case 'ganti_tab': this.diganti = true; Hud.terputus('Kevi dibuka di tab lain. Tab ini berhenti.'); break;
-      default: if (!Battle.terima(m)) Hp.terima(m);   // battle.js: zombie, Health, pingsan, koin jatuh; hp.js: pesan handphone
+      default: if (!Battle.terima(m) && !Harta.terima(m) && !Suasana.terima(m)) Hp.terima(m);   // battle.js: zombie, Health, pingsan, koin jatuh; hp.js: pesan handphone
     }
   },
 

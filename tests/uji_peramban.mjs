@@ -331,9 +331,21 @@ cek('jual hasil lewat kotak kiriman menambah koin', (await pg.evaluate(() => G.k
 // --- profil: statistik sendiri dari Menu
 await pg.evaluate(() => Profil.buka());
 await pg.waitForSelector('.profil .profil-potret');
-cek('profil sendiri menampilkan statistik dan tombol ubah karakter', await pg.evaluate(() => {
-  const t = $('.profil').textContent;
-  return t.includes('Lama bermain') && t.includes('Panen') && t.includes('Ubah karakter') && !!$('#profil-bilah');
+cek('profil sendiri bertab: terbuka di tab Karakter dengan Ganti pakaian dan Ubah karakter di atas, statistik di tab lain', await pg.evaluate(() => {
+  const tab = [...document.querySelectorAll('.profil-tab button')].map(b => b.textContent).join(), awal = $('.profil-tab button.aktif').textContent, karakter = $('.profil-badan').textContent;
+  const buka = (n) => { [...document.querySelectorAll('.profil-tab button')].find(b => b.textContent === n).click(); return $('.profil-badan').textContent; };
+  const permainan = buka('Permainan'), kerja = buka('Kerja');
+  return tab === 'Karakter,Permainan,Kerja,Santai,Rumah' && awal === 'Karakter' && karakter.includes('Ganti pakaian') && karakter.includes('Ubah karakter') && !karakter.includes('Lama bermain')
+    && permainan.includes('Lama bermain') && kerja.includes('Panen') && !kerja.includes('Ganti pakaian') && !!buka('Karakter') && !!$('#profil-lemari') && !!$('#profil-bilah');
+}));
+await pg.keyboard.press('Escape');
+await pg.click('#tb-menu');
+await pg.waitForSelector('#tirai .menu .ubin');
+cek('Menu berupa ubin berikon per kelompok, dengan pengaturan suara dan waktu', await pg.evaluate(() => {
+  const m = $('#tirai .menu'), judul = [...m.querySelectorAll('h4')].map(h => h.textContent).join('|'), ubin = [...m.querySelectorAll('.ubin')];
+  const k = ubin[0].getBoundingClientRect(), k2 = ubin[1].getBoundingClientRect();
+  return judul.startsWith('Karakter|Suasana|Bantuan & akun') && ubin.length >= 9 && ubin.every(u => u.querySelector('i') && u.querySelector('b')) && Math.abs(k.top - k2.top) < 2 && k2.left > k.left
+    && !!$('#menu-profil') && !!$('#menu-umpan') && !!$('#menu-suara') && !!$('#menu-volume') && !!$('#menu-waktu') && m.textContent.includes('Keluar') && m.textContent.includes('Sedang daring');
 }));
 await pg.keyboard.press('Escape');
 
@@ -879,6 +891,42 @@ const lantaiTembok = await pg.evaluate(() => {
 });
 cek('Edit Rumah: lantai menyambung sampai ke tembok tegak (tanpa celah tanah), sisi luar tembok tetap tanah', lantaiTembok.kananTembok === lantaiTembok.parket && lantaiTembok.kiriTembok !== lantaiTembok.parket && lantaiTembok.tanahLuar !== lantaiTembok.parket, JSON.stringify(lantaiTembok));
 cek('tembok ikut urutan kedalaman: perabot di belakang tembok bawah tertutup, yang di depannya tidak', lantaiTembok.kv && lantaiTembok.ubin === 8 && lantaiTembok.adaUbin && lantaiTembok.belakang <= lantaiTembok.dasarTembok && lantaiTembok.depan > lantaiTembok.dasarTembok, JSON.stringify(lantaiTembok));
+
+// --- cuaca nyata dan peti harta (kata yosi)
+const cuacaUji = await pg.evaluate(() => {
+  const awal = { chip: $('#hud-cuaca').hidden, jenis: Suasana.jenisCuaca() };
+  Suasana.aturCuaca({ jenis: 'hujan', nama: 'Hujan', suhu: 26.4, basi: false });
+  const chip = { teks: $('#hud-cuaca').textContent, judul: $('#hud-cuaca').title, tampak: !$('#hud-cuaca').hidden }, ikut = Suasana.jenisCuaca();
+  const kv = document.createElement('canvas'); kv.width = 400; kv.height = 300;
+  const k = kv.getContext('2d'), terang = () => { const d = k.getImageData(5, 5, 1, 1).data; return d[0] + d[1] + d[2]; };
+  k.fillStyle = '#fff'; k.fillRect(0, 0, 400, 300); Suasana.gambarCuaca(k, kv, 'cerah'); const cerah = terang();
+  k.fillStyle = '#fff'; k.fillRect(0, 0, 400, 300); Suasana.gambarCuaca(k, kv, 'mendung'); const mendung = terang();
+  const kam = { x: G.kamera.x, y: G.kamera.y }, luarY = G.kantor.luar.y;
+  G.kamera.x = 0; G.kamera.y = luarY + 4; for (let i = 0; i < 5; i++) Suasana.gambarCuaca(k, kv, 'hujan', 1000 + i * 30); const tetesLuar = Suasana.tetes;
+  Suasana.gambarCuaca(k, kv, 'cerah');
+  G.kamera.x = 100; G.kamera.y = 100; for (let i = 0; i < 5; i++) Suasana.gambarCuaca(k, kv, 'hujan', 2000 + i * 30); const tetesDalam = Suasana.tetes;
+  Suasana.gambarCuaca(k, kv, 'cerah'); Object.assign(G.kamera, kam);
+  Suasana.pilihCuaca('badai'); const paksa = Suasana.jenisCuaca(); Suasana.pilihCuaca('mati'); const mati = Suasana.jenisCuaca(); Suasana.pilihCuaca('ikut');
+  const hasil = { awal, chip, ikut, cerah, mendung, tetesLuar, tetesDalam, paksa, mati, luar: Suasana.diLuar(3, Math.ceil(luarY / 16) + 1), dalam: Suasana.diLuar(10, 10) };
+  Suasana.aturCuaca(null);
+  return hasil;
+});
+cek('cuaca: keping di menu atas menampilkan cuaca asli; hujan hanya jatuh di luar ruangan; mendung meredupkan; bisa dipaksa atau dimatikan per peramban', cuacaUji.awal.chip && cuacaUji.awal.jenis === null && cuacaUji.chip.teks === 'Hujan 26°'
+  && cuacaUji.chip.judul.includes('Open-Meteo') && cuacaUji.chip.tampak && cuacaUji.ikut === 'hujan' && cuacaUji.cerah === 765 && cuacaUji.mendung < 765 && cuacaUji.tetesLuar > 5 && cuacaUji.tetesDalam === 0
+  && cuacaUji.paksa === 'badai' && cuacaUji.mati === null && cuacaUji.luar && !cuacaUji.dalam, JSON.stringify(cuacaUji));
+const hartaUji = await pg.evaluate(() => {
+  const sebelum = Rumah.interaksi().filter(t => t.harta).length;
+  Harta.terima({ t: 'harta', daftar: [[7, 320, 690], [8, 100, 700]] });
+  const titik = Rumah.interaksi().filter(t => t.harta), kirim = [];
+  const asli = Jaring.kirim; Jaring.kirim = (m) => kirim.push(m); titik[0].aksi(); Jaring.kirim = asli;
+  const koin = G.koin;
+  Harta.terima({ t: 'harta_dapat', barang: null, jumlah: 0, nama: '', koin: 45, x: 320, y: 690 });
+  const kabarKoin = $('#kabar').textContent;
+  Harta.terima({ t: 'harta', daftar: [], dibuka: 7, oleh: -1, nama: 'Rekan' });
+  return { sebelum, titik: titik.map(t => t.label).join('|'), kirim, kabarKoin, sesudah: Rumah.interaksi().filter(t => t.harta).length, log: $('#obrolan-log').textContent };
+});
+cek('peti harta: peti yang disiarkan server jadi titik "Buka peti harta", E mengirim permintaan buka, hadiah dikabarkan, penemuan rekan tercatat', hartaUji.sebelum === 0 && hartaUji.titik === 'Buka peti harta|Buka peti harta'
+  && JSON.stringify(hartaUji.kirim) === '[{"t":"buka_harta","id":7}]' && hartaUji.kabarKoin.includes('Peti harta: 45 koin') && hartaUji.sesudah === 0 && hartaUji.log.includes('Rekan menemukan peti harta'), JSON.stringify(hartaUji));
 
 // --- sudut tembok menyatu (laporan yosi): balok mendatar tidak menjorok keluar dari sisi luar tembok tegak
 const sudutUji = await pg.evaluate(() => {
