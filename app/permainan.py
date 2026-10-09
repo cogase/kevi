@@ -683,6 +683,8 @@ def peta_simpan(kon: sqlite3.Connection, p: dict) -> dict:
             baru["kunci"] = True
         if o.get("l") in ("bawah", "atas"):          # lapis gambar: di bawah semua benda / di atas semua tokoh
             baru["l"] = o["l"]
+        if o.get("t"):                               # tembus: bisa dilewati walau katalognya padat (bunga, tangga, terumbu)
+            baru["t"] = 1
         benda_baru.append(baru)
     ruang_baru = []
     for r in p.get("ruang") or []:
@@ -699,6 +701,13 @@ def peta_simpan(kon: sqlite3.Connection, p: dict) -> dict:
     if not isinstance(halang, dict):
         raise Ditolak("Daftar penghalang tidak sah.")
     halang_baru = {_kunci_ubin(d, kunci): 1 for kunci in halang}         # ubin tak terlihat yang tak bisa dilewati
+    # Generate peta mengganti alasnya: dari kantor terpanggang ke tanah kosong berlantai dasar tertentu (ukuran tetap).
+    if p.get("dasar") in ("default", "kosong") and p["dasar"] != d["dasar"]:
+        d["dasar"] = p["dasar"]
+    if p.get("lantai_dasar") is not None:
+        if p["lantai_dasar"] not in kat["lantai"]:
+            raise Ditolak("Lantai dasar tidak dikenal.")
+        d["lantai_dasar"] = p["lantai_dasar"]
     d.update(lantai=lantai_baru, tembok=tembok_baru, benda=benda_baru, ruang=ruang_baru, halang=halang_baru, urut=urut)
     _simpan_peta(kon, d)
     return d

@@ -2,6 +2,22 @@
 
 Melengkapi PRD, GDD, dan TDD untuk rilis sesudah 0.2.0. Angka dan aturan di sini adalah yang berlaku di kode.
 
+## 0.14.0 — 9 Oktober 2026
+
+**Generate peta, seperti Agent Pak (kata yosi)**
+- Di Edit Map, tombol **🎲 Generate** membuka pembangkit peta berbenih milik Agent Pak (`generator.js`, disalin utuh):
+  jenis Alam, Perbukitan, Kota, Taman kota, Pantai, Perumahan, atau Acak; kepadatan Jarang, Sedang, Lebat; ukuran
+  ruang kantor (tanpa kantor sampai 9 meja); dan seed. **Seed yang sama selalu menghasilkan peta yang sama.**
+  "🎲 Acak ulang" memakai seed baru.
+- Hasilnya mengganti seluruh isi peta yang sedang disunting **sebagai draf**: bisa diurungkan, dan baru tersiar ke
+  pemain saat Simpan. Ukuran peta tetap; untuk ukuran lain buat peta kosong baru lewat ▤ Peta, aktifkan, lalu
+  Generate di sana. Air menjadi ubin penghalang; ruang kantor menjadi objek Ruang yang bisa disunting.
+- NPC tidak ikut dipindah: geser lewat dashboard, tab Peta & NPC, bila posisinya jatuh di air atau tembok.
+- Perabot yang tidak ada di katalog Kevi dilewati; jumlahnya disebut di baris status.
+- Benda kini punya centang **Bisa dilewati** di propertinya (dipakai generator untuk bunga, tangga, terumbu).
+- Dok Edit Map tidak lagi bertambah tinggi saat isinya banyak: tiap baris digulir mendatar.
+- Belum: Generate untuk rumah pemain (menunggu penyunting rumah yang baru).
+
 ## 0.13.0 — 9 Oktober 2026
 
 **Koleksi peta: banyak peta untuk ganti suasana (kata yosi)**

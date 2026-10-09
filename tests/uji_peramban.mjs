@@ -518,6 +518,23 @@ await pg.click('.koleksi [data-peta]:nth-child(2) [data-aksi=hapus]');
 await pg.waitForFunction(() => document.querySelectorAll('.koleksi [data-peta]').length === 1);
 cek('peta yang tidak aktif bisa dihapus (diminta dua kali)', true);
 await pg.keyboard.press('Escape');
+// Generate peta (pembangkit Agent Pak): seed yang sama = peta yang sama; hasilnya draf yang bisa diurungkan.
+const ringkasPeta = () => pg.evaluate(() => ({ dasar: G.peta.dasar, alas: G.peta.lantai_dasar, benda: G.peta.benda.length, halang: Object.keys(G.peta.halang).length, ruang: G.peta.ruang.length,
+  lantai: Object.keys(G.peta.lantai).length, pertama: G.peta.benda.slice(0, 3).map(o => [o.n, o.x, o.y].join()).join(';'), kotor: Sunting.kotor }));
+await pg.click('#sunting-generate');
+await pg.waitForSelector('#gen-buat');
+await pg.fill('#gen-benih', '12345'); await pg.keyboard.press('Tab');
+await pg.click('.generator [data-jenis=pantai]');
+await pg.click('#gen-buat');
+const gen1 = await ringkasPeta();
+cek('Generate peta: pantai dari seed menghasilkan lantai, air terhalang, perabot, dan satu ruang kantor', gen1.dasar === 'kosong' && gen1.benda > 20 && gen1.halang > 20 && gen1.lantai > 100 && gen1.ruang === 1 && gen1.kotor, JSON.stringify(gen1));
+await pg.click('#gen-buat');
+const gen2 = await ringkasPeta();
+cek('seed yang sama menghasilkan peta yang sama', gen2.benda === gen1.benda && gen2.halang === gen1.halang && gen2.pertama === gen1.pertama && gen2.alas === gen1.alas, JSON.stringify(gen2));
+await pg.keyboard.press('Escape');
+await pg.keyboard.press('Control+z'); await pg.keyboard.press('Control+z');
+const gen0 = await ringkasPeta();
+cek('hasil generate bisa diurungkan sampai peta semula', gen0.dasar === 'default' && gen0.benda === 1 && gen0.halang === 0 && gen0.ruang === 0 && !gen0.kotor, JSON.stringify(gen0));
 await pg.click('#bangun [data-alat=hapus]');
 await klikPeta(s1.x + 6, s1.y + 6);
 cek('alat Hapus membuang benda dari draf', await pg.evaluate(() => G.peta.benda.length === 0 && Sunting.kotor));

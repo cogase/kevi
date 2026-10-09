@@ -281,6 +281,9 @@ body.menyunting #sentuh-tongkat { bottom: 190px; }
 .profil-kelompok dl { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; margin: 0; font-size: 13px; }
 .profil-kelompok dt { color: var(--redup); }
 .profil-kelompok dd { margin: 0; text-align: right; font-family: var(--mono); color: var(--krem); }
+.generator { display: flex; flex-direction: column; gap: 10px; }
+.panel.ringkas .generator-jenis { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+.panel.ringkas .generator-jenis .kartu { min-height: 62px; }
 .koleksi .baris { gap: 6px; align-items: center; }
 .koleksi .baris input { min-width: 0; padding: 3px 8px; }
 .koleksi-ukuran { display: flex; align-items: center; gap: 6px; }
@@ -300,6 +303,11 @@ body.menyunting #bangun { flex-direction: column; align-items: stretch; gap: 6px
 body.menyunting #hotbar-wadah, body.menyunting #petunjuk { display: none; }
 body.menyunting #zoom { bottom: 176px; }
 .sunting-kepala, .sunting-pilihan { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-height: 30px; }
+/* Dok tidak boleh bertambah tinggi saat isinya banyak (menutupi peta): tiap baris satu lajur, digulir mendatar. */
+.sunting-kepala, .sunting-pilihan { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; }
+.sunting-kepala > *, .sunting-pilihan > * { flex: none; }
+.sunting-kepala > .tumbuh, .sunting-pilihan > .tumbuh { flex: 1 1 140px; min-width: 140px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sunting-pilihan .sunting-pintu { flex-wrap: nowrap; }
 .sunting-kepala > b { color: var(--krem); }
 .sunting-pilihan { border-top: 1px solid var(--garis); padding-top: 6px; }
 .sunting-pilihan input[type=color] { width: 30px; height: 28px; padding: 0; border: 2px solid #0b1220; border-radius: 5px; background: none; cursor: pointer; }

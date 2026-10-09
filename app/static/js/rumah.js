@@ -90,7 +90,7 @@ const Rumah = {
       const b = { o, w: u.w, h: u.h, y: o.y + oy, alas: o.l === 'atas' ? 1e9 + o.id : o.y + oy + u.h };
       const alasTanah = this.alasTanah(o.n);
       if (alasTanah || o.l === 'bawah') this.alas.push(b); else this.urut.push(b);
-      if (!alasTanah && !info.tembus) gridJejak(g, o.x, b.y, u.w, u.h, !!info.datar);
+      if (!alasTanah && !info.tembus && !o.t) gridJejak(g, o.x, b.y, u.w, u.h, !!info.datar);      // o.t = dibuat tembus di Edit Map
     }
     this.alas.sort((p, q) => p.o.id - q.o.id);
     G.grid = g;

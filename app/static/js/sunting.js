@@ -36,7 +36,7 @@ const Sunting = {
   pilihRuang: null, bawaIsi: true, kam: { x: 0, y: 0 },
 
   get d() { return G.peta; },
-  inti(d) { return JSON.stringify({ lantai: d.lantai, tembok: d.tembok, benda: d.benda, ruang: d.ruang || [], halang: d.halang || {}, urut: d.urut }); },
+  inti(d) { return JSON.stringify({ lantai: d.lantai, tembok: d.tembok, benda: d.benda, ruang: d.ruang || [], halang: d.halang || {}, dasar: d.dasar, lantai_dasar: d.lantai_dasar, urut: d.urut }); },
   benda(id) { return this.d.benda.find(o => o.id === id); },
   ruang(id) { return (this.d.ruang || []).find(r => r.id === id); },
   kotakRuang(r) { return { x: r.gx * T, y: r.gy * T, w: r.w * T, h: r.h * T }; },
@@ -87,7 +87,7 @@ const Sunting = {
     this.kabar('menyimpan…');
     try {
       const d = this.d;
-      const j = await api('/api/admin/peta/simpan', { rev: this.rev, lantai: d.lantai, tembok: d.tembok, benda: d.benda, ruang: d.ruang || [], halang: d.halang || {} });
+      const j = await api('/api/admin/peta/simpan', { rev: this.rev, lantai: d.lantai, tembok: d.tembok, benda: d.benda, ruang: d.ruang || [], halang: d.halang || {}, dasar: d.dasar, lantai_dasar: d.lantai_dasar });
       G.peta = j.peta;
       if (!Array.isArray(G.peta.ruang)) G.peta.ruang = [];
     if (!G.peta.halang || typeof G.peta.halang !== 'object') G.peta.halang = {};
@@ -669,6 +669,8 @@ const Sunting = {
       isi.push(ikonBarang(o.n, 30), el('b', { teks: namaBarang(o.n) }), el('span', { kelas: 'redup kecil', teks: `x ${o.x}, y ${o.y}` }),
         pt.length > 1 ? tb(ARAH[o.r || 0] + ' · Putar (R)', '', () => this.putar()) : null,
         tb('Duplikat', '', () => this.duplikat()), ...lapis(o.l || ''),
+        el('label', { kelas: 'centang-baris' }, el('input', { type: 'checkbox', id: 'sunting-tembus', checked: !!o.t || !!Rumah.infoBarang(o.n).tembus, disabled: !!Rumah.infoBarang(o.n).tembus,
+          on: { change: (ev) => { const v = ev.target.checked; this.ubah(() => { if (v) o.t = 1; else delete o.t; }); } } }), 'Bisa dilewati'),
         el('label', { kelas: 'centang-baris' }, el('input', { type: 'checkbox', checked: !!o.kunci, on: { change: (ev) => { const v = ev.target.checked; this.ubah(() => { if (v) o.kunci = true; else delete o.kunci; }); } } }), 'Kunci posisi'),
         tb('Hapus', 'bahaya', () => this.hapusPilihan()));
     } else if (this.alat === 'area' && this.grup) {
@@ -692,10 +694,11 @@ const Sunting = {
       isi.push(this.lantai ? ikonBarang('lantai:' + this.lantai, 30) : null, el('b', { teks: this.lantai ? namaBarang('lantai:' + this.lantai) : 'Belum ada motif dipilih' }),
         tb('▦ Pilih motif', '', () => this.bukaKatalog('lantai')));
     }
-    if (!ruang) isi.push(el('span', { kelas: 'redup kecil tumbuh', teks: PETUNJUK_SUNTING[this.alat] }));
+    if (!ruang) isi.push(el('span', { kelas: 'redup kecil tumbuh', teks: PETUNJUK_SUNTING[this.alat], title: PETUNJUK_SUNTING[this.alat] }));
     wadah.replaceChildren(
       el('div', { kelas: 'sunting-kepala' },
         el('b', { teks: 'Edit Map' }), el('span', { id: 'sunting-kabar', kelas: 'redup kecil tumbuh', role: 'status', teks: this.pesan }),
+        tb('🎲 Generate', '', () => this.bukaGenerator(), { id: 'sunting-generate', title: 'Generate peta otomatis dari seed (alam, kota, pantai, dan lainnya)' }),
         tb('▤ Peta', '', () => this.kelolaPeta(), { id: 'sunting-peta', title: 'Koleksi peta: simpan banyak peta dan pilih yang aktif' }),
         tb('Simpan', 'utama', () => this.simpan(), { id: 'sunting-simpan', disabled: !this.kotor || this.sibuk, title: 'Simpan dan siarkan ke semua pemain (Ctrl+S)' }),
         tb('↶ Urungkan', '', () => this.urungkan(), { id: 'sunting-urung', disabled: !this.urung.length, title: 'Urungkan (Ctrl+Z)' }),
@@ -705,6 +708,61 @@ const Sunting = {
         el('div', {}, daftar.map(([kunci, tanda, pendek, panjang]) => el('button', { kelas: 'slot alat' + (this.alat === kunci ? ' aktif' : ''), title: panjang, 'data-alat': kunci, 'aria-pressed': String(this.alat === kunci),
           on: { click: (ev) => { ev.currentTarget.blur(); this.pakaiAlat(kunci); } } }, el('span', { kelas: 'tangan', teks: tanda }), el('small', { teks: pendek }))))))),
       el('div', { kelas: 'sunting-pilihan' }, isi));
+  },
+
+  /* ---------- Generate peta: pembangkit dunia berbenih milik Agent Pak (generator.js, disalin utuh) ---------- */
+
+  // Ubah denah keluaran GeneratorPeta (ops ala Agent Pak) menjadi isi peta Kevi. Mengembalikan ringkasan.
+  terapkanDenah(d, denah) {
+    const B = G.katalog.barang, L = new Set(G.katalog.lantai), penuh = (o) => o.gx === 0 && o.gy === 0 && o.w >= d.lebar && (o.h || 1) >= d.tinggi;
+    const ubin = (o, fn) => { for (let gy = o.gy; gy < o.gy + (o.h || 1); gy++) for (let gx = o.gx; gx < o.gx + o.w; gx++) if (this.ubinSah(gx, gy)) fn(gx + ',' + gy); };
+    Object.assign(d, { dasar: 'kosong', lantai: {}, tembok: {}, halang: {}, ruang: [], benda: [] });
+    let lewat = 0;
+    const taruh = (n, x, y, tembus) => {
+      if (!B[n] || d.benda.length >= 3900) { lewat++; return; }
+      const t = this.batas(Math.round(x), Math.round(y));
+      d.urut += 1;
+      d.benda.push(Object.assign({ id: d.urut, n, x: t.x, y: t.y, r: 0 }, tembus && !B[n].tembus ? { t: 1 } : {}));
+    };
+    for (const o of denah.ops) {
+      if (o.t === 'lantai') { if (!L.has(o.n)) continue; if (penuh(o)) d.lantai_dasar = o.n; else ubin(o, (k) => { d.lantai[k] = o.n; }); }
+      else if (o.t === 'halang') ubin(o, (k) => { d.halang[k] = 1; });
+      else if (o.t === 'ruang') { d.urut += 1; d.ruang.push({ id: d.urut, gx: o.gx, gy: o.gy, w: o.w, h: o.h, warna: o.warna || WARNA_TEMBOK[0], lantai: L.has(o.lantai) ? o.lantai : '', nama: (o.nama || '').slice(0, 24), pintu: (o.pintu || []).slice(0, 4).map(q => ({ sisi: q.sisi, pos: q.pos })) }); this.jepitPintu(d.ruang[d.ruang.length - 1]); }
+      else if (o.t === 'padat' || o.t === 'penuh' || o.t === 'lukis') taruh(o.n, o.x, o.y, o.t === 'lukis');
+    }
+    for (const m of denah.meja || []) taruh(B['meja_' + m.jenis] ? 'meja_' + m.jenis : 'meja_hadap4', m.x, m.y, false);
+    return { benda: d.benda.length, lewat };
+  },
+
+  bukaGenerator() {
+    if (typeof GeneratorPeta === 'undefined') { kabar('Generator peta belum termuat.', 'galat'); return; }
+    const d = this.d, gen = this.gen || (this.gen = { jenis: 'alam', kepadatan: 'sedang', meja: 3, benih: String(GeneratorPeta.benihAcak()) });
+    const isi = el('div', { kelas: 'generator' }), diam = { keydown: (ev) => ev.stopPropagation() };
+    const buat = () => {
+      const benih = GeneratorPeta.normalBenih(gen.benih);
+      gen.benih = String(benih);
+      const h = GeneratorPeta.buat({ jenis: gen.jenis, lebar: d.lebar, tinggi: d.tinggi, kepadatan: gen.kepadatan, benih, atlas, kursi: Array(gen.meja * 4).fill('') });
+      let ringkas;
+      this.pilih = null; this.pilihRuang = null; this.grup = null;
+      this.ubah((dd) => { ringkas = this.terapkanDenah(dd, h.denah); });
+      this.kabar(`Peta ${GeneratorPeta.JENIS[gen.jenis].nama} dibuat (seed ${benih}, ${d.lebar}×${d.tinggi}, ${ringkas.benda} benda${ringkas.lewat ? ', ' + ringkas.lewat + ' dilewati' : ''}). Belum tersimpan: tekan Simpan, atau Urungkan.`);
+      lukis();
+    };
+    const lukis = () => isi.replaceChildren(
+      el('p', { kelas: 'redup kecil', teks: `Seed yang sama selalu menghasilkan peta yang sama. Hasilnya MENGGANTI seluruh isi peta ini (${d.lebar}×${d.tinggi} ubin) sebagai draf: bisa diurungkan, dan baru tersiar saat Simpan. NPC tidak ikut dipindah.` }),
+      el('div', { kelas: 'kisi generator-jenis' }, Object.entries(GeneratorPeta.JENIS).map(([k, j]) => el('button', { type: 'button', kelas: 'kartu' + (gen.jenis === k ? ' aktif' : ''), 'data-jenis': k, title: j.ket,
+        on: { click: () => { gen.jenis = k; lukis(); } } }, el('span', { kelas: 'tangan', teks: j.ikon }), el('b', { teks: j.nama })))),
+      el('label', {}, 'Kepadatan', el('select', { id: 'gen-kepadatan', on: Object.assign({ change: (ev) => { gen.kepadatan = ev.target.value; } }, diam) },
+        [['jarang', 'Jarang'], ['sedang', 'Sedang'], ['lebat', 'Lebat']].map(([v, t]) => el('option', { value: v, teks: t, selected: gen.kepadatan === v })))),
+      el('label', {}, 'Ruang kantor', el('select', { id: 'gen-meja', on: Object.assign({ change: (ev) => { gen.meja = Number(ev.target.value); } }, diam) },
+        [[0, 'Tanpa kantor'], [2, 'Kecil (2 meja)'], [3, 'Sedang (3 meja)'], [6, 'Besar (6 meja)'], [9, 'Sangat besar (9 meja)']].map(([v, t]) => el('option', { value: v, teks: t, selected: gen.meja === v })))),
+      el('label', {}, 'Seed', el('input', { type: 'text', id: 'gen-benih', inputmode: 'numeric', value: gen.benih, on: Object.assign({ change: (ev) => { gen.benih = ev.target.value; } }, diam) })),
+      el('div', { kelas: 'baris-tombol' },
+        el('button', { type: 'button', kelas: 'tombol utama', id: 'gen-buat', teks: 'Buat', on: { click: buat } }),
+        el('button', { type: 'button', kelas: 'tombol', id: 'gen-acak', teks: '🎲 Acak ulang', title: 'Seed baru = dunia baru', on: { click: () => { gen.benih = String(GeneratorPeta.benihAcak()); buat(); } } })),
+      el('p', { kelas: 'redup kecil', role: 'status', teks: this.pesan }));
+    Panel.buka('🎲 Generate peta', el('div', { kelas: 'formulir' }, isi), { kelas: 'ringkas' });
+    lukis();
   },
 
   /* ---------- koleksi peta: banyak peta tersimpan, satu yang aktif ---------- */
