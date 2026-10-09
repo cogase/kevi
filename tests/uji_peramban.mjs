@@ -51,7 +51,7 @@ if (await pg.$('#tirai')) await pg.keyboard.press('Escape');
 await tunggu(500);
 let s = await pg.evaluate(() => ({ koin: G.koin, adegan: G.adegan, inv: G.inventori, npc: [...G.entitas.values()].filter(e => e.jenis === 'npc').length, x: G.aku.x, y: G.aku.y }));
 cek('modal awal diterima', s.koin >= 300 && s.inv.kebun_petak === 6, JSON.stringify({ koin: s.koin, petak: s.inv.kebun_petak }));
-cek('mulai di kantor dengan NPC', s.adegan === 'kantor' && s.npc === 5, `npc ${s.npc}`);
+cek('mulai di kantor dengan NPC', s.adegan === 'kantor' && s.npc === 6, `npc ${s.npc}`);
 const npcAwal = await pg.evaluate(() => [...G.entitas.values()].filter(e => e.jenis === 'npc').map(e => [e.x, e.y, e.pose].join()));
 await potret('2-kantor');
 
@@ -254,6 +254,27 @@ cek('profil sendiri menampilkan statistik dan tombol ubah karakter', await pg.ev
   return t.includes('Lama bermain') && t.includes('Panen') && t.includes('Ubah karakter') && !!$('#profil-bilah');
 }));
 await pg.keyboard.press('Escape');
+
+// --- toko pakaian & lemari: beli di toko, pakai dari lemari, yang belum dibeli ditolak server
+await pg.evaluate(() => Pakaian.buka(true));
+await pg.waitForSelector('.pakaian-kartu[data-kode=kupluk].belum');
+const koinPakaian = await pg.evaluate(() => G.koin);
+await pg.click('.pakaian-kartu[data-kode=kupluk]');
+await pg.waitForSelector('.pakaian-kartu[data-kode=kupluk]:not(.belum)');
+cek('toko pakaian: beli kupluk memotong koin dan masuk lemari', await pg.evaluate((k) => G.koin === k - 45 && !G.karakter.tampilan.kepala, koinPakaian));
+await pg.click('.pakaian-kartu[data-kode=kupluk]');
+await pg.waitForSelector('.pakaian-kartu[data-kode=kupluk].aktif');
+cek('klik pakaian yang dimiliki langsung memakainya', await pg.evaluate(() => G.karakter.tampilan.kepala === 'kupluk'));
+await pg.keyboard.press('Escape');
+await pg.evaluate(() => Pakaian.buka(false));
+await pg.waitForSelector('.pakaian-kartu[data-kode=kupluk]');
+cek('lemari hanya menampilkan yang dimiliki', await pg.evaluate(() => !document.querySelector('.pakaian-kartu[data-kode=helm_proyek]') && !document.querySelector('.pakaian-kartu.belum')));
+await pg.click('.pakaian-kartu[data-jenis=kepala][data-kode=""]');
+await pg.waitForFunction(() => G.karakter.tampilan.kepala === '');
+cek('melepas penutup kepala dari lemari', true);
+await pg.keyboard.press('Escape');
+cek('server menolak memakai yang belum dibeli', await pg.evaluate(async () => (await fetch('/api/karakter', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ nama: G.karakter.nama, tampilan: Object.assign({}, G.karakter.tampilan, { kepala: 'helm_proyek' }) }) })).status === 400));
 
 // --- peti: taruh di rumah, titip barang, ambil satu, peti berisi tak bisa diangkat
 await pg.evaluate(async () => {
@@ -511,7 +532,7 @@ await adm.waitForFunction(() => document.querySelector('#t-umpan tbody tr').text
 cek('dashboard: feedback bisa ditandai selesai', await adm.evaluate(() => document.querySelector('#tab-umpan').textContent === 'Feedback'));
 await adm.click('#tab [data-bagian=ringkasan]');
 await adm.click('#tab button[data-bagian=peta]');
-await adm.waitForFunction(() => document.querySelectorAll('#peta-daftar .butir-peta').length === 5);
+await adm.waitForFunction(() => document.querySelectorAll('#peta-daftar .butir-peta').length === 6);
 await adm.click('#titik-baru'); await adm.click('#peta', { position: { x: 200, y: 300 } });
 await adm.click('#npc-baru'); await adm.fill('#peta-sunting input >> nth=0', 'Pak Uji');
 await adm.click('#peta-simpan'); await tunggu(900);

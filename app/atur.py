@@ -9,7 +9,7 @@ import sqlite3
 
 from . import basis, konfig
 
-PERAN_NPC = ("obrol", "toko", "misi", "kuis", "kopi", "pulang")
+PERAN_NPC = ("obrol", "toko", "misi", "kuis", "kopi", "pulang", "pakaian")
 JENIS_TITIK = ("arcade", "kuis", "toko", "terminal", "misi")
 ARAH = ("bawah", "atas", "kiri", "kanan")
 POLA_ID = re.compile(r"^[a-z0-9_]{1,24}$")
@@ -39,6 +39,11 @@ NPC_BAWAAN = [
      "tampilan": {"kulit": "#b77a4e", "rambut_warna": "#2e2320", "baju": "#1f2937", "celana": "#1f2937", "sepatu": "#282a36",
                   "gaya_rambut": "rambut_cepak", "kepala": "topi_bisbol", "aksen": "#2e2e34", "mata": ""},
      "ucap": ["Siang! Mau pulang? Jalan saja terus ke bawah.", "Tanah kosongmu menunggu dibangun."]},
+    NPC_PAKAIAN := {"id": "mira", "nama": "Kak Mira", "jabatan": "Toko Pakaian", "x": 320, "y": 612, "arah": "bawah", "peran": "pakaian",
+                    "tampilan": {"kulit": "#f2c8a4", "rambut_warna": "#7a4a2a", "baju": "#eadcf0", "celana": "#3f5f8a", "sepatu": "#b91c1c",
+                                 "gaya_rambut": "rambut_panjang", "kepala": "topi_fedora", "aksen": "#b08a5a", "mata": "kacamata_bulat", "dasi": True},
+                    "ucap": ["Baju baru, semangat baru! Lihat-lihat dulu.", "Yang sudah dibeli masuk lemarimu, bisa dipakai kapan saja.",
+                             "Topi fedora dan kacamata hitam baru terbuka di level yang lebih tinggi."]},
 ]
 
 BAWAAN = {
@@ -197,6 +202,19 @@ def terapkan(d: dict) -> None:
     konfig.JAM_KEBUN = 3600.0 / konfig.LAJU
     konfig.KOIN_AWAL = int(d["koin_awal"])
     konfig.TERMINAL_AKTIF = bool(d["terminal"])
+
+
+def pastikan_penjual_pakaian(kon: sqlite3.Connection) -> bool:
+    """Sekali saja (0.11.0): bila daftar NPC sudah disunting admin dan belum ada penjual pakaian, Kak Mira ditambahkan.
+    Tanda `penjual_pakaian_dipasang` mencegahnya muncul lagi kalau admin sengaja menghapusnya. True = baru ditambahkan."""
+    if kon.execute("SELECT 1 FROM pengaturan WHERE kunci = 'penjual_pakaian_dipasang'").fetchone():
+        return False
+    kon.execute("INSERT INTO pengaturan (kunci, nilai) VALUES ('penjual_pakaian_dipasang', '1')")
+    npc = baca(kon)["npc"]
+    if any(n.get("peran") == "pakaian" for n in npc) or any(n.get("id") == NPC_PAKAIAN["id"] for n in npc):
+        return False
+    simpan(kon, {"npc": list(npc) + [NPC_PAKAIAN]})
+    return True
 
 
 def lupa() -> None:

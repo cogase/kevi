@@ -32,6 +32,7 @@ const Profil = {
         el('dl', {}, baris.flatMap(([n, v]) => [el('dt', { teks: n }), el('dd', { teks: String(v) })])))),
       sendiri ? el('div', { kelas: 'baris-tombol' },
         el('button', { kelas: 'tombol kecil', teks: 'Ubah karakter', on: { click: () => Buat.buka(false) } }),
+        el('button', { kelas: 'tombol kecil', id: 'profil-lemari', teks: 'Ganti pakaian', on: { click: () => Pakaian.buka(false) } }),
         el('button', { kelas: 'tombol kecil', id: 'profil-bilah', teks: 'Bilah di atas karakter: ' + (G.tata.bilah ? 'nyala' : 'mati'), on: { click: (ev) => { G.tata.bilah = !G.tata.bilah; Hotbar.simpan(); ev.currentTarget.textContent = 'Bilah di atas karakter: ' + (G.tata.bilah ? 'nyala' : 'mati'); } } }))
         : el('div', { kelas: 'baris-tombol' }, d.daring ? el('button', { kelas: 'tombol kecil', teks: 'Bertamu ke rumahnya', on: { click: () => { Panel.tutup(); Mesin.pindah('rumah:' + d.id); } } }) : null)),
     { kelas: 'ringkas' });

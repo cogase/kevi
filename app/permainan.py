@@ -1149,15 +1149,93 @@ def tampilan_sah(t) -> dict:
     return hasil
 
 
+# ---------------------------------------------------------------- toko pakaian & lemari (0.11.0)
+# Kata yosi: mengubah karakter jangan gratis, supaya ada progres. Pakaian dan aksesori dibeli di NPC penjual pakaian
+# dan disimpan di LEMARI (terpisah dari inventory). Ganti pakaian hanya dari isi lemari. Yang tetap gratis: warna
+# kulit, warna rambut, warna topi/kerudung, dan melepas apa pun.
+WARNA_BAJU = ("#3a8d8a", "#d69638", "#be5248", "#7a60a6", "#56925c", "#4074b0", "#e0e4ea", "#39404f", "#e072a8", "#e6c34a", "#ef7d3c", "#2fa6a0")
+WARNA_KEMEJA = ("#e8eef6", "#cfe0f2", "#f4f1e8", "#d8e8dc", "#b9cbe4", "#eadcf0", "#dfe3e8")
+WARNA_CELANA = ("#3e4458", "#26324a", "#5a4636", "#6b7280", "#1f2937", "#7c5b3a", "#3f5f8a")
+WARNA_SEPATU = ("#282a36", "#5a3a28", "#e5e7eb", "#b91c1c", "#1e3a8a", "#6b4f2a")
+# jenis -> {kode: (nama, harga, level)}
+PAKAIAN = {
+    "baju": {**{w: ("Kaus", 30, 1) for w in WARNA_BAJU}, **{w: ("Kemeja", 40, 2) for w in WARNA_KEMEJA}},
+    "celana": {w: ("Celana", 25, 1) for w in WARNA_CELANA},
+    "sepatu": {w: ("Sepatu", 20, 1) for w in WARNA_SEPATU},
+    "gaya_rambut": {"rambut_panjang": ("Panjang", 40, 1), "rambut_keriting": ("Keriting", 40, 1), "rambut_cepak": ("Cepak", 40, 1),
+                    "rambut_bob": ("Bob", 40, 1), "rambut_kuncir": ("Kuncir", 40, 1)},
+    "kepala": {"topi_bisbol": ("Topi bisbol", 50, 1), "kupluk": ("Kupluk", 45, 1), "headset": ("Headset", 60, 2), "kerudung": ("Kerudung", 50, 1),
+               "topi_fedora": ("Topi fedora", 80, 3), "helm_proyek": ("Helm proyek", 90, 3)},
+    "mata": {"kacamata": ("Kacamata", 40, 1), "kacamata_bulat": ("Kacamata bulat", 45, 1), "kacamata_hitam": ("Kacamata hitam", 80, 4)},
+    "aksesori": {"tali": ("Tali ID", 15, 1), "dasi": ("Dasi", 35, 2), "telinga": ("Earpiece", 45, 3), "jubah": ("Jubah", 250, 6)},
+}
+NAMA_JENIS_PAKAIAN = {"baju": "baju", "celana": "celana", "sepatu": "sepatu", "gaya_rambut": "gaya rambut", "kepala": "penutup kepala",
+                      "mata": "kacamata", "aksesori": "aksesori"}
+
+
+def _setel(t: dict) -> list[tuple[str, str]]:
+    """Bagian berbayar yang sedang dikenakan pada tampilan `t`, sebagai pasangan (jenis, kode)."""
+    bagian = [(j, t[j]) for j in ("baju", "celana", "sepatu", "gaya_rambut", "kepala", "mata") if t.get(j)]
+    return bagian + [("aksesori", k) for k in PAKAIAN["aksesori"] if t.get(k)]
+
+
+def lemari(kon: sqlite3.Connection, uid: int) -> dict[str, list[str]]:
+    """Isi lemari per jenis. Karakter dari versi lama (lemari kosong) diberi apa yang sedang ia kenakan."""
+    baris = kon.execute("SELECT jenis, kode FROM lemari WHERE pemakai_id = ?", (uid,)).fetchall()
+    if not baris:
+        r = kon.execute("SELECT tampilan FROM karakter WHERE pemakai_id = ?", (uid,)).fetchone()
+        if r:
+            for jenis, kode in _setel(basis.muat_json(r["tampilan"], {})):
+                kon.execute("INSERT OR IGNORE INTO lemari (pemakai_id, jenis, kode) VALUES (?, ?, ?)", (uid, jenis, kode))
+            baris = kon.execute("SELECT jenis, kode FROM lemari WHERE pemakai_id = ?", (uid,)).fetchall()
+    hasil: dict[str, list[str]] = {j: [] for j in PAKAIAN}
+    for b in baris:
+        hasil.setdefault(b["jenis"], []).append(b["kode"])
+    return hasil
+
+
+def potret_lemari(kon: sqlite3.Connection, uid: int) -> dict:
+    return {"milik": lemari(kon, uid),
+            "katalog": {j: [{"kode": k, "nama": v[0], "harga": v[1], "level": v[2]} for k, v in isi.items()] for j, isi in PAKAIAN.items()}}
+
+
+def beli_pakaian(kon: sqlite3.Connection, uid: int, jenis: str, kode: str) -> dict:
+    barang = PAKAIAN.get(jenis, {}).get(kode)
+    if not barang:
+        raise Ditolak("Pakaian itu tidak dijual.")
+    if kode in lemari(kon, uid)[jenis]:
+        raise Ditolak("Sudah ada di lemarimu.")
+    if level(kon, uid) < barang[2]:
+        raise Ditolak(f"{barang[0]} terbuka di level {barang[2]}.")
+    ubah_koin(kon, uid, -barang[1], f"beli {barang[0].lower()} ({NAMA_JENIS_PAKAIAN[jenis]})")
+    kon.execute("INSERT INTO lemari (pemakai_id, jenis, kode) VALUES (?, ?, ?)", (uid, jenis, kode))
+    tambah_statistik(kon, uid, "pakaian")
+    return {"lemari": potret_lemari(kon, uid)}
+
+
 def buat_karakter(kon: sqlite3.Connection, uid: int, nama: str, tampilan) -> None:
     nama = " ".join(str(nama or "").split())
     if not POLA_NAMA.match(nama):
         raise Ditolak("Nama karakter 2–20 karakter (huruf, angka, spasi).")
-    t = basis.tulis_json(tampilan_sah(tampilan))
+    t = tampilan_sah(tampilan)
     ada = kon.execute("SELECT 1 FROM karakter WHERE pemakai_id = ?", (uid,)).fetchone()
     if ada:
-        kon.execute("UPDATE karakter SET nama = ?, tampilan = ? WHERE pemakai_id = ?", (nama, t, uid))
+        # Ganti pakaian: hanya dari isi lemari. Kulit, warna rambut, warna aksen, dan melepas sesuatu selalu boleh.
+        milik = lemari(kon, uid)
+        for jenis, kode in _setel(t):
+            if kode not in milik[jenis]:
+                dikenal = PAKAIAN[jenis].get(kode)
+                raise Ditolak(f"{dikenal[0] if dikenal else 'Bagian itu'} belum ada di lemarimu. Beli dulu di penjual pakaian.")
+        kon.execute("UPDATE karakter SET nama = ?, tampilan = ? WHERE pemakai_id = ?", (nama, basis.tulis_json(t), uid))
         return
+    # Karakter baru: satu setel dasar gratis (kaus, celana, sepatu, gaya rambut pilihan); aksesori dibeli belakangan.
+    t.update(kepala="", mata="", dasi=False, tali=False, telinga=False, jubah=False)
+    for jenis, bawaan in (("baju", WARNA_BAJU[0]), ("celana", WARNA_CELANA[0]), ("sepatu", WARNA_SEPATU[0])):
+        if t.get(jenis) not in PAKAIAN[jenis]:
+            t[jenis] = bawaan
+    for jenis, kode in _setel(t):
+        kon.execute("INSERT OR IGNORE INTO lemari (pemakai_id, jenis, kode) VALUES (?, ?, ?)", (uid, jenis, kode))
+    t = basis.tulis_json(t)
     kon.execute("INSERT INTO karakter (pemakai_id, nama, tampilan, koin, dibuat) VALUES (?, ?, ?, 0, ?)", (uid, nama, t, time.time()))
     ubah_koin(kon, uid, konfig.KOIN_AWAL, "modal awal")
     for b, n in PAKET_AWAL.items():

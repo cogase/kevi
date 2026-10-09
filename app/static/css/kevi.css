@@ -281,6 +281,11 @@ body.menyunting #sentuh-tongkat { bottom: 190px; }
 .profil-kelompok dl { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; margin: 0; font-size: 13px; }
 .profil-kelompok dt { color: var(--redup); }
 .profil-kelompok dd { margin: 0; text-align: right; font-family: var(--mono); color: var(--krem); }
+.pakaian-jenis h4 { margin: 10px 0 5px; }
+.panel.ringkas .pakaian-kisi { grid-template-columns: repeat(auto-fill, minmax(66px, 1fr)); gap: 5px; }
+.panel.ringkas .pakaian-kartu { min-height: 58px; justify-content: center; padding: 5px 3px; }
+.pakaian-warna { width: 26px; height: 26px; border-radius: 5px; border: 2px solid #0b1220; box-shadow: 0 2px 0 #000; }
+.pakaian-kartu.belum { filter: saturate(.75); }
 .peti h4 { margin: 10px 0 6px; }
 .peti-kisi { min-height: 44px; padding: 4px; border: 1px dashed var(--garis); border-radius: 6px; }
 .peti-kisi > p { grid-column: 1 / -1; margin: 8px 0; text-align: center; }

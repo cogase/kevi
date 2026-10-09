@@ -2,6 +2,23 @@
 
 Melengkapi PRD, GDD, dan TDD untuk rilis sesudah 0.2.0. Angka dan aturan di sini adalah yang berlaku di kode.
 
+## 0.11.0 — 9 Oktober 2026
+
+**Toko pakaian dan lemari (kata yosi: ubah karakter jangan gratis, supaya ada progres)**
+- **Kak Mira**, NPC penjual pakaian baru di lobi kantor (dekat pintu depan). Tekan E untuk membuka toko. Di server
+  yang daftar NPC-nya sudah disunting admin, Kak Mira ditambahkan satu kali saat versi ini pertama dinyalakan;
+  bila admin menghapusnya, ia tidak muncul lagi. Posisinya bisa digeser di dashboard, tab Peta & NPC.
+- **Lemari terpisah dari inventory.** Yang dibeli masuk lemari dan tidak memakan slot inventory.
+- Yang dijual (harga dalam koin): kaus 30, kemeja 40 (level 2), celana 25, sepatu 20, gaya rambut 40, topi bisbol 50,
+  kupluk 45, kerudung 50, headset 60 (level 2), topi fedora 80 (level 3), helm proyek 90 (level 3), kacamata 40,
+  kacamata bulat 45, kacamata hitam 80 (level 4), tali ID 15, dasi 35 (level 2), earpiece 45 (level 3), jubah 250
+  (level 6).
+- **Ganti pakaian hanya dari isi lemari**: lewat Profil ("Ganti pakaian"), lewat perabot lemari di rumah (tekan E),
+  atau langsung di toko. Server menolak tampilan yang memuat bagian yang belum dibeli.
+- **Tetap gratis**: warna kulit, warna rambut, warna topi/kerudung, dan melepas apa pun ("Ubah karakter" di Profil).
+- **Karakter baru** memilih satu setel dasar gratis (kaus, celana, sepatu, gaya rambut); aksesori dibeli belakangan.
+- **Karakter yang sudah ada** mewarisi semua yang sedang ia kenakan saat versi ini dipasang, tanpa membayar.
+
 ## 0.10.0 — 9 Oktober 2026
 
 **Profil pemain (permintaan yosi)**

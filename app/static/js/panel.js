@@ -463,7 +463,7 @@ const Terminal = {
 const Buat = {
   buka(pertama) {
     const t = Object.assign({ kulit: PILIHAN_TOKOH.kulit[1], rambut_warna: PILIHAN_TOKOH.rambut[0], baju: PILIHAN_TOKOH.baju[5], celana: PILIHAN_TOKOH.celana[1],
-      sepatu: PILIHAN_TOKOH.sepatu[0], aksen: PILIHAN_TOKOH.kerudung[1], gaya_rambut: 'rambut_cepak', kepala: '', mata: '', dasi: false, tali: true, telinga: false, jubah: false },
+      sepatu: PILIHAN_TOKOH.sepatu[0], aksen: PILIHAN_TOKOH.kerudung[1], gaya_rambut: 'rambut_cepak', kepala: '', mata: '', dasi: false, tali: false, telinga: false, jubah: false },
       (G.karakter && G.karakter.tampilan) || {});
     const nama = el('input', { type: 'text', maxLength: 20, placeholder: 'Nama karakter', value: (G.karakter && G.karakter.nama) || '', autofocus: true });
     const kv = el('canvas', { width: 4 * 26 * 4, height: 30 * 4, kelas: 'pratinjau' });
@@ -489,9 +489,9 @@ const Buat = {
     const centang = (label, kunci) => el('label', { kelas: 'centang-baris' }, el('input', { type: 'checkbox', checked: !!t[kunci], on: { change: (ev) => { t[kunci] = ev.target.checked; } } }), label);
     const acak = () => {
       const p = (d) => d[Math.floor(Math.random() * d.length)];
-      Object.assign(t, { kulit: p(PILIHAN_TOKOH.kulit), rambut_warna: p(PILIHAN_TOKOH.rambut), baju: p([...PILIHAN_TOKOH.baju, ...PILIHAN_TOKOH.kemeja]), celana: p(PILIHAN_TOKOH.celana),
-        sepatu: p(PILIHAN_TOKOH.sepatu), aksen: p([...PILIHAN_TOKOH.kerudung, ...PILIHAN_TOKOH.topi]), gaya_rambut: p(AKS_RAMBUT)[0], kepala: p(AKS_KEPALA)[0], mata: p(AKS_MATA)[0],
-        dasi: Math.random() < 0.3, tali: Math.random() < 0.5, telinga: Math.random() < 0.15, jubah: false });
+      // Karakter baru: acak setel dasar (tanpa aksesori, itu dibeli). Karakter lama: hanya yang gratis diubah.
+      Object.assign(t, { kulit: p(PILIHAN_TOKOH.kulit), rambut_warna: p(PILIHAN_TOKOH.rambut) },
+        pertama ? { baju: p(PILIHAN_TOKOH.baju), celana: p(PILIHAN_TOKOH.celana), sepatu: p(PILIHAN_TOKOH.sepatu), gaya_rambut: p(AKS_RAMBUT)[0] } : {});
       hidup = false; G.karakter = Object.assign(G.karakter || {}, { nama: nama.value, tampilan: t }); Buat.buka(pertama);
     };
     const simpan = async (ev) => {
@@ -512,15 +512,18 @@ const Buat = {
       el('div', { kelas: 'buat-kiri' }, kv, nama,
         el('div', { kelas: 'baris-tombol' }, el('button', { type: 'button', kelas: 'tombol', teks: 'Acak', on: { click: acak } }),
           el('button', { kelas: 'tombol utama', teks: pertama ? 'Mulai bekerja' : 'Simpan' })),
-        pertama ? el('p', { kelas: 'redup kecil', teks: 'Modal awal: koin, 6 petak kebun, benih, dan satu Kotak Kiriman. Tampilan bisa diubah lagi lewat Menu.' }) : null),
-      el('div', { kelas: 'buat-kanan' },
+        pertama ? el('p', { kelas: 'redup kecil', teks: 'Modal awal: koin, 6 petak kebun, benih, dan satu Kotak Kiriman. Setel dasar ini gratis; pakaian lain, topi, kacamata, dan aksesori dibeli di Kak Mira (toko pakaian di kantor).' }) : null),
+      // Karakter baru memilih setel dasar. Sesudahnya hanya yang gratis (kulit, warna rambut, warna topi) diubah di sini;
+      // pakaian dan aksesori diganti lewat lemari.
+      pertama ? el('div', { kelas: 'buat-kanan' },
         warna('Kulit', 'kulit', PILIHAN_TOKOH.kulit), warna('Warna rambut', 'rambut_warna', PILIHAN_TOKOH.rambut),
         gaya('Gaya rambut', 'gaya_rambut', AKS_RAMBUT.map(([v]) => [v, namaGaya[v]])),
-        gaya('Penutup kepala', 'kepala', AKS_KEPALA.map(([v]) => [v, namaKepala[v]])),
+        warna('Baju', 'baju', PILIHAN_TOKOH.baju), warna('Celana', 'celana', PILIHAN_TOKOH.celana), warna('Sepatu', 'sepatu', PILIHAN_TOKOH.sepatu))
+      : el('div', { kelas: 'buat-kanan' },
+        warna('Kulit', 'kulit', PILIHAN_TOKOH.kulit), warna('Warna rambut', 'rambut_warna', PILIHAN_TOKOH.rambut),
         warna('Warna topi / kerudung', 'aksen', [...PILIHAN_TOKOH.kerudung, ...PILIHAN_TOKOH.topi]),
-        gaya('Kacamata', 'mata', AKS_MATA.map(([v]) => [v, namaMata[v]])),
-        warna('Baju', 'baju', [...PILIHAN_TOKOH.baju, ...PILIHAN_TOKOH.kemeja]), warna('Celana', 'celana', PILIHAN_TOKOH.celana), warna('Sepatu', 'sepatu', PILIHAN_TOKOH.sepatu),
-        el('div', { kelas: 'deret' }, centang('Dasi', 'dasi'), centang('Tali ID', 'tali'), centang('Earpiece', 'telinga'), centang('Jubah', 'jubah')))),
+        el('p', { kelas: 'redup kecil', teks: 'Baju, celana, sepatu, gaya rambut, topi, kacamata, dan aksesori diganti lewat lemari; yang baru dibeli di Kak Mira (toko pakaian di kantor).' }),
+        el('button', { type: 'button', kelas: 'tombol', id: 'buat-lemari', teks: 'Ganti pakaian (lemari)', on: { click: () => { hidup = false; Pakaian.buka(false); } } }))),
       { kelas: 'lebar', tanpaTutup: pertama, saatTutup: () => { hidup = false; } });
     requestAnimationFrame(gambar);
   },

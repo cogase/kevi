@@ -14,7 +14,7 @@ def test_karakter_baru_dapat_modal(kon, pemain):
     assert inv["kebun_petak"] == 6 and inv["benih:sawi"] == 6
     r = kon.execute("SELECT tampilan FROM karakter WHERE pemakai_id = ?", (pemain,)).fetchone()
     t = basis.muat_json(r["tampilan"], {})
-    assert t["kepala"] == "kupluk" and t["mata"] == ""        # pilihan tak dikenal dibuang
+    assert t["kepala"] == "" and t["mata"] == "" and t["baju"] in permainan.WARNA_BAJU      # karakter baru: setel dasar, tanpa aksesori
 
 
 def test_ubah_karakter_tidak_menggandakan_modal(kon, pemain):

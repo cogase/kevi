@@ -555,6 +555,7 @@ const Npc = {
     Obrolan.catat(e.nama + ' (' + e.jabatan + ')', teks, 'npc');
     Jaring.kirim({ t: 'sapa', siapa: 'npc:' + d.id });
     if (d.peran === 'toko') Toko.buka();
+    else if (d.peran === 'pakaian') Pakaian.buka(true);
     else if (d.peran === 'misi') Panel.misi();
     else if (d.peran === 'kuis') Kuis.tawarkan(e);
     else if (d.peran === 'kopi') Sosial.kopi(e);

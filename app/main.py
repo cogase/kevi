@@ -16,6 +16,7 @@ from .dunia import Dunia
 
 KON = basis.buka(konfig.BASIS_DATA)
 atur.baca(KON)
+atur.pastikan_penjual_pakaian(KON)
 DUNIA = Dunia(KON)
 app = FastAPI(title="Kevi", docs_url=None, redoc_url=None, openapi_url=None)
 HALAMAN = konfig.STATIS / "halaman"
@@ -349,6 +350,18 @@ async def api_kirim_koin(request: Request):
             saldo = permainan.saldo(KON, hasil["ke"])
         await DUNIA.kabari(hasil["ke"], {"t": "kiriman", "dari": hasil["dari"], "koin": hasil["terkirim"], "saldo": saldo})
     return jawab
+
+
+@app.get("/api/lemari")
+async def api_lemari(request: Request):
+    p = _pemakai(request)
+    if not p:
+        return galat("Belum masuk.", 401)
+    with basis.KUNCI:
+        return permainan.potret_lemari(KON, p["id"])
+
+
+_rute_aksi("/api/lemari/beli", lambda uid, d: permainan.beli_pakaian(KON, uid, str(d.get("jenis") or ""), str(d.get("kode") or "")))
 
 
 @app.post("/api/umpan-balik")
