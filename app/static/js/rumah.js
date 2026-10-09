@@ -340,7 +340,9 @@ const Rumah = {
 
   masukBangun(barang) {
     if (!this.bolehBangun()) { kabar(this.kantor ? 'Peta utama hanya bisa disunting admin.' : 'Mode Bangun hanya di rumah sendiri.', 'galat'); return; }
-    if (this.kantor) { Sunting.buka(); return; }        // peta utama: penyunting berdraf (sunting.js)
+    // Peta utama, dan rumah lewat tombol B: penyunting berdraf (sunting.js). Mode taruh cepat yang lama hanya tersisa
+    // untuk barang yang dipegang dari hotbar di rumah.
+    if (this.kantor || !barang) { Sunting.buka(); return; }
     Panel.tutup();
     G.bangun = { barang: barang || null, r: 0, mx: -99, my: -99, warna: (G.bangun && G.bangun.warna) || WARNA_TEMBOK[0], tekan: false };
     document.body.classList.add('mode-bangun');

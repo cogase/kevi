@@ -35,7 +35,7 @@ const Sunting = {
   mx: -99, my: -99, pesan: '', tanya: 0, sibuk: false, luar: null, kat: { mode: 'perabot', kategori: '', cari: '' },
   pilihRuang: null, bawaIsi: true, kam: { x: 0, y: 0 },
 
-  get d() { return G.peta; },
+  get d() { return Rumah.d; },
   inti(d) { return JSON.stringify({ lantai: d.lantai, tembok: d.tembok, benda: d.benda, ruang: d.ruang || [], halang: d.halang || {}, dasar: d.dasar, lantai_dasar: d.lantai_dasar, urut: d.urut }); },
   benda(id) { return this.d.benda.find(o => o.id === id); },
   ruang(id) { return (this.d.ruang || []).find(r => r.id === id); },
@@ -66,11 +66,13 @@ const Sunting = {
 
   buka() {
     Panel.tutup();
-    this.akar = JSON.stringify(G.peta);
-    this.rev = G.peta.rev || 0;
-    G.peta = JSON.parse(this.akar);
-    if (!Array.isArray(G.peta.ruang)) G.peta.ruang = [];
-    if (!G.peta.halang || typeof G.peta.halang !== 'object') G.peta.halang = {};
+    // Satu penyunting untuk dua tempat: peta utama (admin, G.peta) dan rumah sendiri (G.rumah, dengan hitungan belanja).
+    this.rumah = !Rumah.kantor;
+    this.akar = JSON.stringify(Rumah.d);
+    this.rev = Rumah.d.rev || 0;
+    this.setD(JSON.parse(this.akar));
+    this.belanja = '';
+    if (this.rumah && this.alat === 'halang') this.alat = 'pilih';
     Object.assign(this, { aktif: true, alat: 'pilih', kotor: false, urung: [], pilih: null, pilihRuang: null, grup: null, seret: null, luar: null, tanya: 0, sibuk: false, pesan: '' });
     this.kam = { x: G.aku ? G.aku.x + 8 : 0, y: G.aku ? G.aku.y + 10 : 0 };
     Mesin.tombol.clear();
@@ -87,15 +89,21 @@ const Sunting = {
     this.kabar('menyimpan…');
     try {
       const d = this.d;
-      const j = await api('/api/admin/peta/simpan', { rev: this.rev, lantai: d.lantai, tembok: d.tembok, benda: d.benda, ruang: d.ruang || [], halang: d.halang || {}, dasar: d.dasar, lantai_dasar: d.lantai_dasar });
-      G.peta = j.peta;
-      if (!Array.isArray(G.peta.ruang)) G.peta.ruang = [];
-    if (!G.peta.halang || typeof G.peta.halang !== 'object') G.peta.halang = {};
-      this.akar = JSON.stringify(j.peta);
-      this.rev = j.peta.rev;
+      if (this.rumah) {                                  // rumah: server menghitung belanja dan kembalian inventory
+        const j = await api('/api/rumah/simpan', { lantai: d.lantai, tembok: d.tembok, benda: d.benda, ruang: d.ruang || [] });
+        serap(j);
+        this.setD(j.rumah);
+        this.pesan = 'Tersimpan.' + (j.belanja ? ' Belanja ' + j.belanja + ' koin.' : '');
+        this.belanja = '';
+      } else {
+        const j = await api('/api/admin/peta/simpan', { rev: this.rev, lantai: d.lantai, tembok: d.tembok, benda: d.benda, ruang: d.ruang || [], halang: d.halang || {}, dasar: d.dasar, lantai_dasar: d.lantai_dasar });
+        this.setD(j.peta);
+        this.rev = j.peta.rev;
+        this.pesan = 'Tersimpan. Pemain lain langsung melihatnya.';
+      }
+      this.akar = JSON.stringify(this.d);
       Object.assign(this, { kotor: false, urung: [], pilih: null, pilihRuang: null, grup: null, luar: null });
       Rumah.segarkan();
-      this.pesan = 'Tersimpan. Pemain lain langsung melihatnya.';
     } catch (e) { this.pesan = 'Gagal: ' + e.message; }
     this.sibuk = false;
     this.lukisDok();
@@ -117,16 +125,40 @@ const Sunting = {
     document.body.classList.remove('mode-bangun', 'menyunting');
     $('#bangun').replaceChildren();
     this.tutupKatalog();
-    G.peta = this.luar || JSON.parse(this.akar);
-    if (G.adegan === 'kantor') {
+    if (this.rumah) { if (G.rumah) G.rumah = JSON.parse(this.akar); } else G.peta = this.luar || JSON.parse(this.akar);
+    if (this.rumah === !Rumah.kantor) {                  // masih di tempat yang disunting: gambar ulang keadaan tersimpan
       Rumah.segarkan();
       if (G.aku && !kakiBebas(G.aku.x, G.aku.y)) Object.assign(G.aku, titikBebas(G.aku.x, G.aku.y));
     }
     return true;
   },
 
+  // Pasang denah `v` sebagai yang sedang disunting (peta utama atau rumah), dengan bagian yang belum ada diisi kosong.
+  setD(v) {
+    if (!Array.isArray(v.ruang)) v.ruang = [];
+    if (!v.halang || typeof v.halang !== 'object') v.halang = {};
+    if (this.rumah) G.rumah = v; else G.peta = v;
+  },
+
+  // Rumah: tanya server berapa belanja draf ini (stok inventory dipakai dulu), tampil di kepala dok.
+  hitungBelanja() {
+    clearTimeout(this.jedaBelanja);
+    if (!this.rumah || !this.aktif) return;
+    this.jedaBelanja = setTimeout(async () => {
+      if (!this.aktif || !this.rumah) return;
+      const d = this.d;
+      try {
+        const j = await api('/api/rumah/biaya', { lantai: d.lantai, tembok: d.tembok, benda: d.benda, ruang: d.ruang || [] });
+        this.belanja = j.biaya ? `Belanja ${j.biaya} koin (${j.beli.reduce((a, b) => a + b.n, 0)} barang) · saldo ${j.saldo}${j.cukup ? '' : ' · koin belum cukup'}` : 'Tanpa belanja: semua dari inventory.';
+      } catch (e) { this.belanja = 'Belum bisa disimpan: ' + e.message; }
+      const b = $('#sunting-belanja');
+      if (b) b.textContent = this.belanja;
+    }, 350);
+  },
+
   // Peta dari server selagi menyunting: milik sendiri (hasil Simpan) diabaikan, milik orang lain disimpan untuk nanti.
   dariLuar(peta) {
+    if (this.rumah) { G.peta = peta; return; }           // sedang menyunting rumah: peta kantor boleh langsung diganti
     if ((peta.rev || 0) === this.rev) return;
     this.luar = peta;
     this.kabar('Peta diubah dari tempat lain. Simpan akan ditolak: keluar dari Edit Map lalu masuk lagi.');
@@ -149,6 +181,7 @@ const Sunting = {
     this.tanya = 0;
     Rumah.segarkan();
     this.lukisDok();
+    this.hitungBelanja();
   },
   ubah(fn) { this.dorong(); fn(this.d); this.sesudah(); },
   urungkan() {
@@ -335,13 +368,15 @@ const Sunting = {
 
   posisi(ev) {
     const r = kanvas.getBoundingClientRect(), p = Mesin.keDunia(ev.clientX - r.left, ev.clientY - r.top);
+    p.y -= Rumah.oy;                                   // rumah: data berkoordinat tanah, digeser jalur atas
     this.mx = p.x; this.my = p.y;
     return p;
   },
   ubinKursor() { return { gx: Math.floor(this.mx / T), gy: Math.floor(this.my / T) }; },
   letakHantu() {
     const u = ukuranSprite(this.sprite, this.r);
-    return Object.assign(this.batas(jepret(this.mx - u.w / 2), jepret(this.my - u.h / 2)), { w: u.w, h: u.h });
+    const kisi = this.sprite === 'kebun_petak' ? T : JEPRET;      // petak kebun selalu tepat di ubin
+    return Object.assign(this.batas(jepret(this.mx - u.w / 2, kisi), jepret(this.my - u.h / 2, kisi)), { w: u.w, h: u.h });
   },
 
   tekan(ev) {
@@ -535,9 +570,11 @@ const Sunting = {
 
   /* ---------- gambar di atas peta ---------- */
 
-  gambar(k) {
+  gambar(k) { k.save(); k.translate(0, Rumah.oy); this.gambarIsi(k); k.restore(); },
+  gambarIsi(k) {
     const d = this.d, s = this.seret, sk = G.kamera.skala || 1, garis = 1 / sk;
-    const a = Mesin.keDunia(0, 0), b = Mesin.keDunia(kanvas.clientWidth, kanvas.clientHeight);
+    const oy = Rumah.oy, J = oy / T, a = Mesin.keDunia(0, 0), b = Mesin.keDunia(kanvas.clientWidth, kanvas.clientHeight);
+    a.y -= oy; b.y -= oy;
     const gx0 = Math.max(0, Math.floor(a.x / T)), gy0 = Math.max(0, Math.floor(a.y / T));
     const gx1 = Math.min(d.lebar, Math.ceil(b.x / T)), gy1 = Math.min(d.tinggi, Math.ceil(b.y / T));
     const bingkai = (r, warna, putus) => {
@@ -548,7 +585,7 @@ const Sunting = {
     };
     if (this.lihatHalang && G.grid) {                           // ubin yang tak bisa dilewati
       k.fillStyle = 'rgba(239,68,68,.2)';
-      for (let gy = gy0; gy < gy1; gy++) for (let gx = gx0; gx < gx1; gx++) if (G.grid.sel[gy * G.grid.w + gx] === 1) k.fillRect(gx * T, gy * T, T, T);
+      for (let gy = gy0; gy < gy1; gy++) for (let gx = gx0; gx < gx1; gx++) if (G.grid.sel[(gy + J) * G.grid.w + gx] === 1) k.fillRect(gx * T, gy * T, T, T);
     }
     k.fillStyle = 'rgba(220,38,38,.42)';                   // penghalang buatan admin: selalu tampil, lebih pekat, bersilang
     for (const kunci of Object.keys(d.halang || {})) {
@@ -697,15 +734,16 @@ const Sunting = {
     if (!ruang) isi.push(el('span', { kelas: 'redup kecil tumbuh', teks: PETUNJUK_SUNTING[this.alat], title: PETUNJUK_SUNTING[this.alat] }));
     wadah.replaceChildren(
       el('div', { kelas: 'sunting-kepala' },
-        el('b', { teks: 'Edit Map' }), el('span', { id: 'sunting-kabar', kelas: 'redup kecil tumbuh', role: 'status', teks: this.pesan }),
+        el('b', { teks: this.rumah ? 'Edit Rumah' : 'Edit Map' }), el('span', { id: 'sunting-kabar', kelas: 'redup kecil tumbuh', role: 'status', teks: this.pesan }),
+        this.rumah ? el('span', { id: 'sunting-belanja', kelas: 'cip emas', role: 'status', teks: this.belanja || 'Belanja dihitung saat ada perubahan' }) : null,
         tb('🎲 Generate', '', () => this.bukaGenerator(), { id: 'sunting-generate', title: 'Generate peta otomatis dari seed (alam, kota, pantai, dan lainnya)' }),
-        tb('▤ Peta', '', () => this.kelolaPeta(), { id: 'sunting-peta', title: 'Koleksi peta: simpan banyak peta dan pilih yang aktif' }),
+        this.rumah ? null : tb('▤ Peta', '', () => this.kelolaPeta(), { id: 'sunting-peta', title: 'Koleksi peta: simpan banyak peta dan pilih yang aktif' }),
         tb('Simpan', 'utama', () => this.simpan(), { id: 'sunting-simpan', disabled: !this.kotor || this.sibuk, title: 'Simpan dan siarkan ke semua pemain (Ctrl+S)' }),
         tb('↶ Urungkan', '', () => this.urungkan(), { id: 'sunting-urung', disabled: !this.urung.length, title: 'Urungkan (Ctrl+Z)' }),
         tb('▦ Penghalang', this.lihatHalang ? 'aktif' : '', () => { this.lihatHalang = !this.lihatHalang; this.lukisDok(); }, { title: 'Lihat ubin yang tak bisa dilewati', 'aria-pressed': String(this.lihatHalang) }),
         tb('✕ Keluar', '', () => Rumah.keluarBangun(), { id: 'sunting-keluar', title: 'Keluar dari Edit Map (B)' })),
       el('div', { kelas: 'sunting-alat' }, ALAT_SUNTING.map(([judul, daftar]) => el('div', { kelas: 'sunting-kelompok' }, el('small', { teks: judul }),
-        el('div', {}, daftar.map(([kunci, tanda, pendek, panjang]) => el('button', { kelas: 'slot alat' + (this.alat === kunci ? ' aktif' : ''), title: panjang, 'data-alat': kunci, 'aria-pressed': String(this.alat === kunci),
+        el('div', {}, daftar.filter(([kunci]) => !(this.rumah && kunci === 'halang')).map(([kunci, tanda, pendek, panjang]) => el('button', { kelas: 'slot alat' + (this.alat === kunci ? ' aktif' : ''), title: panjang, 'data-alat': kunci, 'aria-pressed': String(this.alat === kunci),
           on: { click: (ev) => { ev.currentTarget.blur(); this.pakaiAlat(kunci); } } }, el('span', { kelas: 'tangan', teks: tanda }), el('small', { teks: pendek }))))))),
       el('div', { kelas: 'sunting-pilihan' }, isi));
   },
@@ -716,7 +754,9 @@ const Sunting = {
   terapkanDenah(d, denah) {
     const B = G.katalog.barang, L = new Set(G.katalog.lantai), penuh = (o) => o.gx === 0 && o.gy === 0 && o.w >= d.lebar && (o.h || 1) >= d.tinggi;
     const ubin = (o, fn) => { for (let gy = o.gy; gy < o.gy + (o.h || 1); gy++) for (let gx = o.gx; gx < o.gx + o.w; gx++) if (this.ubinSah(gx, gy)) fn(gx + ',' + gy); };
-    Object.assign(d, { dasar: 'kosong', lantai: {}, tembok: {}, halang: {}, ruang: [], benda: [] });
+    // Rumah: benda yang berfungsi (petak kebun, kandang, peti, kotak kiriman) dipertahankan; alas rumput rumah tetap.
+    const tetap = this.rumah ? d.benda.filter(o => o.n === 'kebun_petak' || G.toko.kandang[o.n] || (G.toko.peti || []).includes(o.n) || TITIK_JUAL.test(o.n)) : [];
+    Object.assign(d, this.rumah ? {} : { dasar: 'kosong' }, { lantai: {}, tembok: {}, halang: {}, ruang: [], benda: tetap });
     let lewat = 0;
     const taruh = (n, x, y, tembus) => {
       if (!B[n] || d.benda.length >= 3900) { lewat++; return; }
@@ -725,7 +765,8 @@ const Sunting = {
       d.benda.push(Object.assign({ id: d.urut, n, x: t.x, y: t.y, r: 0 }, tembus && !B[n].tembus ? { t: 1 } : {}));
     };
     for (const o of denah.ops) {
-      if (o.t === 'lantai') { if (!L.has(o.n)) continue; if (penuh(o)) d.lantai_dasar = o.n; else ubin(o, (k) => { d.lantai[k] = o.n; }); }
+      if (o.t === 'lantai') { if (!L.has(o.n)) continue; if (penuh(o)) { if (!this.rumah) d.lantai_dasar = o.n; } else ubin(o, (k) => { d.lantai[k] = o.n; }); }
+      else if (o.t === 'halang' && this.rumah) continue;
       else if (o.t === 'halang') ubin(o, (k) => { d.halang[k] = 1; });
       else if (o.t === 'ruang') { d.urut += 1; d.ruang.push({ id: d.urut, gx: o.gx, gy: o.gy, w: o.w, h: o.h, warna: o.warna || WARNA_TEMBOK[0], lantai: L.has(o.lantai) ? o.lantai : '', nama: (o.nama || '').slice(0, 24), pintu: (o.pintu || []).slice(0, 4).map(q => ({ sisi: q.sisi, pos: q.pos })) }); this.jepitPintu(d.ruang[d.ruang.length - 1]); }
       else if (o.t === 'padat' || o.t === 'penuh' || o.t === 'lukis') taruh(o.n, o.x, o.y, o.t === 'lukis');
@@ -827,10 +868,13 @@ const Sunting = {
       let daftar = mode === 'lantai' ? G.katalog.lantai.slice()
         : Object.keys(B).filter(n => !kat.kategori || B[n].k.startsWith(kat.kategori + '/')).sort((x, y) => B[x].k.localeCompare(B[y].k) || x.localeCompare(y));
       daftar = daftar.filter(n => q.every(x => (n.replace(/_/g, ' ') + ' ' + (mode === 'lantai' ? '' : B[n].k)).toLowerCase().includes(x)));
+      // Rumah: hanya yang dimiliki atau dijual toko (yang lain tak mungkin dipasang).
+      if (this.rumah && mode !== 'lantai') daftar = daftar.filter(n => (G.inventori[n] || 0) > 0 || hargaBeli(n) != null);
       const dipilih = mode === 'lantai' ? this.lantai : this.sprite;
       kisi.replaceChildren(...daftar.slice(0, 240).map(n => {
         const b = mode === 'lantai' ? 'lantai:' + n : n;
-        return el('button', { kelas: 'kartu' + (n === dipilih ? ' aktif' : ''), title: namaBarang(b), 'aria-label': namaBarang(b), 'data-n': n, on: { click: () => {
+        const ket = namaBarang(b) + (this.rumah ? ' · punya ' + (G.inventori[b] || 0) + (hargaBeli(b) != null ? ' · ' + hargaBeli(b) + ' koin' : '') : '');
+        return el('button', { kelas: 'kartu' + (n === dipilih ? ' aktif' : ''), title: ket, 'aria-label': ket, 'data-n': n, on: { click: () => {
           const r = mode === 'lantai' && this.alat === 'pilih' && this.pilihRuang != null ? this.ruang(this.pilihRuang) : null;
           if (r) this.ubah(() => { r.lantai = n; });        // katalog dibuka dari properti ruang: motif untuk ruang itu
           else if (mode === 'lantai') { this.lantai = n; if (this.alat !== 'ruang') { this.alat = 'lantai'; this.pilih = null; this.grup = null; } this.lukisDok(); }

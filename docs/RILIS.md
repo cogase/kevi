@@ -2,6 +2,23 @@
 
 Melengkapi PRD, GDD, dan TDD untuk rilis sesudah 0.2.0. Angka dan aturan di sini adalah yang berlaku di kode.
 
+## 0.15.0 — 9 Oktober 2026
+
+**Edit Rumah: pengalaman yang sama dengan Edit Map / Edit Layout Agent Pak (kata yosi)**
+- Tombol B (atau "Bangun") di rumah sendiri kini membuka **dok dan alat yang sama dengan Edit Map**: Pilih / geser,
+  Pilih area, Hapus, Ruang, Tembok, Lantai, Perabot (katalog bersidebar), properti benda (putar, duplikat, layer,
+  bisa dilewati, kunci), Urungkan, kamera bebas, dan 🎲 Generate. Karakter beku selagi menyunting.
+- Yang disunting adalah **draf**. Kepala dok menampilkan **hitungan belanja**: stok inventory dipakai dulu,
+  kekurangannya dibeli seharga toko saat **Simpan**, dan apa pun yang dicabut kembali ke inventory. Bila koin atau
+  level tidak cukup, atau ada barang yang tidak dijual dan stoknya kurang, Simpan ditolak dengan keterangan.
+- Katalog di rumah hanya memuat barang yang dimiliki atau dijual; keterangan hover menyebut jumlah yang dipunya dan
+  harganya.
+- **Benda yang masih hidup dilindungi**: petak yang ditanami, kandang berisi hewan, dan peti berisi tidak bisa
+  dicabut (boleh dipindah). Generate di rumah mempertahankan petak kebun, kandang, peti, dan kotak kiriman.
+- Ruang di rumah memakai ubin tembok dan lantai sebanyak yang tergambar (ikut dihitung di belanja).
+- Yang tidak ada di rumah: alat Penghalang dan koleksi peta.
+- Mode taruh cepat yang lama tetap ada untuk barang yang dipegang dari hotbar (pilih slot perabot di rumah).
+
 ## 0.14.1 — 9 Oktober 2026
 
 **Hewan berjalan-jalan (kata yosi: seperti di Agent Pak).** Ayam, bebek, kambing, sapi, dan hewan kandang lain kini

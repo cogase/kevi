@@ -427,7 +427,7 @@ def butuh_level(kon: sqlite3.Connection, uid: int, kunci: str) -> None:
 
 def rumah_kosong() -> dict:
     return {"v": 1, "lebar": LEBAR_TANAH, "tinggi": TINGGI_TANAH, "lantai": {}, "tembok": {}, "benda": [], "urut": 0,
-            "petak": {}, "kandang": {}, "peti": {}}
+            "petak": {}, "kandang": {}, "peti": {}, "ruang": []}
 
 
 def baca_rumah(kon: sqlite3.Connection, uid: int) -> dict:
@@ -982,7 +982,154 @@ def potret_rumah(kon: sqlite3.Connection, uid: int, d: dict | None = None) -> di
         kandang[k] = {"hewan": [{"j": h["j"], "kenyang": (h.get("kenyang") or 0) > kini, "siap": int(h.get("siap") or 0)}
                                 for h in kd.get("hewan") or []]}
     return {"lebar": d["lebar"], "tinggi": d["tinggi"], "lantai": d["lantai"], "tembok": d["tembok"], "benda": d["benda"],
-            "petak": {k: _potret_petak(pt, kini) for k, pt in d["petak"].items()}, "kandang": kandang, "peti": d["peti"]}
+            "petak": {k: _potret_petak(pt, kini) for k, pt in d["petak"].items()}, "kandang": kandang, "peti": d["peti"], "ruang": d.get("ruang") or []}
+
+
+# ---------------------------------------------------------------- Edit Rumah: simpan draf sekaligus (0.15.0)
+# Penyunting rumah kini sama dengan Edit Map: pemain menyusun DRAF lalu menyimpannya sekali. Server menghitung selisih
+# isi denah lama dan baru: yang bertambah diambil dari inventory dulu, kekurangannya dibeli seharga toko; yang
+# berkurang kembali ke inventory. Benda yang masih "hidup" (petak ditanami, kandang berisi, peti berisi) wajib tetap ada.
+
+def _ubin_efektif(d: dict) -> tuple[dict, dict]:
+    """Lantai dan tembok yang benar-benar tergambar: turunan ruang, ditimpa ubin lepas (sama dengan Rumah.ubinEfektif)."""
+    lantai, tembok = {}, {}
+    for r in d.get("ruang") or []:
+        pintu = set()
+        for q in r.get("pintu") or []:
+            datar = q["sisi"] in ("atas", "bawah")
+            panjang = r["w"] if datar else r["h"]
+            for i in range(2 if panjang >= 5 else 1):
+                pos = max(1, min(panjang - 2, q["pos"] + i))
+                pintu.add((r["gx"] + pos, r["gy"] if q["sisi"] == "atas" else r["gy"] + r["h"] - 1) if datar
+                          else (r["gx"] if q["sisi"] == "kiri" else r["gx"] + r["w"] - 1, r["gy"] + pos))
+        for gy in range(r["gy"], r["gy"] + r["h"]):
+            for gx in range(r["gx"], r["gx"] + r["w"]):
+                kunci, tepi = f"{gx},{gy}", gx in (r["gx"], r["gx"] + r["w"] - 1) or gy in (r["gy"], r["gy"] + r["h"] - 1)
+                if r.get("lantai"):
+                    lantai[kunci] = r["lantai"]
+                if tepi and (gx, gy) not in pintu:
+                    tembok[kunci] = r["warna"]
+                else:
+                    tembok.pop(kunci, None)
+    lantai.update(d["lantai"])
+    tembok.update(d["tembok"])
+    return lantai, tembok
+
+
+def _isi_denah(d: dict) -> dict[str, int]:
+    """Barang yang terpakai oleh sebuah denah rumah: perabot, ubin lantai per motif, dan ubin tembok."""
+    isi: dict[str, int] = {}
+    lantai, tembok = _ubin_efektif(d)
+    for nama in [o["n"] for o in d["benda"]] + ["lantai:" + n for n in lantai.values()] + ["tembok"] * len(tembok):
+        isi[nama] = isi.get(nama, 0) + 1
+    return isi
+
+
+def _rencana_rumah(kon: sqlite3.Connection, uid: int, p: dict) -> dict:
+    """Periksa draf Edit Rumah dan hitung akibatnya tanpa menulis apa pun."""
+    d = baca_rumah(kon, uid)
+    lantai, tembok, benda = p.get("lantai"), p.get("tembok"), p.get("benda")
+    if not (isinstance(lantai, dict) and isinstance(tembok, dict) and isinstance(benda, list)):
+        raise Ditolak("Isi denah tidak sah.")
+    if len(benda) > BENDA_MAKS:
+        raise Ditolak(f"Tanah sudah penuh ({BENDA_MAKS} benda).")
+    kat = katalog()
+    baru = dict(d, lantai={}, tembok={}, benda=[], ruang=[])
+    for kunci, n in lantai.items():
+        if n not in kat["lantai"]:
+            raise Ditolak("Lantai tidak dikenal.")
+        baru["lantai"][_kunci_ubin(d, kunci)] = n
+    for kunci, warna in tembok.items():
+        if not POLA_WARNA.match(str(warna or "")):
+            raise Ditolak("Warna tembok tidak sah.")
+        baru["tembok"][_kunci_ubin(d, kunci)] = warna
+    dipakai, urut, petak_di = set(), int(d["urut"]), set()
+    for o in benda:
+        k = kat["barang"].get(o.get("n")) if isinstance(o, dict) else None
+        if not k:
+            raise Ditolak("Ada benda yang tidak dikenal.")
+        x, y, r, bid = o.get("x"), o.get("y"), o.get("r") or 0, o.get("id")
+        if not all(isinstance(v, int) and not isinstance(v, bool) for v in (x, y, r)):
+            raise Ditolak("Posisi benda tidak sah.")
+        if o["n"] == "kebun_petak":
+            x, y = x // T * T, y // T * T
+            if (x, y) in petak_di:
+                raise Ditolak("Ada dua petak kebun di tempat yang sama.")
+            petak_di.add((x, y))
+        if not (-8 <= x <= d["lebar"] * T - 8 and -32 <= y <= d["tinggi"] * T - 8):
+            raise Ditolak("Ada benda di luar batas tanah.")
+        if not isinstance(bid, int) or isinstance(bid, bool) or bid <= 0 or bid in dipakai:
+            urut += 1
+            bid = urut
+        dipakai.add(bid)
+        urut = max(urut, bid)
+        satu = {"id": bid, "n": o["n"], "x": x, "y": y, "r": r % 4 if r in (k.get("putar") or []) else 0}
+        for tanda, nilai in (("kunci", True), ("t", 1)):
+            if o.get(tanda):
+                satu[tanda] = nilai
+        if o.get("l") in ("bawah", "atas"):
+            satu["l"] = o["l"]
+        baru["benda"].append(satu)
+    for r in (p.get("ruang") or [])[:PETA_RUANG_MAKS]:
+        ruang = _ruang_sah(d, r, kat)
+        if ruang["id"] <= 0 or ruang["id"] in dipakai:
+            urut += 1
+            ruang["id"] = urut
+        dipakai.add(ruang["id"])
+        urut = max(urut, ruang["id"])
+        baru["ruang"].append(ruang)
+    baru["urut"] = urut
+    # Benda yang masih hidup harus tetap ada (dengan id dan jenis yang sama).
+    tetap = {o["id"]: o["n"] for o in baru["benda"]}
+    for o in d["benda"]:
+        kunci = str(o["id"])
+        hidup = ("masih ditanami" if d["petak"].get(kunci, {}).get("t") else "masih berisi hewan" if d["kandang"].get(kunci, {}).get("hewan")
+                 else "masih berisi barang" if d["peti"].get(kunci) else "")
+        if hidup and tetap.get(o["id"]) != o["n"]:
+            raise Ditolak(f"{nama_barang(o['n'])} {hidup}; tidak bisa dicabut.")
+    for bagian in ("petak", "kandang", "peti"):
+        baru[bagian] = {k: v for k, v in d[bagian].items() if int(k) in tetap}
+    lama_isi, baru_isi, inv = _isi_denah(d), _isi_denah(baru), inventori(kon, uid)
+    beli, biaya, stok = [], 0, dict(inv)
+    for barang in sorted(set(lama_isi) | set(baru_isi)):
+        selisih = baru_isi.get(barang, 0) - lama_isi.get(barang, 0)
+        if selisih <= 0:
+            stok[barang] = stok.get(barang, 0) - selisih              # dicabut: kembali ke inventory
+            continue
+        pakai = min(stok.get(barang, 0), selisih)
+        stok[barang] = stok.get(barang, 0) - pakai
+        kurang = selisih - pakai
+        if kurang:
+            harga = harga_beli(barang)
+            if harga is None:
+                raise Ditolak(f"{nama_barang(barang)} tidak dijual dan stokmu kurang {kurang}.")
+            _cek_level_barang(kon, uid, barang)
+            beli.append({"barang": barang, "nama": nama_barang(barang), "n": kurang, "harga": harga})
+            biaya += harga * kurang
+    stok = {b: n for b, n in stok.items() if n > 0}
+    if len(stok) > kapasitas(kon, uid) and len(stok) > len(inv):
+        raise Ditolak("Inventory penuh: barang yang dicabut tidak muat. Jual sesuatu dulu, atau beli tas di Koperasi.")
+    return {"baru": baru, "stok": stok, "beli": beli, "biaya": biaya, "tambah": sum(max(0, baru_isi.get(b, 0) - lama_isi.get(b, 0)) for b in baru_isi if b in kat["barang"])}
+
+
+def rumah_biaya(kon: sqlite3.Connection, uid: int, p: dict) -> dict:
+    """Hitungan belanja sebuah draf (untuk ditampilkan sebelum Simpan). Tidak mengubah apa pun."""
+    r = _rencana_rumah(kon, uid, p)
+    punya = saldo(kon, uid)
+    return {"biaya": r["biaya"], "beli": r["beli"], "saldo": punya, "cukup": punya >= r["biaya"]}
+
+
+def rumah_simpan(kon: sqlite3.Connection, uid: int, p: dict) -> dict:
+    r = _rencana_rumah(kon, uid, p)
+    if r["biaya"]:
+        ubah_koin(kon, uid, -r["biaya"], f"belanja Edit Rumah ({sum(b['n'] for b in r['beli'])} barang)")
+    kon.execute("DELETE FROM inventori WHERE pemakai_id = ?", (uid,))
+    kon.executemany("INSERT INTO inventori (pemakai_id, barang, jumlah) VALUES (?, ?, ?)", [(uid, b, n) for b, n in r["stok"].items()])
+    simpan_rumah(kon, uid, r["baru"])
+    if r["tambah"]:
+        catat_aksi(kon, uid, "hias", r["tambah"])
+        xp_kegiatan(kon, uid, "hias")
+    return {"rumah": potret_rumah(kon, uid, r["baru"]), "inventori": inventori(kon, uid), "belanja": r["biaya"]}
 
 
 # ---------------------------------------------------------------- peti (0.8.0)

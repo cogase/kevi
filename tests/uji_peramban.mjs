@@ -186,14 +186,23 @@ await pg.evaluate(() => { G.aku.y = 250; });
 await tunggu(300);
 
 // --- bangun: taruh 2 petak + kotak kiriman
+// Edit Rumah memakai dok dan alat yang sama dengan Edit Map: draf, lalu Simpan menghitung belanja dari inventory.
 await pg.keyboard.press('b');
-await pg.waitForSelector('#bangun .slot');
+await pg.waitForSelector('#bangun .slot.alat');
+cek('Edit Rumah: dok yang sama dengan Edit Map, tanpa Penghalang dan koleksi peta', await pg.evaluate(() => Sunting.aktif && Sunting.rumah && $('#bangun').textContent.includes('Edit Rumah')
+  && !!$('#bangun [data-alat=ruang]') && !$('#bangun [data-alat=halang]') && !$('#sunting-peta') && !!$('#sunting-belanja')));
+await pg.evaluate(() => { Sunting.kam.y += 40; });
 const taruh = async (barang, x, y) => {
-  await pg.evaluate((b) => { G.bangun.barang = b; Rumah.lukisBilah(); }, barang);
+  await pg.evaluate((b) => Sunting.pakaiSprite(b), barang);
   const p = await pg.evaluate(([x, y]) => Mesin.keLayar(x, y), [x, y]);
-  await pg.mouse.move(p.x, p.y); await pg.mouse.down(); await pg.mouse.up(); await tunggu(350);
+  await pg.mouse.move(p.x, p.y); await pg.mouse.down(); await pg.mouse.up(); await tunggu(200);
 };
 await taruh('kebun_petak', 200, 300); await taruh('kebun_petak', 216, 300); await taruh('kebun_kotak_kiriman', 260, 300);
+cek('draf rumah belum memakai inventory sebelum Simpan', await pg.evaluate(() => G.rumah.benda.length === 3 && G.inventori.kebun_petak === 6 && Sunting.kotor));
+await pg.waitForFunction(() => $('#sunting-belanja').textContent.includes('Tanpa belanja'), null, { timeout: 5000 });
+cek('hitungan belanja: barang yang sudah dimiliki tidak dibeli lagi', true);
+await pg.click('#sunting-simpan');
+await pg.waitForFunction(() => !Sunting.kotor && !Sunting.sibuk);
 s = await pg.evaluate(() => ({ benda: G.rumah.benda.map(o => o.n), petak: G.inventori.kebun_petak }));
 cek('perabot terpasang dari inventory', s.benda.filter(n => n === 'kebun_petak').length === 2 && s.petak === 4 && s.benda.includes('kebun_kotak_kiriman'), JSON.stringify(s));
 await potret('5-bangun');
