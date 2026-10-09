@@ -2,6 +2,12 @@
 
 Melengkapi PRD, GDD, dan TDD untuk rilis sesudah 0.2.0. Angka dan aturan di sini adalah yang berlaku di kode.
 
+## 0.24.2 — 9 Oktober 2026
+
+**Handphone jadi barang mahal (kata yosi).** Harga naik dari 1.200 menjadi **20.000 koin** dan baru terbuka di
+**level 15** (sebelumnya level 4), sepadan dengan kemudahannya. Ucapan Koh Andi ikut disesuaikan. Pemain yang sudah
+telanjur membelinya dengan harga lama tetap memilikinya.
+
 ## 0.24.1 — 9 Oktober 2026
 
 **Perbaikan: potret karakter tidak di tengah (laporan yosi).** Di panel Profil dan di lemari pakaian, gambar karakter

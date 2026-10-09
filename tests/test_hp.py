@@ -18,13 +18,14 @@ def _beri_hp(kon, uid):
 
 
 def test_handphone_dijual_berlevel_dan_cukup_satu(kon, pemain):
-    assert permainan.harga_beli("hp") == permainan.HARGA_HP and permainan.level_barang("hp") == permainan.LEVEL_HP == 4
+    assert permainan.harga_beli("hp") == permainan.HARGA_HP and permainan.level_barang("hp") == permainan.LEVEL_HP == 15 and permainan.HARGA_HP == 20000
     assert permainan.nama_barang("hp") == "Handphone" and permainan.harga_jual("hp") is None
-    permainan.ubah_koin(kon, pemain, 5000, "uji")
-    with pytest.raises(Ditolak, match="level 4"):
+    permainan.ubah_koin(kon, pemain, 50000, "uji")
+    setel_xp(kon, pemain, permainan.ambang(14))
+    with pytest.raises(Ditolak, match="level 15"):
         permainan.beli(kon, pemain, "hp", 1)
     assert not hp.punya(kon, pemain)
-    setel_xp(kon, pemain, permainan.ambang(4))
+    setel_xp(kon, pemain, permainan.ambang(15))
     koin = permainan.saldo(kon, pemain)
     permainan.beli(kon, pemain, "hp", 1)
     assert hp.punya(kon, pemain) and permainan.saldo(kon, pemain) == koin - permainan.HARGA_HP
@@ -80,3 +81,8 @@ def test_koh_andi_ditambahkan_sekali(kon):
     assert atur.pastikan_penjual_elektronik(kon) is True
     assert [n["nama"] for n in atur.baca(kon)["npc"] if n["peran"] == "elektronik"] == ["Koh Andi"]
     assert atur.pastikan_penjual_elektronik(kon) is False
+    npc = atur.baca(kon)["npc"]
+    next(n for n in npc if n["peran"] == "elektronik")["ucap"][2] = "Handphone baru bisa dibeli mulai level 4."      # ucapan dari 0.23.0
+    atur.simpan(kon, {"npc": npc})
+    assert atur.segarkan_ucapan_elektronik(kon) is True and atur.segarkan_ucapan_elektronik(kon) is False
+    assert "level 15" in next(n for n in atur.baca(kon)["npc"] if n["peran"] == "elektronik")["ucap"][2]

@@ -166,7 +166,8 @@ SLOT_AWAL, SLOT_PER_TAS, TAS_MAKS = 20, 10, 6
 HARGA_TAS = 2000                     # tas ke-n berharga HARGA_TAS x n (2000, 4000, 6000, ...) — angka dari yosi
 HOTBAR = 10
 # Handphone (0.23.0): dibeli sekali di toko elektronik, tidak habis, tidak bisa dijual lagi. Aturan pesannya di hp.py.
-BARANG_HP, HARGA_HP, LEVEL_HP = "hp", 1200, 4
+# 0.24.2 (yosi: "terlalu murah; karena kemudahannya harus jauh lebih mahal"): 20.000 koin, terbuka di level 15.
+BARANG_HP, HARGA_HP, LEVEL_HP = "hp", 20000, 15
 # senjata: (nama, damage, jeda antarpukulan dtk, jangkauan px, harga, level). Tangan kosong selalu ada.
 SENJATA = {
     "": ("Tangan kosong", 1, 0.5, 18, 0, 1),

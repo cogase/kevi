@@ -240,7 +240,7 @@ NPC_ELEKTRONIK = {"id": "andi", "nama": "Koh Andi", "jabatan": "Toko Elektronik"
                                "gaya_rambut": "rambut_cepak", "kepala": "", "mata": "kacamata", "tali": True},
                   "ucap": ["Handphone baru, garansi resmi! Bisa kirim pesan ke rekan di mana pun.",
                            "Dengan handphone kamu bisa menghubungi Bu Sari atau Rina tanpa jalan ke mejanya.",
-                           "Handphone baru bisa dibeli mulai level 4."]}
+                           "Handphone barang mahal: 20.000 koin, dan baru bisa dibeli mulai level 15."]}
 
 
 def pastikan_penjual_elektronik(kon: sqlite3.Connection) -> bool:
@@ -253,6 +253,19 @@ def pastikan_penjual_elektronik(kon: sqlite3.Connection) -> bool:
         return False
     simpan(kon, {"npc": list(npc) + [NPC_ELEKTRONIK]})
     return True
+
+
+def segarkan_ucapan_elektronik(kon: sqlite3.Connection) -> bool:
+    """Koh Andi yang sudah terpasang di peta masih mengucapkan syarat lama ("mulai level 4"); samakan dengan yang berlaku.
+    Ucapan yang sudah disunting admin tidak disentuh. True = ada yang diganti."""
+    npc, lama, berubah = baca(kon)["npc"], "Handphone baru bisa dibeli mulai level 4.", False
+    for n in npc:
+        if n.get("peran") == "elektronik" and lama in (n.get("ucap") or []):
+            n["ucap"] = [NPC_ELEKTRONIK["ucap"][2] if u == lama else u for u in n["ucap"]]
+            berubah = True
+    if berubah:
+        simpan(kon, {"npc": npc})
+    return berubah
 
 
 def pastikan_penjual_pakaian(kon: sqlite3.Connection) -> bool:

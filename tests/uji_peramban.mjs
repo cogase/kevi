@@ -1125,15 +1125,15 @@ cek('barang hotbar terlihat dipegang karakter (dikecilkan), senjata terlihat dib
 cek('rekan seadegan ikut melihat barang yang dipegang', rekanLihat === 'senjata:sapu' || rekanLihat === 'tidak-seadegan', String(rekanLihat));
 await pg.evaluate(() => { Hotbar.pegang(9); });
 // --- handphone: dibeli di Koh Andi, tombolnya muncul, pesan sampai ke rekan, NPC bisa dihubungi dari jauh
-const hpAwal = await pg.evaluate(() => ({ tombol: $('#hp-tombol').hidden, andi: [...G.entitas.values()].some(e => e.jenis === 'npc' && e.nama === 'Koh Andi'), harga: G.toko.hp.harga, level: G.toko.hp.level }));
-await pg.evaluate((ids) => Promise.all(ids.map(id => fetch('/api/admin/pemakai/ubah', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, koin: 5000 }) }))), [idSaya, id2]);
+const hpAwal = await pg.evaluate(() => ({ tombol: $('#hp-tombol').hidden, andi: [...G.entitas.values()].some(e => e.jenis === 'npc' && e.nama === 'Koh Andi'), harga: G.toko.hp.harga, level: G.toko.hp.level, terkunci: levelBarang('hp') > G.level.level }));
+await pg.evaluate((ids) => Promise.all(ids.map(id => fetch('/api/admin/pemakai/ubah', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, koin: 50000, xp: 31500 }) }))), [idSaya, id2]);      // level 15 = 31.500 XP, harga 20.000
 await tunggu(500);
 await pg.evaluate(() => Hp.toko());
 await pg.waitForSelector('#hp-beli');
 await pg.click('#hp-beli');
 await pg.waitForFunction(() => !$('#hp-tombol').hidden, null, { timeout: 5000 }).catch(() => {});
 await pg.evaluate(() => Panel.tutup());
-cek('handphone: dijual Koh Andi, tombol berbentuk handphone baru muncul sesudah dibeli', hpAwal.tombol && hpAwal.andi && hpAwal.harga === 1200 && hpAwal.level === 4 && await pg.evaluate(() => !$('#hp-tombol').hidden && Hp.punya() && getComputedStyle($('#hp-tombol')).display !== 'none'), JSON.stringify(hpAwal));
+cek('handphone: dijual Koh Andi, tombol berbentuk handphone baru muncul sesudah dibeli', hpAwal.tombol && hpAwal.andi && hpAwal.harga === 20000 && hpAwal.level === 15 && hpAwal.terkunci && await pg.evaluate(() => !$('#hp-tombol').hidden && Hp.punya() && getComputedStyle($('#hp-tombol')).display !== 'none'), JSON.stringify(hpAwal));
 await pg.click('#hp-tombol');
 await pg.waitForSelector('#tirai .hp .tab');
 cek('handphone: rekan yang belum punya handphone tidak ada di kontak', await pg.evaluate(() => !document.querySelector('#tirai .hp-kontak') && $('#tirai .hp').textContent.includes('Belum ada rekan')));

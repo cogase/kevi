@@ -19,6 +19,7 @@ atur.baca(KON)
 atur.pastikan_penjual_pakaian(KON)
 atur.pastikan_penjual_battle(KON)
 atur.pastikan_penjual_elektronik(KON)
+atur.segarkan_ucapan_elektronik(KON)
 with basis.KUNCI:
     permainan.kembalikan_ubin(KON)
 DUNIA = Dunia(KON)
