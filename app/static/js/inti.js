@@ -254,6 +254,7 @@ function ikonBarang(b, maks) {
   if (b.startsWith('lantai:')) return ikon(b.slice(7), maks);
   if (b === 'tembok') return el('span', { kelas: 'ikon ikon-tembok', gaya: { width: (maks || 40) + 'px', height: (maks || 40) + 'px' } });
   if (b === 'pakan') return ikon('ikon_panen_pakan', maks);
+  if (b === 'hp') return el('span', { kelas: 'ikon ikon-senjata', teks: '📱', gaya: { width: (maks || 40) + 'px', height: (maks || 40) + 'px', fontSize: Math.round((maks || 40) * 0.62) + 'px' } });
   if (b.startsWith('senjata:') && atlas['senjata_' + b.slice(8)]) return ikon('senjata_' + b.slice(8), maks);
   if (b.startsWith('senjata:')) return el('span', { kelas: 'ikon ikon-senjata', teks: IKON_SENJATA[b.slice(8)] || '✊', gaya: { width: (maks || 40) + 'px', height: (maks || 40) + 'px', fontSize: Math.round((maks || 40) * 0.62) + 'px' } });
   if (atlas['ikon_panen_' + b]) return ikon('ikon_panen_' + b, maks);
@@ -263,6 +264,7 @@ function ikonBarang(b, maks) {
 function namaBarang(b) {
   const t = G.toko || {};
   if (b.startsWith('senjata:')) return ((t.senjata || {})[b.slice(8)] || { nama: b.slice(8) }).nama;
+  if (b === 'hp') return 'Handphone';
   if (b.startsWith('makan:')) return ((t.makanan || {})[b.slice(6)] || { nama: b.slice(6) }).nama;
   if (b.startsWith('benih:')) return 'Benih ' + ((t.tanaman || {})[b.slice(6)] || { nama: b.slice(6) }).nama.toLowerCase();
   if (b.startsWith('panen:')) return ((t.tanaman || {})[b.slice(6)] || { nama: b.slice(6) }).nama;
@@ -281,13 +283,14 @@ function hargaBeli(b) {
   if (b === 'pakan') return t.harga.pakan;
   if (b === 'tembok' || b.startsWith('lantai:')) return null;      // gratis di Edit Rumah, tidak dijual
   if (b.startsWith('senjata:')) return ((t.senjata || {})[b.slice(8)] || {}).harga || null;
+  if (b === 'hp') return (t.hp || {}).harga || null;
   const br = k.barang[b];
   if (!br || t.tak_dijual.some(a => br.k.startsWith(a))) return null;
   return br.harga;
 }
 function hargaJual(b) {
   const t = G.toko;
-  if (b.startsWith('senjata:')) return null;
+  if (b.startsWith('senjata:') || b === 'hp') return null;
   if (b.startsWith('panen:')) return (t.tanaman[b.slice(6)] || {}).jual ?? null;
   if (t.produk[b]) return t.produk[b].jual;
   const h = hargaBeli(b);
@@ -301,6 +304,7 @@ function levelBarang(b) {
   if (b.startsWith('lantai:')) return (t.level_lantai || {})[b.slice(7)] || 1;      // motif lantai gratis tetapi terbuka menurut level
   if (b.startsWith('makan:')) return 1;
   if (b.startsWith('senjata:')) return ((t.senjata || {})[b.slice(8)] || {}).level || 1;
+  if (b === 'hp') return (t.hp || {}).level || 1;
   const h = hargaBeli(b) || 0, tingkat = t.tingkat_harga.find(([batas]) => h <= batas);
   return tingkat ? tingkat[1] : t.level_puncak;
 }

@@ -11,13 +11,14 @@ from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from . import akun, atur, basis, interaksi, koleksi, konfig, laporan_token, permainan, remote, umpan
+from . import akun, atur, basis, hp, interaksi, koleksi, konfig, laporan_token, permainan, remote, umpan
 from .dunia import Dunia
 
 KON = basis.buka(konfig.BASIS_DATA)
 atur.baca(KON)
 atur.pastikan_penjual_pakaian(KON)
 atur.pastikan_penjual_battle(KON)
+atur.pastikan_penjual_elektronik(KON)
 with basis.KUNCI:
     permainan.kembalikan_ubin(KON)
 DUNIA = Dunia(KON)
@@ -405,6 +406,37 @@ async def admin_umpan_ubah(request: Request):
     except umpan.UmpanDitolak as e:
         return galat(str(e))
     return {"ok": True}
+
+
+@app.get("/api/hp")
+async def api_hp(request: Request, id: int | None = None):
+    """Handphone: tanpa `id` = daftar kontak; dengan `id` = percakapan dengan pemain itu (sekaligus menandainya dibaca)."""
+    p = _pemakai(request)
+    if not p:
+        return galat("Belum masuk.", 401)
+    try:
+        with basis.KUNCI:
+            hasil = hp.kontak(KON, p["id"]) if id is None else hp.utas(KON, p["id"], id)
+    except permainan.Ditolak as e:
+        return galat(str(e))
+    for k in hasil.get("kontak", []):
+        k["daring"] = k["id"] in DUNIA.pemain
+    return hasil
+
+
+@app.post("/api/hp/kirim")
+async def api_hp_kirim(request: Request):
+    p = _pemakai(request)
+    if not p:
+        return galat("Belum masuk.", 401)
+    d = await _badan(request)
+    try:
+        with basis.KUNCI:
+            hasil = hp.kirim(KON, p["id"], d.get("ke"), d.get("teks"))
+    except permainan.Ditolak as e:
+        return galat(str(e))
+    await DUNIA.kabari(hasil["ke"], hasil.pop("kabar"))          # penerima yang sedang daring langsung diberi tahu
+    return hasil
 
 
 @app.get("/api/profil")

@@ -2,6 +2,23 @@
 
 Melengkapi PRD, GDD, dan TDD untuk rilis sesudah 0.2.0. Angka dan aturan di sini adalah yang berlaku di kode.
 
+## 0.23.0 — 9 Oktober 2026
+
+**Handphone (kata yosi).**
+- **Perangkatnya dibeli** di NPC baru, **Koh Andi (Toko Elektronik)**, seharga 1.200 koin, terbuka di **level 4**.
+  Cukup satu, tidak habis, tidak bisa dijual lagi. Koh Andi ditambahkan sekali ke peta aktif di dekat pintu depan dan
+  bisa dipindah di dashboard, tab Peta & NPC (peran "Toko elektronik (handphone)").
+- **Tombol berbentuk handphone** muncul di kanan layar (di bawah menu atas) begitu perangkatnya dimiliki, dengan
+  lencana merah jumlah pesan yang belum dibaca. Pintasan papan ketik: **H**.
+- **Pesan ke pemain lain** di mana pun, tidak harus berdekatan: daftar kontak berisi rekan yang juga punya handphone
+  (dengan tanda daring atau luring dan jumlah pesan baru). Pesan **tersimpan**, jadi rekan yang sedang luring
+  membacanya saat masuk lagi; yang sedang daring langsung mendapat kabar dan bunyi. Membuka percakapan menandainya
+  terbaca. Paling panjang 240 huruf, paling banyak 12 pesan per menit. Pengirim dan penerima sama-sama harus punya
+  handphone.
+- **Hubungi NPC** dari jauh: tab kedua memuat semua NPC peta itu dengan layanannya (Koperasi, Toko pakaian, Item
+  battle, Toko elektronik, Misi harian, Kuis jaringan, Pesan kopi, Antar pulang); menekannya membuka layanan itu
+  tanpa berjalan ke mejanya. NPC yang hanya mengobrol menjawab dengan salah satu ucapannya.
+
 ## 0.22.2 — 9 Oktober 2026
 
 **Edit Map dan Edit Rumah (laporan dan permintaan yosi)**

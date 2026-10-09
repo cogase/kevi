@@ -9,7 +9,7 @@ import sqlite3
 
 from . import basis, konfig
 
-PERAN_NPC = ("obrol", "toko", "misi", "kuis", "kopi", "pulang", "pakaian", "battle")
+PERAN_NPC = ("obrol", "toko", "misi", "kuis", "kopi", "pulang", "pakaian", "battle", "elektronik")
 JENIS_TITIK = ("arcade", "kuis", "toko", "terminal", "misi")
 ARAH = ("bawah", "atas", "kiri", "kanan")
 POLA_ID = re.compile(r"^[a-z0-9_]{1,24}$")
@@ -231,6 +231,26 @@ def pastikan_penjual_battle(kon: sqlite3.Connection) -> bool:
     if any(n.get("peran") == "battle" for n in npc) or any(n.get("id") == NPC_BATTLE["id"] for n in npc):
         return False
     simpan(kon, {"npc": list(npc) + [NPC_BATTLE]})
+    return True
+
+
+NPC_ELEKTRONIK = {"id": "andi", "nama": "Koh Andi", "jabatan": "Toko Elektronik", "x": 270, "y": 684, "arah": "bawah", "peran": "elektronik",
+                  "tampilan": {"kulit": "#f2c8a4", "rambut_warna": "#15151c", "baju": "#0f766e", "celana": "#3e4458", "sepatu": "#282a36",
+                               "gaya_rambut": "rambut_cepak", "kepala": "", "mata": "kacamata", "tali": True},
+                  "ucap": ["Handphone baru, garansi resmi! Bisa kirim pesan ke rekan di mana pun.",
+                           "Dengan handphone kamu bisa menghubungi Bu Sari atau Rina tanpa jalan ke mejanya.",
+                           "Handphone baru bisa dibeli mulai level 4."]}
+
+
+def pastikan_penjual_elektronik(kon: sqlite3.Connection) -> bool:
+    """Sekali saja (0.23.0): Koh Andi, penjual handphone, ditambahkan ke peta aktif bila belum ada NPC berperan elektronik."""
+    if kon.execute("SELECT 1 FROM pengaturan WHERE kunci = 'penjual_elektronik_dipasang'").fetchone():
+        return False
+    kon.execute("INSERT INTO pengaturan (kunci, nilai) VALUES ('penjual_elektronik_dipasang', '1')")
+    npc = baca(kon)["npc"]
+    if any(n.get("peran") == "elektronik" for n in npc) or any(n.get("id") == NPC_ELEKTRONIK["id"] for n in npc):
+        return False
+    simpan(kon, {"npc": list(npc) + [NPC_ELEKTRONIK]})
     return True
 
 

@@ -145,7 +145,7 @@ $('#zombie-panggil').addEventListener('click', () => coba(() => ambil('/api/admi
 
 const Peta = {
   npc: [], titik: [], pilih: null, latar: null, depan: null,
-  NAMA_PERAN: { obrol: 'Mengobrol saja', toko: 'Membuka Koperasi', misi: 'Membuka misi harian', kuis: 'Kuis jaringan', kopi: 'Menjual kopi (stamina)', pulang: 'Mengantar pulang', pakaian: 'Toko pakaian', battle: 'Menjual item battle (senjata)' },
+  NAMA_PERAN: { obrol: 'Mengobrol saja', toko: 'Membuka Koperasi', misi: 'Membuka misi harian', kuis: 'Kuis jaringan', kopi: 'Menjual kopi (stamina)', pulang: 'Mengantar pulang', pakaian: 'Toko pakaian', battle: 'Menjual item battle (senjata)', elektronik: 'Toko elektronik (handphone)' },
   NAMA_TITIK: { arcade: 'Arcade (Cocokkan Kartu)', kuis: 'Kuis jaringan', toko: 'Koperasi', terminal: 'Terminal', misi: 'Misi harian' },
 
   muat(a) { this.npc = JSON.parse(JSON.stringify(a.npc)); this.titik = JSON.parse(JSON.stringify(a.titik)); this.pilih = null; this.lukisDaftar(); this.sunting(); this.gambar(); },

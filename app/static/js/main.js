@@ -24,6 +24,7 @@ function pasangTombol() {
     if (ev.repeat) return;
     if (k === 'e') { if (G.terdekat) G.terdekat.aksi(ev); }
     else if (k === ' ') { ev.preventDefault(); Battle.pukul(); }
+    else if (k === 'h') { if (Hp.punya()) Hp.buka(); }
     else if (k === 'enter') { ev.preventDefault(); $('#obrolan-isi').focus(); }
     else if (k === 'i') Inventori.buka();
     else if (k === 'n') Catatan.buka();
@@ -81,7 +82,7 @@ function putaran() {
     const k = s.karakter, punyaPosisi = typeof k.x === 'number' && typeof k.y === 'number';
     if (k.adegan === 'rumah:' + G.saya.id && await Mesin.masukRumah(G.saya.id, punyaPosisi ? k.x : undefined, punyaPosisi ? k.y : undefined)) { /* lanjut di rumah */ }
     else Mesin.masukKantor(k.adegan === 'kantor' && punyaPosisi ? k.x : undefined, k.adegan === 'kantor' && punyaPosisi ? k.y : undefined);
-    Hud.pasang(); Obrolan.pasang(); Terminal.pasang(); Rumah.pasangKursor(); Battle.pasang(); pasangTombol();
+    Hud.pasang(); Obrolan.pasang(); Terminal.pasang(); Rumah.pasangKursor(); Battle.pasang(); Hp.pasang(); pasangTombol();
     Hotbar.lukis();
     document.addEventListener('kevi:segar', () => Hotbar.lukis());
     Jaring.sambung();
