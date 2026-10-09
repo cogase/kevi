@@ -313,6 +313,9 @@ await pg.evaluate(() => { G.health.nilai = 5; Rumah.interaksi().find(t => t.dudu
 await tunggu(600);
 cek('duduk santai: berpose duduk, tanpa Komputer, lelah pulih', await pg.evaluate(() => G.duduk && G.duduk.santai && /duduk/.test(G.aku.pose) && !Terminal.terbuka() && G.health.nilai > 12),
   JSON.stringify(await pg.evaluate(() => ({ pose: G.aku.pose, health: G.health.nilai }))));
+// Laporan yosi: kursi berlayer Otomatis menutupi karakter yang mendudukinya.
+const urutDuduk = await pg.evaluate((n) => { const b = Rumah.urut.find(b => b.o.n === n); return { layer: b.o.l || '', kursi: b.alas, kaki: G.aku.y + 19, tokoh: Rumah.alasEntitas(G.aku), berdiri: Rumah.alasEntitas({ x: G.aku.x, y: G.aku.y, pose: '' }) }; }, kursiUji.n);
+cek('duduk santai: karakter digambar di depan kursi berlayer Otomatis, bukan tertutup olehnya', urutDuduk.layer === '' && urutDuduk.kaki < urutDuduk.kursi && urutDuduk.tokoh > urutDuduk.kursi && urutDuduk.berdiri === urutDuduk.kaki, JSON.stringify(urutDuduk));
 await tekan('s', 250);
 cek('tombol gerak membuat berdiri lagi', await pg.evaluate(() => !G.duduk));
 await pg.evaluate(async (n) => { const d = G.rumah; serap(await api('/api/rumah/simpan', { lantai: d.lantai, tembok: d.tembok, ruang: d.ruang || [], benda: d.benda.filter(o => o.n !== n) })); await aksi('/api/toko/jual', { barang: n, jumlah: 1 }); }, kursiUji.n);
@@ -457,6 +460,16 @@ await pg.evaluate(() => { Sunting.kam.y -= 55; });      // geser pandangan supay
 cek('Edit Map terbuka dengan delapan alat', await pg.evaluate(() => Sunting.aktif && document.querySelectorAll('#bangun .slot.alat').length === 8 && $('#sunting-simpan').disabled));
 await pg.click('#bangun [data-alat=perabot]');
 await pg.waitForSelector('#sunting-katalog .kartu');
+// Laporan yosi: sesudah memilih beberapa perabot, dok menampilkan "[object HTMLButtonElement],…" alih-alih tombol perabot terakhir.
+const dokTerakhir = await pg.evaluate(() => {
+  const kartu = [...document.querySelectorAll('#sunting-katalog .kartu')].slice(0, 3).map(k => k.title), asal = { sprite: Sunting.sprite, terakhir: Sunting.terakhir.slice() };
+  const nama = Object.keys(G.katalog.barang).filter(n => atlas[n]).slice(0, 3);
+  for (const n of nama) Sunting.pakaiSprite(n);
+  const h = { teks: $('#bangun').textContent, mini: document.querySelectorAll('#bangun .slot.mini').length, dipilih: nama.length, kartu };
+  Sunting.terakhir = asal.terakhir; Sunting.sprite = asal.sprite; Sunting.lukisDok();
+  return h;
+});
+cek('Edit Map: perabot yang terakhir dipakai tampil sebagai tombol, bukan teks "[object …]"', !dokTerakhir.teks.includes('[object') && dokTerakhir.dipilih === 3 && dokTerakhir.mini >= 2, JSON.stringify({ mini: dokTerakhir.mini, dipilih: dokTerakhir.dipilih }));
 cek('katalog perabot: kategori di bilah sisi, ikon kecil tanpa tulisan (nama di hover)', await pg.evaluate(() => {
   const k = $('#sunting-katalog'), kartu = k.querySelector('.kartu');
   return k.querySelectorAll('.kat-sisi button').length > 5 && !k.querySelector('.kartu b') && !!kartu.title && kartu.getBoundingClientRect().width < 56;
@@ -617,6 +630,30 @@ await pg2.fill('#umpan-teks', 'Uji: kursi pantry tidak bisa diduduki.');
 await pg2.click('#tirai button.utama');
 await pg2.waitForFunction(() => !document.querySelector('#tirai'));
 cek('feedback terkirim dari dalam game', true);
+
+// --- menu atas: wajah + nama, bilah berlabel dan berangka; pita versi baru
+const hudUji = await pg.evaluate(() => {
+  const kv = $('#hud-wajah'), px = kv.getContext('2d').getImageData(0, 0, kv.width, kv.height).data;
+  let isi = 0; for (let i = 3; i < px.length; i += 4) if (px[i] > 40) isi++;
+  const kotak = (s) => $(s).getBoundingClientRect();
+  return { isi: isi / (kv.width * kv.height), nama: $('#hud-nama').textContent, namaDiBawah: kotak('#hud-nama').top >= kotak('#hud-wajah').bottom - 1, kiri: kotak('#hud-potret').left < kotak('#hud-level').left,
+    label: [...document.querySelectorAll('.hud-ukur em')].map(e => e.textContent).join(), xp: $('#hud-xp-angka').textContent, health: $('#hud-health-angka').textContent, stamina: $('#hud-stamina-angka').textContent,
+    lv: G.level, st: G.stamina, versi: Jaring.versiServer, pita: !!$('#versi-baru') };
+});
+cek('menu atas: wajah karakter tergambar di pojok kiri dengan nama di bawahnya', hudUji.isi > 0.3 && hudUji.nama === 'Penguji Satu' && hudUji.namaDiBawah && hudUji.kiri, JSON.stringify(hudUji));
+cek('menu atas: bilah berlabel XP, Health, Stamina dengan angkanya', hudUji.label === 'XP,Health,Stamina' && hudUji.xp === (hudUji.lv.lanjut ? `${hudUji.lv.xp - hudUji.lv.dasar}/${hudUji.lv.lanjut - hudUji.lv.dasar}` : 'Maks')
+  && /^\d+\/\d+$/.test(hudUji.health) && hudUji.health.endsWith('/' + hudUji.lv.stamina) && hudUji.stamina === Math.round(hudUji.st.nilai) + '/' + hudUji.st.maks, JSON.stringify(hudUji));
+await pg.click('#hud-potret');
+await pg.waitForSelector('#tirai .profil');
+cek('menu atas: klik wajah membuka profil sendiri', (await pg.textContent('#tirai .panel')).includes('Profil'));
+await pg.evaluate(() => Panel.tutup());
+cek('versi: server mengabarkan versinya saat menyambung, halaman yang sama versinya tanpa pita', hudUji.versi === await pg.evaluate(() => document.documentElement.dataset.versi) && hudUji.versi.length > 0 && !hudUji.pita, JSON.stringify(hudUji.versi));
+const hudAtas0 = await pg.evaluate(() => $('#hud').getBoundingClientRect().top);
+const pitaUji = await pg.evaluate(() => { Versi.periksa('99.0.0', VERSI_ASET); Versi.periksa('99.0.1', VERSI_ASET); const p = document.querySelectorAll('#versi-baru');
+  return { n: p.length, teks: p[0].textContent, tombol: !!p[0].querySelector('button'), bawah: p[0].getBoundingClientRect().bottom, hud: $('#hud').getBoundingClientRect().top, z: Number(getComputedStyle(p[0]).zIndex) }; });
+cek('versi: server berversi lain memunculkan satu pita menonjol dengan cara muat ulang, menu atas turun di bawahnya', pitaUji.n === 1 && pitaUji.teks.includes('Versi baru Kevi 99.0.0 tersedia') && pitaUji.teks.includes('Ctrl + Shift + R')
+  && pitaUji.tombol && pitaUji.hud >= pitaUji.bawah && pitaUji.hud > hudAtas0 && pitaUji.z > 40, JSON.stringify(pitaUji));
+await pg.evaluate(() => { $('#versi-baru').remove(); document.body.classList.remove('ada-versi-baru'); });
 
 // --- dashboard admin
 const adm = await (await pg.context()).newPage();

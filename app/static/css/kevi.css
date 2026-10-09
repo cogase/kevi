@@ -101,7 +101,21 @@ body:not(.siap) #hud, body:not(.siap) #obrolan { visibility: hidden; }
 .hud-diri { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .hud-baris { display: flex; align-items: center; gap: 6px; }
 .hud-baris b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--krem); text-shadow: 0 1px 0 #000; }
-.hud-bar { display: flex; gap: 6px; }
+.hud-bar { display: flex; gap: 4px 10px; flex-wrap: wrap; }
+.hud-ukur { display: flex; align-items: center; gap: 4px; font-size: 11px; line-height: 1; white-space: nowrap; }
+.hud-ukur em { font-style: normal; font-weight: 700; color: var(--redup); }
+.hud-ukur small { font-size: 11px; font-weight: 600; color: var(--krem); font-variant-numeric: tabular-nums; min-width: 46px; }
+.hud-potret { flex: none; display: flex; flex-direction: column; align-items: center; gap: 1px; max-width: 86px; padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
+.hud-potret canvas { width: 36px; height: 36px; image-rendering: pixelated; background: #070b14; border: 2px solid var(--garis); border-radius: 6px; }
+.hud-potret:hover canvas, .hud-potret:focus-visible canvas { border-color: var(--emas); }
+.hud-potret b { max-width: 86px; font-size: 11px; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--krem); text-shadow: 0 1px 0 #000; }
+#versi-baru { position: fixed; top: 0; left: 0; right: 0; z-index: calc(var(--z-kabar) + 10); display: flex; align-items: center; justify-content: center; gap: 6px 12px; flex-wrap: wrap; padding: 8px 12px;
+  background: linear-gradient(180deg, #fde68a, #f59e0b); color: #1c1203; font-size: 14px; border-bottom: 3px solid #78350f; box-shadow: 0 6px 18px rgba(0,0,0,.55); animation: versi-denyut 1.6s ease-in-out infinite; }
+#versi-baru b { font-size: 15px; }
+body.ada-versi-baru #hud { top: calc(var(--versi-tinggi, 44px) + 10px); }
+body.ada-versi-baru #petunjuk, body.ada-versi-baru #kabar { margin-top: var(--versi-tinggi, 44px); }
+@keyframes versi-denyut { 50% { background: linear-gradient(180deg, #fff3c4, #fbbf24); } }
+@media (prefers-reduced-motion: reduce) { #versi-baru { animation: none; } }
 .bar { display: block; width: 110px; height: 7px; background: #070b14; border: 1px solid #000; border-radius: 2px; overflow: hidden; }
 .bar i { display: block; height: 100%; width: 0; }
 /* XP dianimasikan lewat transform (bukan width) supaya tak memicu tata letak ulang. */

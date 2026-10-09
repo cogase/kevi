@@ -722,7 +722,7 @@ const Sunting = {
       isi.push(this.sprite ? ikonBarang(this.sprite, 30) : null, el('b', { teks: this.sprite ? namaBarang(this.sprite) : 'Belum ada perabot dipilih' }),
         pt.length > 1 ? tb(ARAH[this.r] + ' · Putar (R)', '', () => this.putar()) : null,
         tb('▦ Katalog', '', () => this.bukaKatalog('perabot')),
-        this.terakhir.filter(n => n !== this.sprite).map(n => el('button', { kelas: 'slot mini', title: namaBarang(n), on: { click: () => this.pakaiSprite(n) } }, ikonBarang(n, 26))));
+        ...this.terakhir.filter(n => n !== this.sprite).map(n => el('button', { kelas: 'slot mini', title: namaBarang(n), on: { click: () => this.pakaiSprite(n) } }, ikonBarang(n, 26))));
     } else if (this.alat === 'tembok') {
       isi.push(el('span', { kelas: 'redup kecil', teks: 'Warna:' }),
         el('div', { kelas: 'bangun-warna' }, WARNA_TEMBOK.map(w => el('button', { kelas: 'warna' + (this.warna === w ? ' aktif' : ''), gaya: { background: w }, 'aria-label': 'Warna tembok ' + w, on: { click: () => { this.warna = w; this.lukisDok(); } } }))),

@@ -184,7 +184,7 @@ const Rumah = {
       const n = 'tani_' + pt.t + '_' + pt.tahap, u = ukuranSprite(n);
       daftar.push({ alas: b.y + 13, lukis: () => { lukis(k, n, o.x, b.y + T - u.h); if (pt.matang && Math.floor(t * 2) % 2) lukis(k, 'kilau', o.x, b.y - 12); } });
     }
-    for (const e of semua) daftar.push({ alas: e.y + 19, lukis: () => lukisEntitas(k, e, e === G.aku && this.menyunting ? 0.35 : 1) });      // selagi Edit Map karakter sendiri beku dan samar
+    for (const e of semua) daftar.push({ alas: this.alasEntitas(e), lukis: () => lukisEntitas(k, e, e === G.aku && this.menyunting ? 0.35 : 1) });      // selagi Edit Map karakter sendiri beku dan samar
     daftar.sort((p, q) => p.alas - q.alas);
     for (const b of daftar) b.lukis();
     if (bawaan) this.lapisDepan(k, semua);
@@ -225,6 +225,16 @@ const Rumah = {
     }
     const n = s.jalan && atlas[dasar + s.arah] ? dasar + s.arah : (s.patuk && atlas[dasar + 'patuk'] ? dasar + 'patuk' : dasar + 'diam');
     return { x: Math.round(s.x), y: Math.round(s.y), n: bingkaiHidup(n, t, s.jalan ? 6 : 2) };
+  },
+
+  // Urutan kedalaman tokoh = kakinya. Kecuali selagi duduk di perabot berlayer Otomatis: kaki tokoh ada di atas dasar
+  // perabot, jadi tanpa ini kursinya tergambar belakangan dan menutupi tokoh. Tokoh duduk digambar tepat di depannya.
+  alasEntitas(e) {
+    const dasar = e.y + 19;
+    if (!/duduk/.test(e.pose || '')) return dasar;
+    const cx = e.x + 8, cy = e.y + 25;
+    for (const b of this.urut) if (b.o.l !== 'atas' && PERABOT_DUDUK.test(b.o.n) && cx >= b.o.x && cx <= b.o.x + b.w && Math.abs(b.y + b.h - cy) <= 2) return Math.max(dasar, b.alas + 0.5);
+    return dasar;
   },
 
   // Peta terpanggang: lapis depan menimpa semua tokoh. Tokoh yang kakinya DI DEPAN benda tinggi digambar ulang di

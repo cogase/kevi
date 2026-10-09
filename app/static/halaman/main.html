@@ -15,9 +15,10 @@
 
 <header id="hud" class="bingkai tipis">
   <div class="hud-kiri">
+    <button id="hud-potret" class="hud-potret" title="Profil saya" aria-label="Profil saya"><canvas id="hud-wajah" width="36" height="36"></canvas><b id="hud-nama"></b></button>
     <div class="hud-diri">
-      <div class="hud-baris"><b id="hud-nama"></b><button id="hud-level" class="cip level" title="Level dan yang terbuka (L)">Lv 1</button><span id="hud-tempat" class="cip"></span></div>
-      <div class="hud-bar"><span id="hud-xp" class="bar xp"><i></i></span><span id="hud-health" class="bar health" title="Health — lelah saat lari (Shift), pulih saat diam"><i></i></span><span id="hud-stamina" class="bar stamina" title="Stamina — turun karena kerja dan lama daring; makan untuk mengisinya"><i></i></span></div>
+      <div class="hud-baris"><button id="hud-level" class="cip level" title="Level dan yang terbuka (L)">Lv 1</button><span id="hud-tempat" class="cip"></span></div>
+      <div class="hud-bar"><span class="hud-ukur"><em>XP</em><span id="hud-xp" class="bar xp"><i></i></span><small id="hud-xp-angka"></small></span><span class="hud-ukur"><em>Health</em><span id="hud-health" class="bar health" title="Health — lelah saat lari (Shift), pulih saat diam"><i></i></span><small id="hud-health-angka"></small></span><span class="hud-ukur"><em>Stamina</em><span id="hud-stamina" class="bar stamina" title="Stamina — turun karena kerja dan lama daring; makan untuk mengisinya"><i></i></span><small id="hud-stamina-angka"></small></span></div>
     </div>
     <span id="hud-sambung" class="cip merah" hidden>terputus, menyambung…</span>
   </div>

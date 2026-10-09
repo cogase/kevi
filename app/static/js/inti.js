@@ -55,6 +55,7 @@ function aturLevel(lv, naik) {
     const isi = $('#hud-xp i'), lebar = lv.lanjut ? (lv.xp - lv.dasar) / (lv.lanjut - lv.dasar) : 1;
     isi.style.transform = 'scaleX(' + Math.max(0, Math.min(1, lebar)).toFixed(3) + ')';
     $('#hud-xp').title = lv.lanjut ? `${lv.xp - lv.dasar} / ${lv.lanjut - lv.dasar} XP menuju level ${lv.level + 1}` : 'Level tertinggi';
+    $('#hud-xp-angka').textContent = lv.lanjut ? `${lv.xp - lv.dasar}/${lv.lanjut - lv.dasar}` : 'Maks';
   }
   if (xpNaik > 0 && G.aku && !naik) apung('+' + xpNaik + ' XP', '#c4b5fd', G.aku.x + 8, G.aku.y - 12);
   if (naik) {
@@ -117,6 +118,22 @@ function serap(d) {
   if (d.rumah && G.rumahSaya) { G.rumah = d.rumah; if (typeof Rumah !== 'undefined') Rumah.segarkan(); }
   document.dispatchEvent(new CustomEvent('kevi:segar'));
 }
+
+// Server berversi lain dari halaman ini (sesudah rilis; WS putus lalu menyambung ulang): pita menonjol sampai dimuat ulang.
+// Halaman HTML disajikan no-store, jadi muat ulang biasa sudah membawa alamat aset `?v=` yang baru.
+const Versi = {
+  periksa(versi, aset) {
+    const ini = document.documentElement.dataset.versi || '';
+    if (!versi || (versi === ini && (!aset || aset === VERSI_ASET)) || $('#versi-baru')) return;
+    document.body.append(el('div', { id: 'versi-baru', role: 'alert' },
+      el('b', { teks: versi !== ini ? `Versi baru Kevi ${versi} tersedia.` : 'Kevi baru saja diperbarui.' }),
+      el('span', { teks: 'Muat ulang: Ctrl + Shift + R (atau tutup dan buka lagi peramban).' }),
+      el('button', { kelas: 'tombol kecil utama', teks: 'Muat ulang', on: { click: () => location.reload() } })));
+    document.body.classList.add('ada-versi-baru');
+    const ukur = () => document.body.style.setProperty('--versi-tinggi', $('#versi-baru').offsetHeight + 'px');      // menu atas turun setinggi pita
+    ukur(); addEventListener('resize', ukur);
+  },
+};
 
 // Stamina (lapar) dari server. Memberi tahu sekali saat mulai lapar dan sekali saat habis.
 function aturStamina(s) {

@@ -14,7 +14,7 @@ import time
 
 from fastapi import WebSocket
 
-from . import atur, basis, permainan, terminal
+from . import atur, basis, konfig, permainan, terminal
 
 POLA_ADEGAN = re.compile(r"^(kantor|rumah:\d{1,9})$")
 ARAH = {"atas", "bawah", "kiri", "kanan"}
@@ -32,6 +32,7 @@ class Dunia:
         self.kon = kon
         self.pemain: dict[int, dict] = {}
         self.suit: dict[str, dict] = {}
+        self.aset = ""                              # sidik berkas statis; diisi main.py
 
     # ------------------------------------------------------------ siaran
     def _publik(self, p: dict) -> dict:
@@ -131,7 +132,8 @@ class Dunia:
         with basis.KUNCI:
             riwayat = [dict(r) for r in self.kon.execute(
                 "SELECT pemakai_id AS id, nama, teks, waktu FROM obrolan WHERE saluran = 'semua' ORDER BY id DESC LIMIT 15")][::-1]
-        await self._kirim(p, dict(self._dunia(), t="halo", saya=self._publik(p), riwayat=riwayat,
+        # versi + aset: halaman yang dimuat sebelum rilis tahu dirinya usang begitu menyambung ulang
+        await self._kirim(p, dict(self._dunia(), t="halo", saya=self._publik(p), riwayat=riwayat, versi=konfig.VERSI, aset=self.aset,
                                   pemain=[self._publik(q) for q in self.pemain.values() if q["adegan"] == adegan and q["id"] != uid]))
         await self.siar(adegan, {"t": "masuk", "pemain": self._publik(p)}, kecuali=uid)
         return p

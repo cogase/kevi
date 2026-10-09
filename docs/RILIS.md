@@ -2,6 +2,26 @@
 
 Melengkapi PRD, GDD, dan TDD untuk rilis sesudah 0.2.0. Angka dan aturan di sini adalah yang berlaku di kode.
 
+## 0.16.0 — 9 Oktober 2026
+
+**Pemberitahuan versi baru (kata yosi).** Tiap rilis memutus sambungan sebentar; begitu halaman menyambung lagi,
+server mengabarkan versinya (dan sidik berkas statisnya) di pesan `halo`. Bila berbeda dari halaman yang sedang
+terbuka, muncul pita kuning berdenyut selebar layar di paling atas: "Versi baru Kevi X tersedia. Muat ulang:
+Ctrl + Shift + R (atau tutup dan buka lagi peramban)" dengan tombol **Muat ulang**. Menu atas turun di bawah pita
+supaya tidak tertutup. Halaman HTML disajikan `no-store`, jadi muat ulang biasa sudah membawa berkas baru.
+Catatan: pita baru dikenal halaman 0.16.0 ke atas, jadi untuk rilis ini sendiri pemain masih perlu memuat ulang.
+
+**Menu atas (kata yosi).** Pojok kiri kini memuat **wajah karakter** dengan **nama di bawahnya**; klik wajah membuka
+profil sendiri, dan wajah ikut berganti saat ganti pakaian. Tiga bilah diberi label dan angka: `XP 86/1500`
+(atau "Maks" di level tertinggi), `Health 124/124`, `Stamina 122/124`.
+
+**Perbaikan (laporan yosi)**
+- Edit Map, alat Perabot: sesudah memilih beberapa perabot, dok menampilkan teks `[object HTMLButtonElement],…`.
+  Daftar perabot yang terakhir dipakai kini tampil sebagai tombol ikon seperti maksudnya.
+- Duduk di kursi berlayer Otomatis: karakter tergambar di belakang kursi (baru terlihat bila kursi dijadikan layer
+  Bawah). Karakter yang sedang duduk kini digambar tepat di depan perabot yang didudukinya; berlaku untuk pemain
+  sendiri dan rekan, di peta utama maupun rumah. Kursi berlayer Atas tetap di atas tokoh, sesuai pilihannya.
+
 ## 0.15.2 — 9 Oktober 2026
 
 **Perbaikan: peta tersimpan tidak muncul di dashboard (laporan yosi).** Peta yang disimpan dari dalam game lewat

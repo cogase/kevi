@@ -31,6 +31,7 @@ def _sidik_aset() -> str:
 
 
 ASET = _sidik_aset()
+DUNIA.aset = ASET
 
 
 @app.on_event("startup")

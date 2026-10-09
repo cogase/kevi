@@ -61,6 +61,7 @@ function buatEntitas(id, jenis, d) {
 function gantiTampilan(e, nama, tampilan) {
   e.nama = nama;
   e.look = penampilan({ session_id: 'kevi-' + e.id, nama, tampilan: tampilan || {} });
+  if (e === G.aku) Hud.potret();
 }
 
 function poseEntitas(e) {
@@ -452,6 +453,7 @@ const Jaring = {
     switch (m.t) {
       case 'halo':
         this.tersambung = true; Hud.sambungan(true);
+        this.versiServer = m.versi || ''; Versi.periksa(m.versi, m.aset);
         for (const [id, e] of G.entitas) if (e.jenis === 'pemain') G.entitas.delete(id);
         Npc.pasang(m.npc || []);
         G.titik = m.titik || []; if (m.atur) G.atur = m.atur;

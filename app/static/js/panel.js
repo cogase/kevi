@@ -190,18 +190,38 @@ const Hud = {
     b.firstElementChild.style.transform = 'scaleX(' + Math.max(0, Math.min(1, s.nilai / s.maks)).toFixed(3) + ')';      // transform, bukan width: tanpa tata letak ulang
     b.classList.toggle('lapar', s.nilai < s.maks * 0.25);
     b.title = `Stamina ${Math.round(s.nilai)} / ${s.maks} — turun karena kerja dan lama daring; makan untuk mengisinya`;
+    $('#hud-stamina-angka').textContent = Math.round(s.nilai) + '/' + s.maks;
   },
   health() {
-    const st = G.health, bagian = Math.round(st.nilai / G.level.stamina * 50);
-    if (bagian === this.staminaTerakhir && st.lelah === this.lelahTerakhir) return;
-    this.staminaTerakhir = bagian; this.lelahTerakhir = st.lelah;
+    const st = G.health, maks = G.level.stamina, nilai = Math.max(0, Math.round(st.nilai)), tanda = nilai + '/' + maks;
+    if (tanda === this.staminaTerakhir && st.lelah === this.lelahTerakhir) return;
+    this.staminaTerakhir = tanda; this.lelahTerakhir = st.lelah;
     const b = $('#hud-health');
-    b.firstElementChild.style.width = (bagian * 2) + '%';
+    b.firstElementChild.style.width = Math.min(100, nilai / maks * 100).toFixed(1) + '%';
+    $('#hud-health-angka').textContent = tanda;
     b.classList.toggle('lelah', st.lelah);
     b.classList.toggle('kopi', st.kopi > G.kini);
   },
-  pasang() {
+  // Wajah karakter di pojok kiri menu atas: kepala dipotong dari bingkai "hadap bawah, diam" lalu diperbesar tanpa haluskan.
+  potret() {
+    const kv = $('#hud-wajah');
+    if (!kv || !G.karakter || !atlas) return;
     $('#hud-nama').textContent = G.karakter.nama;
+    const b = bingkaiTokoh(penampilan({ session_id: 'hud', nama: G.karakter.nama, tampilan: G.karakter.tampilan || {} }), 'bawah_diam');
+    const k = kv.getContext('2d');
+    k.clearRect(0, 0, kv.width, kv.height);
+    if (!b) return;
+    const s = b.kanvas, px = s.getContext('2d').getImageData(0, 0, s.width, s.height).data;
+    let kiri = s.width, kanan = -1, atas = s.height;
+    for (let y = 0; y < s.height; y++) for (let x = 0; x < s.width; x++) if (px[(y * s.width + x) * 4 + 3] > 40) { if (x < kiri) kiri = x; if (x > kanan) kanan = x; if (y < atas) atas = y; }
+    if (kanan < 0) return;
+    const sisi = Math.min(kanan - kiri + 1, s.height - atas);
+    k.imageSmoothingEnabled = false;
+    k.drawImage(s, kiri, atas, sisi, sisi, 0, 0, kv.width, kv.height);
+  },
+  pasang() {
+    this.potret();
+    $('#hud-potret').addEventListener('click', (ev) => { ev.currentTarget.blur(); Profil.buka(); });
     aturKoin(G.koin);
     aturLevel(G.level, false);
     $('#hud-level').addEventListener('click', () => Panel.level());
@@ -509,7 +529,7 @@ const Buat = {
         hidup = false;
         if (pertama) { location.reload(); return; }
         G.karakter = d.karakter; gantiTampilan(G.aku, d.karakter.nama, d.karakter.tampilan);
-        $('#hud-nama').textContent = d.karakter.nama;
+        Hud.potret();
         Panel.tutup(); kabar('Karakter diperbarui.');
       } catch (e) { kabar(e.message, 'galat'); }
     };
